@@ -161,7 +161,7 @@
                       type="button" 
                       class="btn btn-primary" 
                       style="padding: 0.5rem 1.25rem; font-size: 0.85rem;"
-                      :disabled="!item.subjectId || !item.content || !item.answer || item.isSaving || isSavingAll"
+                      :disabled="item.isSaving || isSavingAll"
                       @click="saveSinglePendingItem(item)"
                     >
                       {{ item.isSaving ? '⏳ Đang lưu...' : '💾 Lưu riêng câu này' }}
@@ -203,7 +203,7 @@
             v-if="pendingItems.length > 0" 
             type="button" 
             class="btn btn-primary"
-            :disabled="!hasValidItemsToSave || isBusy"
+            :disabled="isBusy || pendingItems.length === 0"
             @click="saveAllPendingItems"
             style="background: linear-gradient(135deg, var(--primary) 0%, #8b5cf6 100%); padding: 0.65rem 1.5rem;"
           >
@@ -249,12 +249,10 @@ export default {
       return this.isSavingAll || this.pendingItems.some(item => item.isLoading || item.isSaving);
     },
     validItemsCount() {
-      return this.pendingItems.filter(item => 
-        !item.isLoading && 
-        !item.error && 
-        item.subjectId && 
-        item.content && 
-        item.answer
+      return this.pendingItems.filter(item =>
+        !item.isLoading &&
+        !item.error &&
+        this.isItemReadyToSave(item)
       ).length;
     },
     hasValidItemsToSave() {
@@ -262,6 +260,15 @@ export default {
     }
   },
   watch: {
+    subjects: {
+      handler() {
+        this.ensurePendingSubjects();
+      },
+      deep: true
+    },
+    defaultSubjectId() {
+      this.ensurePendingSubjects();
+    },
     isOpen(newVal) {
       if (!newVal) {
         this.clearAllQueue();
@@ -275,6 +282,29 @@ export default {
     this.removePasteListener();
   },
   methods: {
+    getDefaultSubjectId() {
+      return this.defaultSubjectId || this.subjects[0]?.id || '';
+    },
+    isItemReadyToSave(item) {
+      return Boolean(
+        item
+        && item.subjectId
+        && item.content
+        && item.content.trim()
+        && item.answer
+        && item.answer.trim()
+      );
+    },
+    ensurePendingSubjects() {
+      const fallbackSubjectId = this.getDefaultSubjectId();
+      if (!fallbackSubjectId) return;
+
+      this.pendingItems.forEach(item => {
+        if (!item.subjectId) {
+          item.subjectId = fallbackSubjectId;
+        }
+      });
+    },
     handleFileSelect(e) {
       const files = e.target.files;
       if (files && files.length > 0) {
@@ -302,7 +332,7 @@ export default {
           hasResult: false,
           isSaving: false,
           error: null,
-          subjectId: this.defaultSubjectId || '',
+          subjectId: this.getDefaultSubjectId(),
           content: '',
           answer: '',
           tagsInput: 'ocr'
@@ -321,6 +351,7 @@ export default {
         
         if (response.success && response.data) {
           const parsed = response.data.parsed || {};
+          targetItem.subjectId = targetItem.subjectId || this.getDefaultSubjectId();
           targetItem.content = parsed.content || response.data.text || '';
           targetItem.answer = parsed.answer || '';
           if (parsed.tags && parsed.tags.length > 0) {
@@ -340,7 +371,7 @@ export default {
     async saveSinglePendingItem(item) {
       const { toast } = useNotification();
       const targetItem = this.pendingItems.find(i => i.id === item.id) || item;
-      if (!targetItem.subjectId || !targetItem.content || !targetItem.answer) {
+      if (!this.isItemReadyToSave(targetItem)) {
         toast('Vui lòng điền đầy đủ thông tin Môn học, Nội dung câu hỏi và Đáp án trước khi lưu.', 'warning');
         return;
       }
@@ -378,12 +409,10 @@ export default {
     },
     async saveAllPendingItems() {
       const { toast } = useNotification();
-      const validItems = this.pendingItems.filter(item => 
-        !item.isLoading && 
-        !item.error && 
-        item.subjectId && 
-        item.content && 
-        item.answer
+      const validItems = this.pendingItems.filter(item =>
+        !item.isLoading &&
+        !item.error &&
+        this.isItemReadyToSave(item)
       );
 
       if (validItems.length === 0) {

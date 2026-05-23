@@ -3,12 +3,19 @@
     
     <!-- Sidebar bên trái (Trái tim của Dashboard) -->
     <aside class="sidebar">
-      <!-- Logo thương hiệu -->
+      <!-- Logo ứng dụng -->
       <div class="logo-section">
-        <div class="logo-icon">📚</div>
+        <div class="logo-icon" aria-hidden="true">
+          <svg viewBox="0 0 48 48" role="img" focusable="false">
+            <path d="M10 10.5A4.5 4.5 0 0 1 14.5 6H38v32.5H14.5A4.5 4.5 0 0 0 10 43V10.5Z" fill="currentColor" opacity="0.22" />
+            <path d="M14.5 6H38v32H14.5A4.5 4.5 0 0 0 10 42.5v-32A4.5 4.5 0 0 1 14.5 6Z" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M17 16h14M17 23h14M17 30h9" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" />
+            <path d="M33.5 32.5l2.2 2.2 5.3-6" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </div>
         <div class="logo-text">
-          <h2 style="font-size: 1.15rem; font-weight: 800; line-height: 1.1;">DEV Lỏ</h2>
-          <span style="font-size: 0.65rem; color: var(--text-muted); font-weight: 600; tracking-wide: yes;">ĐỀ CƯƠNG NỘI BỘ</span>
+          <h2 style="font-size: 1.15rem; font-weight: 800; line-height: 1.1;">Ngân Hàng Đề Cương</h2>
+          <span style="font-size: 0.65rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.08em;">CÂU HỎI & ĐÁP ÁN</span>
         </div>
       </div>
 

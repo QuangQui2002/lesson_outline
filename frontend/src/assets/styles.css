@@ -164,6 +164,11 @@ button, input, textarea, select {
   box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
 }
 
+.logo-icon svg {
+  width: 27px;
+  height: 27px;
+}
+
 .logo-text {
   font-size: 1.25rem;
   font-weight: 800;
@@ -748,6 +753,26 @@ textarea.form-control {
   background: var(--bg-main);
 }
 
+
+.question-modal-content {
+  min-height: 0;
+}
+
+.question-modal-form {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.question-modal-form .modal-body {
+  flex: 1;
+  min-height: 0;
+}
+
+.question-modal-form .modal-footer {
+  flex-shrink: 0;
+}
 /* OCR Image Dropzone area */
 .dropzone {
   border: 2px dashed var(--primary);
@@ -874,5 +899,188 @@ textarea.form-control {
   .search-wrapper {
     flex-direction: column;
     align-items: stretch;
+  }
+}
+
+@media (max-width: 640px) {
+  .sidebar {
+    padding: 1rem;
+  }
+
+  .logo-section {
+    margin-bottom: 1.25rem;
+  }
+
+  .logo-text h2 {
+    font-size: 1rem !important;
+  }
+
+  .logo-text span {
+    font-size: 0.58rem !important;
+  }
+
+  .subject-nav {
+    max-height: 180px !important;
+  }
+
+  .subject-name {
+    max-width: min(62vw, 230px);
+  }
+
+  .main-content {
+    padding: 1rem;
+  }
+
+  .top-bar {
+    margin-bottom: 1.5rem;
+  }
+
+  .page-title h1 {
+    font-size: 1.35rem;
+    line-height: 1.25;
+  }
+
+  .page-title p {
+    font-size: 0.82rem;
+  }
+
+  .action-buttons {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .btn {
+    width: 100%;
+    padding: 0.7rem 1rem;
+    font-size: 0.9rem;
+  }
+
+  .search-wrapper {
+    padding: 1rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .stat-card {
+    padding: 1rem;
+  }
+
+  .question-card {
+    padding: 1rem;
+    border-radius: var(--radius-md);
+  }
+
+  .question-card-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .question-actions {
+    justify-content: flex-end;
+  }
+
+  .question-content {
+    font-size: 0.95rem;
+  }
+
+  .question-answer-box {
+    padding: 0.85rem 1rem;
+    font-size: 0.9rem;
+  }
+
+  .question-date {
+    align-self: flex-start;
+  }
+
+  .empty-state {
+    padding: 3rem 1rem;
+  }
+
+  .modal-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .modal-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 94vh;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+
+  .modal-header {
+    padding: 1rem 1.25rem;
+  }
+
+  .modal-header h3 {
+    font-size: 1rem;
+    line-height: 1.35;
+  }
+
+  .modal-body {
+    padding: 1rem;
+  }
+
+  .modal-footer {
+    padding: 1rem;
+    flex-direction: column-reverse;
+  }
+
+  .dropzone {
+    padding: 2rem 1rem;
+  }
+
+  .ocr-preview-container {
+    grid-template-columns: 1fr !important;
+  }
+
+  .ocr-image-preview {
+    max-height: 220px;
+  }
+
+  .pending-card {
+    padding: 1rem !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .sidebar {
+    padding: 0.85rem;
+  }
+
+  .main-content {
+    padding: 0.85rem;
+  }
+
+  .logo-icon {
+    width: 38px;
+    height: 38px;
+  }
+
+  .logo-icon svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .add-subject-form {
+    flex-direction: column;
+  }
+
+  .subject-item {
+    padding: 0.75rem 0.85rem;
+  }
+
+  .page-title h1 {
+    font-size: 1.2rem;
+  }
+
+  .questions-header h2 {
+    font-size: 1.1rem;
   }
 }

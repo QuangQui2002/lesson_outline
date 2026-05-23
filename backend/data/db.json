@@ -7,7 +7,45 @@
     {
       "id": "sub_1779523306258",
       "name": "Thương Mại Điện Tử"
+    },
+    {
+      "id": "sub_1779527285825",
+      "name": "12312"
     }
   ],
-  "questions": []
+  "questions": [
+    {
+      "id": "q_1779534737632",
+      "subjectId": "sub_1779523306258",
+      "content": "Câu 4: 11điểm\nTính đến tháng 1/2021, dân số Việt Nam đạt mốc 978 triệu dân. Trong đó, có khoảng 68.17 triệu người đang sử dụng Internet\n(chiếm 70.3% dân số) thông qua các nền tảng, ứng dụng khác nhau, với thời lượng trung bình là 6 giờ 47 phút. Đây là thành\nphần nào trong mô hình SWOT?\nA. Điềm yếu\nB. Điểm mạnh\nC. Thách thức\n(@ D. Cohoi\n@ Đáp án chính xác",
+      "answer": "👉 C. Thách thức\n\n📖 Tham khảo: Bài 5, mục 5.2. Phân tích thị trường\nOD",
+      "tags": [
+        "ocr",
+        "tự động"
+      ],
+      "createdAt": "2026-05-23T11:12:17.632Z"
+    },
+    {
+      "id": "q_1779534737640",
+      "subjectId": "sub_1779523306258",
+      "content": "Câu 3: 11điểm\n(@ ^^. Nghiệm thu hoạt động kinh doanh\n@ Đáp án chính xác\nB. Lập kế hoạch kinh doanh\nC. Triển khai hoạt động kinh doanh\nD. Phát triển hoạt động kinh doanh",
+      "answer": "👉 Nghiệm thu hoạt động kinh doanh.",
+      "tags": [
+        "ocr",
+        "tự động"
+      ],
+      "createdAt": "2026-05-23T11:12:17.640Z"
+    },
+    {
+      "id": "q_1779534737662",
+      "subjectId": "sub_1779523295470",
+      "content": "A. Các nhà quản trị cấp chức năng\nB. Các nhà quản trị cấp vận hành\nC. Các nhà quan trị cấp kinh doanh\n(@ D. Các nhà quản trị cấp công ty\n@ Đáp án chính xác\nPhan hồi đáp án:",
+      "answer": "👉 C. Các nhà quan trị cấp kinh doanh\n\n💡 Giải thích:\nTheo sơ đồ các cấp độ chiến lược thì Cấp độ chiển lược công ty do các nhà quản trị cấp công ty thực hiện và chịu trách nhiệm.\nOD",
+      "tags": [
+        "ocr",
+        "tự động"
+      ],
+      "createdAt": "2026-05-23T11:12:17.662Z"
+    }
+  ]
 }

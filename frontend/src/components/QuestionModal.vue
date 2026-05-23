@@ -1,6 +1,6 @@
 <template>
   <div v-if="isOpen" class="modal-backdrop" @click.self="$emit('close')">
-    <div class="modal-content">
+    <div class="modal-content question-modal-content">
       
       <!-- Tiêu đề Modal -->
       <div class="modal-header">
@@ -9,7 +9,7 @@
       </div>
 
       <!-- Form nhập liệu -->
-      <form @submit.prevent="submitForm">
+      <form class="question-modal-form" @submit.prevent="submitForm">
         <div class="modal-body">
           
           <!-- Lựa chọn môn học -->
