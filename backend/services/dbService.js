@@ -8,7 +8,7 @@ const dbPath = path.join(__dirname, '../data/db.json');
 
 // Biến giữ hàng đợi ghi file tránh ghi đè đồng thời
 let writePromise = Promise.resolve();
-
+// test
 /**
  * Đọc dữ liệu từ file db.json
  * @returns {Promise<{subjects: Array, questions: Array}>}
