@@ -1,9 +1,11 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import subjectRoutes from './routes/subjectRoutes.js';
 import questionRoutes from './routes/questionRoutes.js';
 import ocrRoutes from './routes/ocrRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { getDbHealth } from './services/dbService.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -25,6 +27,17 @@ app.use('/api/questions', questionRoutes);
 app.use('/api/ocr', ocrRoutes);
 
 // Khai báo Route mặc định để kiểm tra trạng thái Server
+app.get('/api/health/db', async (req, res, next) => {
+  try {
+    const health = await getDbHealth();
+    res.status(health.connected ? 200 : 503).json({
+      success: health.connected,
+      data: health
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 app.get('/', (req, res) => {
   res.json({
     success: true,

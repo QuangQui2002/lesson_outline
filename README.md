@@ -85,3 +85,45 @@ d:\lesson_outline\
 ## 💡 Lưu ý khi quét ảnh OCR
 * Lần đầu tiên bạn sử dụng tính năng **Quét Ảnh OCR**, thư viện `tesseract.js` sẽ tự động tải 2 file ngôn ngữ `vie.traineddata` (Tiếng Việt) và `eng.traineddata` (Tiếng Anh) từ CDN toàn cầu về lưu trữ cục bộ để xử lý. Các lần quét tiếp theo sẽ diễn ra cực kỳ nhanh chóng mà không cần tải lại.
 * Để đạt độ chính xác cao nhất cho OCR, hãy đảm bảo ảnh tải lên rõ chữ, không bị nhòe và có góc xoay thẳng.
+
+## Lưu trữ dữ liệu bằng Supabase
+
+Production nên dùng Supabase thay cho `backend/data/db.json` để dữ liệu không mất khi Render/Vercel redeploy.
+
+### 1. Tạo bảng
+
+Vào Supabase Dashboard → SQL Editor → chạy nội dung file:
+
+```text
+backend/supabase/schema.sql
+```
+
+### 2. Cấu hình biến môi trường backend
+
+Local dev: copy file mẫu rồi điền key thật:
+
+```powershell
+Copy-Item backend/.env.example backend/.env
+```
+
+```env
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+```
+
+Render/Vercel: thêm cùng các biến trên trong Environment Variables của backend service.
+
+Không đưa `backend/.env` hoặc `SUPABASE_SERVICE_ROLE_KEY` vào frontend/GitHub.
+
+### 3. Import dữ liệu cũ từ JSON
+
+Chạy một lần ở máy local sau khi đã set env:
+
+```powershell
+cd backend
+$env:SUPABASE_URL="https://your-project.supabase.co"
+$env:SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
+npm run seed:supabase
+```
+
+Khi có `SUPABASE_URL` và `SUPABASE_SERVICE_ROLE_KEY`, backend tự đọc/ghi Supabase. Nếu thiếu env, backend fallback về `backend/data/db.json` cho local dev.
