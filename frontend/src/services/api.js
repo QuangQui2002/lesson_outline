@@ -2,8 +2,8 @@ import axios from 'axios';
 
 // Kết nối tới API của Express Backend chạy ở cổng 3000
 const apiClient = axios.create({
-  baseURL: 'http://localhost:3000/api',
-  // baseURL: 'https://lesson-outline.onrender.com/api',
+  // baseURL: 'http://localhost:3000/api',
+  baseURL: 'https://lesson-outline.onrender.com/api',
   headers: {
     'Content-Type': 'application/json'
   }
