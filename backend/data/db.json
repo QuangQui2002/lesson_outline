@@ -46,6 +46,610 @@
         "tự động"
       ],
       "createdAt": "2026-05-23T11:12:17.662Z"
+    },
+    {
+      "id": "q_1779552875449_0",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 1:\nTrong các cấp độ chiến lược kinh doanh thương mại điện tử, nhóm người nào sẽ chịu trách nhiệm về chiến lược công ty?\nA. Các nhà quản trị cấp chức năng\nB. Các nhà quản trị cấp vận hành\nC. Các nhà quản trị cấp kinh doanh\nD. Các nhà quản trị cấp công ty",
+      "answer": "Đáp án đúng là: Các nhà quản trị cấp công ty\nVì: Theo sơ đồ các cấp độ chiến lược thì Cấp độ chiến lược công ty do các nhà quản trị cấp công ty thực hiện và chịu trách nhiệm.\nTham khảo: Bài 5, mục 5.1. Chiến lược kinh doanh thương mại điện tử.",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-23T16:14:35.449Z",
+      "sourceId": 3112,
+      "sourceSlot": 1
+    },
+    {
+      "id": "q_1779552875449_1",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 2:\nPhilip Kotler là ai?\nA. Là người phát minh ra mô hình SWOT.\nB. Là người phát minh ra máy rút tiền tự động ATM phục vụ hoạt động thương mại điện tử.\nC. Là người nghiên cứu Marketing hiện đại.\nD. Là người phát minh ra mô hình PEST.",
+      "answer": "Đáp án đúng là: Là người nghiên cứu Marketing hiện đại.\nVì: Philip Kotler là người nghiên cứu Marketing hiện đại; ông là giáo sư Marketing nổi tiếng thế giới; được xem là huyền thoại duy nhất về marketing, ông tổ của tiếp thị hiện đại thế giới.\nTham khảo: Bài 5, mục 5.3. Marketing trực tuyến.",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-23T16:14:35.450Z",
+      "sourceId": 3108,
+      "sourceSlot": 2
+    },
+    {
+      "id": "q_1779552875449_2",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 3:\nBước nào sau đây KHÔNG phải là bước cơ bản trong chiến lược kinh doanh thương mại điện tử?\nA. Nghiệm thu hoạt động kinh doanh\nB. Lập kế hoạch kinh doanh\nC. Triển khai hoạt động kinh doanh\nD. Phát triển hoạt động kinh doanh",
+      "answer": "Đáp án đúng là: Nghiệm thu hoạt động kinh doanh.\nVì: Chiến lược kinh doanh thương mại điện tử cũng trải qua 3 bước cơ bản:\n- Lập kế hoạch kinh doanh\n- Triển khai hoạt động kinh doanh\n- Phát triển hoạt động kinh doanh\nTham khảo: Bài 5, mục 5.1. Chiến lược kinh doanh thương mại điện tử.",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-23T16:14:35.451Z",
+      "sourceId": 3103,
+      "sourceSlot": 3
+    },
+    {
+      "id": "q_1779552875449_3",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 4:\nTính đến tháng 1/2021, dân số Việt Nam đạt mốc 97.8 triệu dân. Trong đó, có khoảng 68.17 triệu người đang sử dụng Internet (chiếm 70.3% dân số) thông qua các nền tảng, ứng dụng khác nhau, với thời lượng trung bình là 6 giờ 47 phút. Đây là thành phần nào trong mô hình SWOT?\nA. Điểm yếu\nB. Điểm mạnh\nC. Thách thức\nD. Cơ hội",
+      "answer": "Đáp án đúng là: Cơ hội\nVì: Số lượng người Việt Nam sử dụng Internet cao sẽ là cơ hội cho các doanh nghiệp phát triển Thương mại điện tử.\nTham khảo: Bài 5, mục 5.2. Phân tích thị trường",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-23T16:14:35.452Z",
+      "sourceId": 3114,
+      "sourceSlot": 4
+    },
+    {
+      "id": "q_1779552875449_4",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 5:\nMô hình PEST là mô hình mô tả môi trường kinh doanh của doanh nghiệp gồm những yếu tố nào sau đây?\nA. Tài chính; Nhân sự; Quy trình kinh doanh; Công nghệ.\nB. Bằng phát minh sáng chế; Công nghệ; Thiết bị và Tài chính.\nC. Con người; Tài nguyên; Máy móc thiết bị và Vốn lưu động.\nD. Chính trị; Kinh tế; Xã hội và Công nghệ.",
+      "answer": "Đáp án đúng là: Chính trị; Kinh tế; Xã hội và Công nghệ.\nVì: PEST được hiểu là bản mô tả môi trường kinh doanh của doanh nghiệp và gồm 4 yếu tố:\nPolitical (chính trị)\nEconomic (kinh tế)\nSocial (xã hội)\nTechnological (công nghệ)\nTham khảo: Bài 5, mục 5.2. Phân tích thị trường",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-23T16:14:35.453Z",
+      "sourceId": 3118,
+      "sourceSlot": 5
+    },
+    {
+      "id": "q_1779552875449_5",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 6:\nPhilip Kotler đã định nghĩa Marketing trực tuyến là gì?\nA. Là quá trình quảng cáo sản phẩm dịch vụ đến với người tiêu dùng thông qua mạng Internet.\nB. Là quá trình quảng cáo sản phẩm dịch vụ đến với người tiêu dùng.\nC. Là quá trình quảng cáo sản phẩm dịch vụ đến với người tiêu dùng thông qua các thiết bị điện tử như máy tính, điện thoại…\nD. Là quá trình tạo lập kế hoạch về sản phẩm, giá, phân phối và xúc tiến đối với sản phẩm, dịch vụ.",
+      "answer": "Đáp án đúng là: Là quá trình tạo lập kế hoạch về sản phẩm, giá, phân phối và xúc tiến đối với sản phẩm, dịch vụ.\nVì: Theo Philip Kotler, marketing online là quá trình tạo lập kế hoạch về sản phẩm, giá, phân phối và xúc tiến đối với sản phẩm, dịch vụ và ý tưởng để đáp ứng nhu cầu của tổ chức và cá nhân dựa trên những phương tiện điện tử và Internet.\nTham khảo: Bài 5, mục 5.3. Marketing trực tuyến.",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-23T16:14:35.454Z",
+      "sourceId": 3109,
+      "sourceSlot": 6
+    },
+    {
+      "id": "q_1779552875449_6",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 7:\nChiến lược kinh doanh thương mại điện tử cũng trải qua bao nhiêu bước?\nA. 3\nB. 4\nC. 6\nD. 5",
+      "answer": "Đáp án đúng là: 3\nVì: Chiến lược kinh doanh thương mại điện tử cũng trải qua 3 bước cơ bản:\n- Lập kế hoạch kinh doanh\n- Triển khai hoạt động kinh doanh\n- Phát triển hoạt động kinh doanh\nTham khảo: Bài 5, mục 5.1. Chiến lược kinh doanh thương mại điện tử.",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-23T16:14:35.455Z",
+      "sourceId": 3102,
+      "sourceSlot": 7
+    },
+    {
+      "id": "q_1779552875449_7",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 8:\nCác loại hình Marketing sau, đâu loại hình nào thuộc lĩnh vực Marketing Online?\nA. Quảng cáo trên Tivi; Quảng cáo trên đài VOV; Quảng cáo bằng tin nhắn điện thoại SMS\nB. Quảng cáo qua Email; Quảng cáo qua mạng xã hội (Facebook; Zalo; Instagram…); Xây dựng website.\nC. Quảng cáo trên tạp chí, báo in giấy; Biển quảng cáo pano in bạt ngoài trời; Phát tờ rơi tại các ngã tư đường phố; Roadshow về các sự kiện khai trương, giới thiệu sản phẩm…\nD. Gọi điện thoại giới thiệu quảng bá và chào hàng; Quảng cáo kỹ thuật số (Led) dạng tấm lớn ngoài trời (Billboards)",
+      "answer": "Đáp án đúng là: Quảng cáo qua Email; Quảng cáo qua mạng xã hội (Facebook; Zalo; Instagram…); Xây dựng website.\nVì: Marketing online là quá trình tạo lập kế hoạch về sản phẩm, giá, phân phối và xúc tiến đối với sản phẩm, dịch vụ và ý tưởng để đáp ứng nhu cầu của tổ chức và cá nhân dựa trên những phương tiện điện tử và Internet.\nTham khảo: Bài 5, mục 5.3. Marketing trực tuyến.",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-23T16:14:35.456Z",
+      "sourceId": 3122,
+      "sourceSlot": 8
+    },
+    {
+      "id": "q_1779552875449_8",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 9:\nVới mô hình SWOT thì yếu tố nội bộ doanh nghiệp bao gồm:\nA. Điểm mạnh; Cơ hội\nB. Cơ hội; Thách thức\nC. Điểm yếu; Thách thức\nD. Điểm mạnh; Điểm yếu",
+      "answer": "Đáp án đúng là: Điểm mạnh; Điểm yếu\nVì: Strengths (Điểm mạnh), Weaknesses (Điểm yếu) là yếu tố nội bộ doanh nghiệp\nOpportunities (Cơ hội), Threats (Thách Thức) là các yếu tố bên ngoài (thị trường, xã hội, chính trị…)\nTham khảo: Bài 5, mục 5.2. Phân tích thị trường",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-23T16:14:35.457Z",
+      "sourceId": 11411,
+      "sourceSlot": 9
+    },
+    {
+      "id": "q_1779552875449_9",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 10:\nCác cấp độ chiến lược thương mại điện tử trong một công ty bao gồm:\nA. Chiến lược vận hành; Chiến lược cấp chức năng; Chiến lược cấp kinh doanh; Chiến lược công ty.\nB. Chiến lược nhân sự; Chiến lược tài chính; Chiến lược kinh doanh; Chiến lược quản lý.\nC. Chiến lược tác nghiệp; Chiến lược cấp chức năng; Chiến lược cao cấp.\nD. Chiến lược cấp thấp; Chiến lược cấp trung; Chiến lược cấp cao.",
+      "answer": "Đáp án đúng là: Chiến lược vận hành; Chiến lược cấp chức năng; Chiến lược cấp kinh doanh; Chiến lược công ty\nVì: Các cấp độ chiến lược thương mại điện tử trong một công ty bao gồm 4 cấp hình tháp:\n1. Chiến lược vận hành;\n2. Chiến lược cấp chức năng;\n3. Chiến lược cấp kinh doanh;\n4. Chiến lược công ty.\nTham khảo: Bài 5, mục 5.1. Chiến lược kinh doanh thương mại điện tử.",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-23T16:14:35.458Z",
+      "sourceId": 3111,
+      "sourceSlot": 10
+    },
+    {
+      "id": "q_1779552875449_10",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 11:\nTrong quá trình lập chiến lược thì \"Phân tích nội bộ doanh nghiệp\" thuộc bước thứ mấy?\nA. Bước 1\nB. Bước 3\nC. Bước 4\nD. Bước 2",
+      "answer": "Đáp án đúng là: Bước 3\nVì: Quá trình lập chiến lược gồm 4 bước:\n- Bước 1: Xác định hệ thống mục tiêu của doanh nghiệp.\n- Bước 2: Phân tích môi trường kinh doanh.\n- Bước 3: Phân tích nội bộ doanh nghiệp\n- Bước 4: Hình thành và lựa chọn chiến lược.\nTham khảo: Bài 5, mục 5.1. Chiến lược kinh doanh thương mại điện tử.",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-23T16:14:35.459Z",
+      "sourceId": 3106,
+      "sourceSlot": 11
+    },
+    {
+      "id": "q_1779552875449_11",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 12:\nPEST là viết tắt của 4 chữ tiếng Anh nào sau đây?\nA. Political; Economic; Social; Technological;\nB. People; Economic; Science; Technological;\nC. Personal; Economic; Science; Technological;\nD. People; Economic; Social; Technological;",
+      "answer": "Đáp án đúng là: Political; Economic; Social; Technological\nVì: PEST được hiểu là bản mô tả môi trường kinh doanh của doanh nghiệp và gồm 4 yếu tố:\nPolitical (chính trị)\nEconomic (kinh tế)\nSocial (xã hội)\nTechnological (công nghệ)\nTham khảo: Bài 5, mục 5.2. Phân tích thị trường",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-23T16:14:35.460Z",
+      "sourceId": 3117,
+      "sourceSlot": 12
+    },
+    {
+      "id": "q_1779552875449_12",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 13:\nGiai đoạn nào sau đây KHÔNG có trong chu trình lập kế hoạch chiến lược thương mại điện tử?\nA. Thực hiện chiến lược\nB. Đánh giá môi trường tác động đến chiến lược\nC. Phân tích môi trường bên trong/bên ngoài\nD. Xây dựng chiến lược",
+      "answer": "Đáp án đúng là: Đánh giá môi trường tác động đến chiến lược\nVì: Chu trình lập kế hoạch chiến lược gồm 4 giai đoạn:\n(1) Phân tích môi trường bên trong/bên ngoài\n(2) Xây dựng chiến lược\n(3) Thực hiện chiến lược\n(4) Đánh giá và chỉnh sửa chiến lược\nTham khảo: Bài 5, mục 5.1. Chiến lược kinh doanh thương mại điện tử.",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-23T16:14:35.461Z",
+      "sourceId": 3105,
+      "sourceSlot": 13
+    },
+    {
+      "id": "q_1779552875449_13",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 14:\nSâu máy tính (Worms) và Virus máy tính khác nhau ở điểm nào?\nA. Sâu máy tính thì thâm nhập vào file còn virus máy tính thì thâm nhập vào hệ thống.\nB. Virus máy tính thì thâm nhập vào file còn sâu máy tính thì thâm nhập vào hệ thống.\nC. Cả sâu máy tính và virus máy tính đều thâm nhập vào máy tính để lấy cắp dữ liệu, chỉ có điều sâu máy tính to hơn virus máy tính.\nD. Không khác nhau, hoàn toàn giống nhau vì đều có hại cho máy tính.",
+      "answer": "Đáp án đúng là: Virus máy tính thì thâm nhập vào file còn sâu máy tính thì thâm nhập vào hệ thống.\nVì: Virus là một chương trình máy tính có khả năng tự nhân bản và lan tỏa: chiếm tài nguyên, tốc độ xử lý máy tính chậm đi, có thể xóa file, format lại ổ cứng,...\nSâu máy tính (worms): sâu máy tính khác với virus ở chỗ sâu không thâm nhập vào file mà thâm nhập vào hệ thống.\nTham khảo: Bài 6, mục 6.1. Rủi ro trong thương mại điện tử.",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-23T16:14:35.462Z",
+      "sourceId": 3132,
+      "sourceSlot": 14
+    },
+    {
+      "id": "q_1779552875449_14",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 15:\nSQL Injection là gì?\nA. Là một kỹ thuật chỉnh sửa cho đúng câu lệnh SQL.\nB. Là một kỹ thuật lợi dụng những lỗ hổng về câu truy vấn, chèn thêm một đoạn SQL để làm sai lệnh đi câu truy vấn ban đầu.\nC. Là một kỹ thuật trợ giúp người viết câu lệnh SQL.\nD. Là một kỹ thuật xóa bỏ những câu lệnh SQL sai.",
+      "answer": "Đáp án đúng là: Là một kỹ thuật lợi dụng những lỗ hổng về câu truy vấn, chèn thêm một đoạn SQL để làm sai lệnh đi câu truy vấn ban đầu.\nVì: SQL Injection là một kỹ thuật lợi dụng những lỗ hổng về câu truy vấn của các ứng dụng. Được thực hiện bằng cách chèn thêm một đoạn SQL để làm sai lệnh đi câu truy vấn ban đầu, từ đó có thể khai thác dữ liệu từ database.\nTham khảo: Bài 6, mục 6.1. Rủi ro trong thương mại điện tử.",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-23T16:14:35.463Z",
+      "sourceId": 3136,
+      "sourceSlot": 15
+    },
+    {
+      "id": "q_1779552875449_15",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 16:\nTại ngân hàng phát hành thẻ tín dụng cho khách hàng (Customer Credit Card Bank) thường gặp rủi ro gì?\nA. Tin tặc lấy cắp danh sách khách hàng (Customer List Hack)\nB. Tin tặc tấn công từ chối dịch vụ (Denial of Service Attack).\nC. Tin tặc lợi dụng những lỗ hổng về câu truy vấn của các ứng dụng để đột nhập CSDL\nD. Tin tặc chèn thêm một đoạn SQL để làm sai lệnh đi câu truy vấn ban đầu, từ đó có thể khai thác dữ liệu từ database.",
+      "answer": "Đáp án đúng là: Tin tặc tấn công từ chối dịch vụ (Denial of Service Attack).\nVì: Tại Customer Credit Card Bank (Ngân hàng phát hành thẻ tín dụng cho khách hàng): Tin tặc lấy cắp thẻ tín dụng (card theft hacker); tấn công từ chối dịch vụ (Denial of Service Attack)\nTham khảo: Bài 6, mục 6.1. Rủi ro trong thương mại điện tử.",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-23T16:14:35.464Z",
+      "sourceId": 3134,
+      "sourceSlot": 16
+    },
+    {
+      "id": "q_1779552875449_16",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 17:\nLoại tấn công mạng bằng phần mềm do các chuyên gia có kiến thức hệ thống giỏi thực hiện được gọi là gì?\nA. Phân tán cuộc tấn công làm từ chối phục vụ\nB. Tấn công không kỹ thuật\nC. Tấn công làm từ chối phục vụ\nD. Tấn công kỹ thuật",
+      "answer": "Đáp án đúng là: Tấn công kỹ thuật.\nVì: Tấn công kỹ thuật là tấn công bằng phần mềm do các chuyên gia có kiến thức hệ thống giỏi thực hiện.\nTham khảo: Bài 6, mục 6.1. Rủi ro trong thương mại điện tử.",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-23T16:14:35.465Z",
+      "sourceId": 3127,
+      "sourceSlot": 17
+    },
+    {
+      "id": "q_1779552875449_17",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 18:\nLoại tấn công mạng bằng việc tìm cách lừa để lấy được thông tin nhạy cảm được gọi là gì?\nA. Tấn công phục vụ\nB. Tấn công trực diện\nC. Tấn công kỹ thuật\nD. Tấn công không kỹ thuật",
+      "answer": "Đáp án đúng là: Tấn công không kỹ thuật.\nVì: Tấn công không kỹ thuật là việc tìm cách lừa để lấy được thông tin nhạy cảm.\nTham khảo: Bài 6, mục 6.1. Rủi ro trong thương mại điện tử.",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-23T16:14:35.466Z",
+      "sourceId": 3128,
+      "sourceSlot": 18
+    },
+    {
+      "id": "q_1779552875449_18",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 19:\nCrackers nghĩa là gì?\nA. Crackers là các hành vi gian lận phức tạp hơn như bị đánh cắp thông tin liên quan đến thẻ hoặc thông tin giao dịch\nB. Crackers là người tìm cách bẻ khóa để xâm nhập trái phép vào máy tính hay các chương trình.\nC. Crackers là thuật ngữ để chỉ người lập trình tìm cách xâm nhập trái phép vào các máy tính và mạng máy tính.\nD. Crackers là kẻ gian lận thẻ tín dụng như lấy cắp thẻ tín dụng bị mất, đánh cắp các thông tin về số thẻ, mã PIN, các thông tin về khách hàng và sử dụng bất hợp pháp.",
+      "answer": "Đáp án đúng là: Crackers là người tìm cách bẻ khóa để xâm nhập trái phép vào máy tính hay các chương trình.\nVì: Theo khái niệm Crackers là người tìm cách bẻ khóa để xâm nhập trái phép vào máy tính hay các chương trình.\nTham khảo: Bài 6, mục 6.1. Rủi ro trong thương mại điện tử.",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-23T16:14:35.467Z",
+      "sourceId": 3125,
+      "sourceSlot": 19
+    },
+    {
+      "id": "q_1779552875449_19",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 20:\nNhững điểm nào sau đây có thể phát sinh rủi ro thương mại điện tử?\nA. Tại ngân hàng phát hành thẻ tín dụng cho khách hàng (Customer Credit Card Bank)\nB. Trên các phương tiện vận chuyển (Means of Transport)\nC. Tại kho hàng (Warehouse)\nD. Tại ngân hàng chấp nhận thanh toán (Merchant Bank)",
+      "answer": "Đáp án đúng là: Tại ngân hàng phát hành thẻ tín dụng cho khách hàng (Customer Credit Card Bank)\nVì: Các điểm có thể phát sinh rủi ro gồm:\n– Ngân hàng phát hành thẻ tín dụng cho khách hàng (Customer Credit Card Bank)\n– Kho online (Online Store)\n– CSDL máy chủ (Database Server)\n– Trên đường vận chuyển (Shipping)\nTham khảo: Bài 6, mục 6.1. Rủi ro trong thương mại điện tử.",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-23T16:14:35.468Z",
+      "sourceId": 3133,
+      "sourceSlot": 20
+    },
+    {
+      "id": "q_1779586214869",
+      "subjectId": "sub_1779523295470",
+      "content": "Câu 2: 11điềm\nPhilip Kotler là ai?\nA. Là người phát minh ra mô hình SWOT.\n(@ C. Là người nghiên cứu Marketing hiện đại.\n@ Đáp án chính xác\nD. Là người phát minh ra mô hình PEST.\nPhan hồi đáp án:",
+      "answer": "👉 A. Là người phát minh ra mô hình SWOT.\n\n💡 Giải thích:\nPhilip Kotler là người nghiên cứu Marketing hiện đại; ông là giáo sư Marketing nỗi tiếng thé giới; được xem là huyền thoại duy nhất về.\nmarketing, ông t của tiếp thị hiện đại thể giới.\n\n📖 Tham khảo: Bài 5, mục 5.3. Marketing trực tuyến.\nOD",
+      "tags": [
+        "ocr",
+        "tự động"
+      ],
+      "createdAt": "2026-05-24T01:30:14.869Z"
+    },
+    {
+      "id": "q_1779586531139",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 2: 11điềm\n(@ A. Là việc sản xuất, quảng cáo, bán hàng và phân phối sản phẩm được mua bán và thanh toán trên mạng Internet.\n@ Đáp án chính xác\n5. Lê các giao dịch thương mại liên quan đến các tổ chức và cá nhân dựa trên việc xử lý và truyền di các dữ kiện đã được số.\nˆ hóa thông qua các mạng mở.\nˆ truyền hình, mạng Internet, mạng Intranet, mạng Extranet.\nD. Là việc tiến hành các hoạt động mua bán hàng hóa và dich vụ thông qua các phương tiện điện tử và mạng viễn thong.\nPhan hồi đáp án:",
+      "answer": "👉 Là việc sản xuất, quảng cáo, bán hàng và phân phối sản phẩm được mua bán và thanh toán trên mạng Internet.",
+      "tags": [
+        "ocr",
+        "tự động"
+      ],
+      "createdAt": "2026-05-24T01:35:31.139Z"
+    },
+    {
+      "id": "q_1779586838965_0",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 1:\nKhái niệm Thương mại điện tử theo nghĩa rộng là gì?\nA. Là phương tiện điện tử và mạng viễn thông sử dụng phổ biến trong thương mại điện tử là điện thoại, ti vi, máy fax, mạng truyền hình, mạng Internet, mạng Intranet, mạng Extranet.\nB. Là việc tiến hành các hoạt động mua bán hàng hóa và dịch vụ thông qua các phương tiện điện tử và mạng viễn thông.\nC. Là các giao dịch thương mại liên quan đến các tổ chức và cá nhân dựa trên việc xử lý và truyền đi các dữ kiện đã được số hóa thông qua các mạng mở.\nD. Là việc mua bán hàng hóa và dịch vụ thông qua các phương tiện điện tử và các mạng viễn thông, đặc biệt là qua máy tính và mạng Internet.",
+      "answer": "Đáp án đúng là: Là các giao dịch thương mại liên quan đến các tổ chức và cá nhân dựa trên việc xử lý và truyền đi các dữ kiện đã được số hóa thông qua các mạng mở.\nVì: Theo OECD, Thương mại điện tử gồm các giao dịch thương mại liên quan đến các tổ chức và cá nhân dựa trên việc xử lý và truyền đi các dữ kiện đã được số hóa thông qua các mạng mở (như Internet) hoặc các mạng đóng có cổng thông với mạng mở.\nTham khảo: Bài 1, mục 1.1. Định nghĩa và đặc trưng của thương mại điện tử",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-24T01:40:38.965Z",
+      "sourceId": 3138,
+      "sourceSlot": 1
+    },
+    {
+      "id": "q_1779586838965_1",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 2:\nKhái niệm Thương mại điện tử theo định nghĩa của WTO là gì?\nA. Là việc sản xuất, quảng cáo, bán hàng và phân phối sản phẩm được mua bán và thanh toán trên mạng Internet.\nB. Là các giao dịch thương mại liên quan đến các tổ chức và cá nhân dựa trên việc xử lý và truyền đi các dữ kiện đã được số hóa thông qua các mạng mở.\nC. Là phương tiện điện tử và mạng viễn thông sử dụng phổ biến trong thương mại điện tử là điện thoại, ti vi, máy fax, mạng truyền hình, mạng Internet, mạng Intranet, mạng Extranet.\nD. Là việc tiến hành các hoạt động mua bán hàng hóa và dịch vụ thông qua các phương tiện điện tử và mạng viễn thông.",
+      "answer": "Đáp án đúng là: Là việc sản xuất, quảng cáo, bán hàng và phân phối sản phẩm được mua bán và thanh toán trên mạng Internet.\nVì: Theo WTO, Thương mại điện tử bao gồm việc sản xuất, quảng cáo, bán hàng và phân phối sản phẩm được mua bán và thanh toán trên mạng Internet, nhưng được giao nhận có thể hữu hình hoặc giao nhận qua Internet dưới dạng số hóa.\nTham khảo: Bài 1, mục 1.1. Định nghĩa và đặc trưng của thương mại điện tử",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-24T01:40:38.966Z",
+      "sourceId": 3139,
+      "sourceSlot": 2
+    },
+    {
+      "id": "q_1779586838965_2",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 3:\nThị trường trực tuyến là gì?\nA. Thị trường trực tuyến nơi mà người mua và người bán gặp nhau để trao đổi hàng hóa, dịch vụ, tiền, hoặc thông tin.\nB. Thị trường trực tuyến là thị trường trên mạng Internet.\nC. Thị trường trực tuyến là các website bán hàng.\nD. Thị trường trực tuyến là thị trường thương mại điện tử.",
+      "answer": "Đáp án đúng là: Thị trường trực tuyến nơi mà người mua và người bán gặp nhau để trao đổi hàng hóa, dịch vụ, tiền, hoặc thông tin.\nVì: Theo khái niệm thị trường trực tuyến (e-marketplace).\nTham khảo: Bài 1, mục 1.1. Định nghĩa và đặc trưng của thương mại điện tử",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-24T01:40:38.967Z",
+      "sourceId": 3141,
+      "sourceSlot": 3
+    },
+    {
+      "id": "q_1779586838965_3",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 4:\nKinh doanh điện tử (e_Business) là gì?\nA. Kinh doanh điện tử chính là thương mại điện tử.\nB. Kinh doanh điện tử là kinh doanh hàng điện tử như máy giặt, ti vi, điện thoại…\nC. Kinh doanh điện tử là kỹ thuật số cho phép tự động hóa các giao dịch và các quy trình trong doanh nghiệp, sử dụng hệ thống thông tin dưới sự kiểm soát của doanh nghiệp.\nD. Kinh doanh điện tử là tất cả các hoạt động diễn ra trên mạng Internet.",
+      "answer": "Đáp án đúng là: Kinh doanh điện tử là kỹ thuật số cho phép tự động hóa các giao dịch và các quy trình trong doanh nghiệp, sử dụng hệ thống thông tin dưới sự kiểm soát của doanh nghiệp.\nVì: Theo khái niệm kinh doanh điện tử.\nTham khảo: Bài 1, mục 1.1. Định nghĩa và đặc trưng của thương mại điện tử",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-24T01:40:38.968Z",
+      "sourceId": 3142,
+      "sourceSlot": 4
+    },
+    {
+      "id": "q_1779586838965_4",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 5:\nNhững nội dung gì của hợp đồng điện tử không khác với hợp đồng truyền thống?\nA. Quy định về thời gian, địa điểm của giao dịch\nB. Địa chỉ các bên liên quan\nC. Quy định về thời gian, địa điểm hình thành hợp đồng\nD. Quy định về các hình thức thanh toán điện tử",
+      "answer": "Đáp án đúng là: Địa chỉ các bên liên quan\nVì: Việc trao đổi thông tin, đàm phán về các điều khoản hợp đồng, giữa doanh nghiệp với doanh nghiệp hay giữa doanh nghiệp với khách hàng cá nhân chủ yếu qua email, diễn đàn, chat room chỉ có địa chỉ các bên liên quan là không thay đổi.\nTham khảo: Bài 1, mục 1.1. Định nghĩa và đặc trưng của thương mại điện tử",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-24T01:40:38.969Z",
+      "sourceId": 3144,
+      "sourceSlot": 5
+    },
+    {
+      "id": "q_1779586838965_5",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 6:\nCụm từ WTO là từ viết tắt của tổ chức nào sau đây?\nA. Tổ chức Thương mại điện tử Quốc tế\nB. Tổ chức Thương mại điện tử Việt Nam\nC. Tổ chức Thương mại Thế giới\nD. Tổ chức Thương mại Việt Nam",
+      "answer": "Đáp án đúng là: Tổ chức Thương mại Thế giới\nVì: WTO là từ viết tắt của (World Trade Organization – Tổ chức Thương mại Thế giới).\nTham khảo: Bài 1, mục 1.1. Định nghĩa và đặc trưng của thương mại điện tử",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-24T01:40:38.970Z",
+      "sourceId": 3145,
+      "sourceSlot": 6
+    },
+    {
+      "id": "q_1779586838965_6",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 7:\nHệ thống thông tin trong nội bộ doanh nghiệp là gì?\nA. Là hệ thống giao dịch cho phép các hoạt động thương mại điện tử thực hiện được trong phạm vi một doanh nghiệp.\nB. Là hệ thống giao dịch cho phép các hoạt động thương mại điện tử thực hiện được giao thương giữa các tổ chức với nhau.\nC. Là hệ thống nơi mà người mua và người bán gặp nhau để trao đổi hàng hóa, dịch vụ, tiền, hoặc thông tin.\nD. Là hệ thống phần cứng phần mềm trong nội bộ doanh nghiệp.",
+      "answer": "Đáp án đúng là: hệ thống giao dịch cho phép các hoạt động thương mại điện tử thực hiện được trong phạm vi một doanh nghiệp.\nVì: Theo khái niệm hệ thống thông tin trong nội bộ doanh nghiệp.\nTham khảo: Bài 1, mục 1.1. Định nghĩa và đặc trưng của thương mại điện tử",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-24T01:40:38.971Z",
+      "sourceId": 3147,
+      "sourceSlot": 7
+    },
+    {
+      "id": "q_1779586838965_7",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 8:\nHệ thống thông tin giữa các doanh nghiệp là gì?\nA. Là nơi mà các doanh nghiệp gặp nhau để trao đổi hàng hóa.\nB. Là hệ thống giao dịch cho phép quy trình giao dịch đơn thuần và thông tin giữa 2 hoặc nhiều tổ chức.\nC. Là hệ thống nơi mà người mua và người bán gặp nhau để trao đổi hàng hóa, dịch vụ, tiền, hoặc thông tin.\nD. Là hệ thống giao dịch cho phép các hoạt động thương mại điện tử thực hiện được trong phạm vi một doanh nghiệp",
+      "answer": "Đáp án đúng là: Là hệ thống giao dịch cho phép quy trình giao dịch đơn thuần và thông tin giữa 2 hoặc nhiều tổ chức.\nVì: Theo khái niệm hệ thống thông tin giữa các doanh nghiệp (Interorganizational Information Systems - IOSs).\nTham khảo: Bài 1, mục 1.1. Định nghĩa và đặc trưng của thương mại điện tử",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-24T01:40:38.972Z",
+      "sourceId": 3148,
+      "sourceSlot": 8
+    },
+    {
+      "id": "q_1779586838965_8",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 9:\nGiai đoạn 1:\n- Mua máy tính, email, lập website\n- Giao dịch với khách hàng, nhà cung cấp bằng email\n- Tìm kiếm thông tin trên web\n- Quảng bá doanh nghiệp trên web\n- Hỗ trợ khách hàng về sản phẩm, dịch vụ.\nĐây là giai đoạn 1 của quá trình phát triển hình thức nào sau đây?\nA. Thương mại điện tử; Kinh doanh điện tử.\nB. Thương mại điện tử; Thiết kế điện tử\nC. Thương mại điện tử\nD. Kinh doanh điện tử",
+      "answer": "Đáp án đúng là: Kinh doanh điện tử\nVì: Quá trình phát triển của kinh doanh điện tử gồm 3 giai đoạn (1, 2, 3), trong đó:\nGiai đoạn 1:\n- Mua máy tính, email, lập website\n- Giao dịch với khách hàng, nhà cung cấp bằng email\n- Tìm kiếm thông tin trên web\n- Quảng bá doanh nghiệp trên web\n- Hỗ trợ khách hàng về sản phẩm, dịch vụ.\nTham khảo: Bài 1, mục 1.1. Định nghĩa và đặc trưng của thương mại điện tử",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-24T01:40:38.973Z",
+      "sourceId": 3150,
+      "sourceSlot": 9
+    },
+    {
+      "id": "q_1779586838965_9",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 10:\nĐể phát triển thương mại điện tử cần những điều kiện nào sau đây?\nA. Cơ sở pháp lý; Hạ tầng công nghệ; Hệ thống thanh toán; Hệ thống bảo mật.\nB. Hệ thống giáo dục; Hệ thống giao thông đường bộ; Hệ thống máy móc thiết bị\nC. Chỉ cần phát triển mạng internet.\nD. Cần phát triển ngành công nghệ thông tin và internet.",
+      "answer": "Đáp án đúng là: Cơ sở pháp lý; Hạ tầng công nghệ; Hệ thống thanh toán; Hệ thống bảo mật.\nVì: Điều kiện để phát triển thương mại điện tử:\n- Xây dựng và hoàn thiện cơ sở pháp lý và chính sách\n- Phát triển hạ tầng công nghệ thông tin và truyền thông\n- Chính sách về phát triển nguồn nhân lực và Đào tạo nhân lực cho thương mại điện tử\n- Xây dựng hệ thống bảo mật cho thương mại điện tử\n- Xây dựng hệ thống thanh toán điện tử\n- Xây dựng chiến lược và mô hình kinh doanh\nTham khảo: Bài 1; mục 1.5. Điều kiện để phát triển thương mại điện tử",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-24T01:40:38.974Z",
+      "sourceId": 3152,
+      "sourceSlot": 10
+    },
+    {
+      "id": "q_1779586838965_10",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 11:\nNền tảng cơ sở hạ tầng kinh tế xã hội là gì?\nA. Là toàn bộ nền kinh tế xã hội quốc tế.\nB. Là toàn bộ các nhân tố, các điều kiện cơ bản về kinh tế - xã hội nhằm tạo ra một môi trường cho sự hình thành và phát triển của thương mại điện tử.\nC. Là toàn bộ nền kinh tế xã hội quốc gia.\nD. Là những hoạt động giao dịch giữa người mua và người bán.",
+      "answer": "Đáp án đúng là: Là toàn bộ các nhân tố, các điều kiện cơ bản về kinh tế - xã hội nhằm tạo ra một môi trường cho sự hình thành và phát triển của thương mại điện tử.\nVì: Hạ tầng cơ sở của thương mại điện tử là tổng hòa nhiều vấn đề có liên quan đến nhiều lĩnh vực của nền kinh tế quốc dân, trong đó hạ tầng cơ sở kinh tế xã hội có vai trò đặc biệt quan trọng cho sự phát triển của thương mại điện tử. Nó được hiểu là toàn bộ các nhân tố, các điều kiện cơ bản về kinh tế - xã hội nhằm tạo ra một môi trường cho sự hình thành và phát triển của thương mại điện tử.\nTham khảo: Bài 2, mục 2.1. Tổng quan về cơ sở hạ tầng của thương mại điện tử.",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-24T01:40:38.975Z",
+      "sourceId": 3163,
+      "sourceSlot": 11
+    },
+    {
+      "id": "q_1779586838965_11",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 12:\nLuật mẫu về thương mại điện tử (Model Law on Electronic Commerce) được ban hành năm nào?\nA. 1995\nB. 1996\nC. 1997\nD. 1998",
+      "answer": "Đáp án đúng là: 1996\nVì: Luật mẫu về Thương mại điện tử được UNCITRAL ban hành vào ngày 12/06/1996\nTham khảo: Bài 2, mục 2.1. Tổng quan về cơ sở hạ tầng của thương mại điện tử.",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-24T01:40:38.976Z",
+      "sourceId": 3164,
+      "sourceSlot": 12
+    },
+    {
+      "id": "q_1779586838965_12",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 13:\nLuật mẫu về Thương mại điện tử gồm bao nhiêu điều khoản?\nA. 15\nB. 17\nC. 23\nD. 32",
+      "answer": "Đáp án đúng là: 17\nVì: Luật mẫu được chia làm hai phần với 17 điều khoản, gồm 2 phần và 17 chương.\nTham khảo: Bài 2, mục 2.1. Tổng quan về cơ sở hạ tầng của thương mại điện tử.",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-24T01:40:38.977Z",
+      "sourceId": 3166,
+      "sourceSlot": 13
+    },
+    {
+      "id": "q_1779586838965_13",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 14:\nLuật thống nhất về giao dịch điện tử của Mỹ gồm bao nhiêu điều khoản?\nA. 20\nB. 21\nC. 22\nD. 23",
+      "answer": "Đáp án đúng là: 21\nVì: Luật thống nhất về giao dịch điện tử của Mỹ (UETA) gồm có 21 điều khoản điều chỉnh các vấn đề về bản ghi điện tử và chữ ký điện tử; hợp đồng điện tử, trọng tài; bản gốc; thời gian nhận gửi các các bản ghi điện tử; vai trò của cơ quan chính phủ trong việc chấp nhận hay cấm.\nTham khảo: Bài 2, mục 2.1. Tổng quan về cơ sở hạ tầng của thương mại điện tử.",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-24T01:40:38.978Z",
+      "sourceId": 3167,
+      "sourceSlot": 14
+    },
+    {
+      "id": "q_1779586838965_14",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 15:\nMạng LAN kết nối các máy tính trong phạm vi như thế nào?\nA. Trên phạm vi toàn thế giới\nB. Trong phạm vi một châu lục\nC. Trong phạm vi một quốc gia\nD. Trong một khu vực nhỏ như phòng làm việc.",
+      "answer": "Đáp án đúng là: Trong một khu vực nhỏ như phòng làm việc.\nVì: Mạng LAN (Local Area Network- Mạng nội bộ) là một nhóm máy tính và các thiết bị truyền thông mạng được kết nối với nhau trong một khu vực nhỏ như phòng làm việc, phòng máy tính, một tòa cao ốc, khuôn viên trường đại học…\nTham khảo: Bài 2, mục 2.2. Hạ tầng công nghệ của thương mại điện tử.",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-24T01:40:38.979Z",
+      "sourceId": 3170,
+      "sourceSlot": 15
+    },
+    {
+      "id": "q_1779586838965_15",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 16:\nMạng LAN có những kiểu kiến trúc nào sau đây?\nA. Thẳng; Ngang; Dọc\nB. Sao; Vòng; Tuyến\nC. Ngang; Dọc; Chéo\nD. Tròn; Vuông; Tam giác",
+      "answer": "Đáp án đúng là: Sao; Vòng; Tuyến\nVì: Mạng LAN (Local Area Network - Mạng nội bộ) là một nhóm máy tính và các thiết bị truyền thông mạng được kết nối với nhau theo theo các kiểu kiến trúc Sao (Star); Vòng (Ring) hoặc Tuyến (Bus)\nTham khảo: Bài 2, mục 2.2. Hạ tầng công nghệ của thương mại điện tử.",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-24T01:40:38.980Z",
+      "sourceId": 3171,
+      "sourceSlot": 16
+    },
+    {
+      "id": "q_1779586838965_16",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 17:\nĐể phát triển thương mại điện tử thì hạ tầng kinh tế xã hội phải được phát triển một cách đồng bộ, những vấn đề nào sau đây cần được giải quyết?\nA. Hệ thống máy tính, mạng máy tính và mạng Internet.\nB. Hệ thống mạng Internet; Intranet; Extranet.\nC. Hệ thống mã vạch quốc gia; Mức sống người dân; Hệ thống thanh toán tài chính tự động.\nD. Hệ thống giám sát an ninh.",
+      "answer": "Đáp án đúng là: Hệ thống mã vạch quốc gia; Mức sống người dân; Hệ thống thanh toán tài chính tự động.\nVì: Để phát triển thương mại điện tử thì hạ tầng kinh tế xã hội phải được phát triển một cách đồng bộ. Trong đó các vấn đề sau đây cần được giải quyết như:\n- Hệ thống mã vạch quốc gia\n- Mức sống của người dân\n- Hệ thống thanh toán tài chính tự động\nTham khảo: Bài 2, mục 2.1. Tổng quan về cơ sở hạ tầng của thương mại điện tử.",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-24T01:40:38.981Z",
+      "sourceId": 3172,
+      "sourceSlot": 17
+    },
+    {
+      "id": "q_1779586838965_17",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 18:\nCụm từ WIPO là viết tắt của tổ chức nào sau đây?\nA. Tổ chức Liên hiệp quốc về Luật thương mại quốc tế\nB. Tổ chức Sở hữu Trí tuệ Thế giới\nC. Tổ chức Liên hiệp quốc về Thương mại quốc tế\nD. Tổ chức sở hữu thương mại thế giới",
+      "answer": "Đáp án đúng là: Tổ chức Sở hữu Trí tuệ Thế giới\nVì: Cụm từ WIPO viết tắt của World Intellectual Property Organization - Tổ chức Sở hữu Trí tuệ Thế giới.\nTham khảo: Bài 2, mục 2.1. Tổng quan về cơ sở hạ tầng của thương mại điện tử.",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-24T01:40:38.982Z",
+      "sourceId": 3173,
+      "sourceSlot": 18
+    },
+    {
+      "id": "q_1779586838965_18",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 19:\nLuật mẫu về Thương mại điện tử gồm bao nhiêu phần, bao nhiêu chương?\nA. Gồm 3 phần và 27 chương\nB. Gồm 4 phần và 17 chương\nC. Gồm 2 phần và 17 chương\nD. Gồm 2 phần và 27 chương",
+      "answer": "Đáp án đúng là: Gồm 2 phần và 17 chương.\nVì: Luật mẫu được chia làm hai phần với 17 điều khoản, gồm 2 phần và 17 chương.\nTham khảo: Bài 2, mục 2.1. Tổng quan về cơ sở hạ tầng của thương mại điện tử.",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-24T01:40:38.983Z",
+      "sourceId": 3175,
+      "sourceSlot": 19
+    },
+    {
+      "id": "q_1779586838965_19",
+      "subjectId": "sub_1779527285825",
+      "content": "Câu 20:\nViệt Nam thừa nhận chứng từ điện tử có giá trị pháp lý tương đương với chứng từ truyền thống trong việc giao kết, thực hiện hợp đồng trong văn bản pháp lý nào?\nA. Luật Giao dịch điện tử năm 2005\nB. Nghị định số 57/2006/NĐ-CP\nC. Nghị định số 27/2007/NĐ-CP\nD. Nghị định số 35/2007/NĐ-CP",
+      "answer": "Đáp án đúng là: Nghị định số 57/2006/NĐ-CP\nVì: Nghị định số 57/2006/NĐ-CP vào ngày 9/6/2006 thừa nhận chứng từ điện tử có giá trị pháp lý tương đương với chứng từ truyền thống trong việc giao kết, thực hiện hợp đồng.\nTham khảo: Bài 2, mục 2.1. Tổng quan về cơ sở hạ tầng của thương mại điện tử.",
+      "tags": [
+        "json",
+        "import",
+        "singlechoice"
+      ],
+      "createdAt": "2026-05-24T01:40:38.984Z",
+      "sourceId": 3176,
+      "sourceSlot": 20
+    },
+    {
+      "id": "q_1779586992827",
+      "subjectId": "sub_1779527285825",
+      "content": "` truyền hình, mạng Internet, mạng Intranet, mạng Extranet.\nB. Là việc tiến hành các hoạt động mua bán hàng hóa và dịch vụ thông qua các phương tiện điện tử và mạng viễn thông.\n(, Là các giao dịch thương mại lien quan đến các tổ chức và cá nhân dựa trên việc xử lý và truyền di các dữ kiện đã được số\n® ©: hóa thông qua các mạng me.\n@ Đáp án chính xác\np, Là việc mua bán hàng hóa và dịch vụ thông qua các phương tiện điện tử và các mạng viễn thông, đặc biệt là qua máy tính\n\"va mạng Internet.\nPhan hồi đáp án:",
+      "answer": "👉 B. Là việc tiến hành các hoạt động mua bán hàng hóa và dịch vụ thông qua các phương tiện điện tử và mạng viễn thông.",
+      "tags": [
+        "ocr",
+        "tự động"
+      ],
+      "createdAt": "2026-05-24T01:43:12.827Z"
+    },
+    {
+      "id": "q_1779587172262",
+      "subjectId": "sub_1779523295470",
+      "content": "Câu 3: 11điềm\nThị trường trực tuyển là gì?\n@ A. Thị trường trực tuyến nơi mà người mua và người bán gặp nhau đề trao đổi hàng hóa, dịch vụ, tiền, hoặc thông tin.\n@ Đáp án chính xác\nB. Thị trưởng trực tuyển là thị trường trên mạng Internet.\nC. Thị trường trực tuyến là các website bán hàng.\nPhan hồi đáp án:",
+      "answer": "👉 Thị trường trực tuyển nơi mà người mua và người bán gặp nhau dé trao đổi hàng hóa, dich vụ, tiền, hoặc thông tin.\n\n💡 Giải thích:\nTheo khái niệm thị trường trực tuyển (e-marketplace).",
+      "tags": [
+        "ocr",
+        "tự động"
+      ],
+      "createdAt": "2026-05-24T01:46:12.262Z"
     }
   ]
 }

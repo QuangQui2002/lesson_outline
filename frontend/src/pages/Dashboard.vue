@@ -2,6 +2,7 @@
   <DefaultLayout 
     @open-ocr="openOcrModal"
     @open-add="openAddQuestionModal"
+    @import-json="triggerJsonImport"
   >
     <!-- Slot danh sách môn học cho Sidebar -->
     <template #sidebar>
@@ -18,8 +19,51 @@
 
     <!-- Nội dung chính: Thống kê & Ô tìm kiếm & Danh sách câu hỏi -->
     <div>
-      
+      <input
+        ref="jsonImportInput"
+        type="file"
+        accept="application/json,.json"
+        style="display: none;"
+        @change="handleJsonImportFile"
+      />
 
+      <!-- Modal Import JSON -->
+      <div v-if="isJsonImportModalOpen" class="modal-backdrop" @click.self="closeJsonImportModal">
+        <div class="modal-content json-import-modal-content">
+          <div class="modal-header">
+            <h3>Import Câu Hỏi Từ JSON</h3>
+            <button class="close-btn" @click="closeJsonImportModal">&times;</button>
+          </div>
+
+          <div class="modal-body">
+            <div class="import-json-actions">
+              <button type="button" class="btn btn-secondary" @click="chooseJsonFile">📁 Chọn file JSON</button>
+              <span style="font-size: 0.85rem; color: var(--text-muted);">hoặc dán JSON trực tiếp bên dưới</span>
+            </div>
+
+            <div class="form-group">
+              <label for="jsonImportTextarea">Nội dung JSON</label>
+              <textarea
+                id="jsonImportTextarea"
+                v-model="jsonImportText"
+                class="form-control json-import-textarea"
+                placeholder='{ "questions": [ { "questiontext": "...", "answertext": [], "generalfeedback": "..." } ] }'
+              ></textarea>
+            </div>
+
+            <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.5;">
+              JSON cần có mảng <code>questions</code>. Mỗi câu hỏi sẽ lấy <code>questiontext</code>, các <code>answertext[].answer</code> và <code>generalfeedback</code>.
+            </p>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" @click="closeJsonImportModal">Hủy Bỏ</button>
+            <button type="button" class="btn btn-primary" :disabled="isImportingJson" @click="importJsonFromText">
+              {{ isImportingJson ? '⏳ Đang import...' : 'Import JSON' }}
+            </button>
+          </div>
+        </div>
+      </div>
 
       <!-- Thanh tìm kiếm thời gian thực -->
       <section class="search-wrapper">
@@ -101,6 +145,9 @@ export default {
       isLoading: false,
       isQuestionModalOpen: false,
       isOcrModalOpen: false,
+      isJsonImportModalOpen: false,
+      isImportingJson: false,
+      jsonImportText: '',
       editingQuestion: null
     };
   },
@@ -204,6 +251,67 @@ export default {
         }
       } catch (error) {
         toast('Có lỗi xảy ra khi xóa môn học.', 'error');
+      }
+    },
+    triggerJsonImport() {
+      const { toast } = useNotification();
+      if (!this.activeSubjectId) {
+        toast('Vui lòng chọn một môn học ở sidebar trước khi import JSON.', 'warning');
+        return;
+      }
+      this.isJsonImportModalOpen = true;
+    },
+    closeJsonImportModal() {
+      if (this.isImportingJson) return;
+      this.isJsonImportModalOpen = false;
+      this.jsonImportText = '';
+    },
+    chooseJsonFile() {
+      this.$refs.jsonImportInput && this.$refs.jsonImportInput.click();
+    },
+    async handleJsonImportFile(event) {
+      const { toast } = useNotification();
+      const file = event.target.files?.[0];
+      event.target.value = '';
+      if (!file) return;
+
+      try {
+        this.jsonImportText = await file.text();
+        await this.importJsonFromText();
+      } catch (error) {
+        toast('Không thể đọc file JSON.', 'error');
+      }
+    },
+    async importJsonFromText() {
+      const { toast } = useNotification();
+      if (!this.jsonImportText.trim()) {
+        toast('Vui lòng chọn file JSON hoặc dán nội dung JSON trước khi import.', 'warning');
+        return;
+      }
+
+      this.isImportingJson = true;
+      try {
+        const importData = JSON.parse(this.jsonImportText);
+        const response = await api.importQuestions(this.activeSubjectId, importData);
+
+        if (response.success) {
+          const importedCount = response.data?.importedCount || 0;
+          const skippedCount = response.data?.skippedCount || 0;
+          await Promise.all([
+            this.loadAllQuestionsCount(),
+            this.loadQuestions()
+          ]);
+          const skippedMessage = skippedCount ? `, bỏ qua ${skippedCount} câu không hợp lệ` : '';
+          toast(`Import thành công ${importedCount} câu hỏi${skippedMessage}.`, 'success');
+          this.closeJsonImportModal();
+        }
+      } catch (error) {
+        const message = error instanceof SyntaxError
+          ? 'JSON không đúng định dạng. Vui lòng kiểm tra lại dấu ngoặc, dấu phẩy và cấu trúc questions.'
+          : error.response?.data?.message || 'Không thể import JSON.';
+        toast(message, 'error');
+      } finally {
+        this.isImportingJson = false;
       }
     },
     async handleSaveQuestion(questionData) {

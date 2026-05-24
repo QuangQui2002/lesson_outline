@@ -754,6 +754,24 @@ textarea.form-control {
 }
 
 
+
+.json-import-modal-content {
+  max-width: 760px;
+}
+
+.import-json-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.json-import-textarea {
+  min-height: 320px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
 .question-modal-content {
   min-height: 0;
 }

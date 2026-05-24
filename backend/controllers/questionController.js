@@ -1,4 +1,130 @@
 import { readDb, writeDb } from '../services/dbService.js';
+function stripHtml(html = '') {
+  return String(html)
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+
+const DUPLICATE_SIMILARITY_THRESHOLD = 0.8;
+
+function normalizeQuestionForCompare(content = '') {
+  return String(content)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase()
+    .replace(/^\s*cau\s*\d+\s*[:\.\-\)]?/i, '')
+    .replace(/\b\d+\s*\/\s*\d+\s*(diem|point|points)\b/gi, '')
+    .replace(/[^a-z0-9]+/g, '')
+    .trim();
+}
+
+function levenshteinDistance(a, b) {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+
+  const previousRow = Array.from({ length: b.length + 1 }, (_, index) => index);
+  const currentRow = new Array(b.length + 1);
+
+  for (let i = 1; i <= a.length; i++) {
+    currentRow[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const insertCost = currentRow[j - 1] + 1;
+      const deleteCost = previousRow[j] + 1;
+      const replaceCost = previousRow[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1);
+      currentRow[j] = Math.min(insertCost, deleteCost, replaceCost);
+    }
+    previousRow.splice(0, previousRow.length, ...currentRow);
+  }
+
+  return previousRow[b.length];
+}
+
+function calculateQuestionSimilarity(contentA, contentB) {
+  const normalizedA = normalizeQuestionForCompare(contentA);
+  const normalizedB = normalizeQuestionForCompare(contentB);
+  if (!normalizedA || !normalizedB) return 0;
+  if (normalizedA === normalizedB) return 1;
+
+  const maxLength = Math.max(normalizedA.length, normalizedB.length);
+  const distance = levenshteinDistance(normalizedA, normalizedB);
+  return 1 - distance / maxLength;
+}
+
+function findSimilarQuestion(content, questions, excludeId = null) {
+  let bestMatch = null;
+
+  for (const question of questions) {
+    if (excludeId && question.id === excludeId) continue;
+    const similarity = calculateQuestionSimilarity(content, question.content || '');
+    if (similarity >= DUPLICATE_SIMILARITY_THRESHOLD && (!bestMatch || similarity > bestMatch.similarity)) {
+      bestMatch = {
+        id: question.id,
+        content: question.content,
+        similarity
+      };
+    }
+  }
+
+  return bestMatch;
+}
+function getQuestionArray(importPayload) {
+  if (Array.isArray(importPayload)) return importPayload;
+  if (Array.isArray(importPayload?.questions)) return importPayload.questions;
+  if (Array.isArray(importPayload?.data?.questions)) return importPayload.data.questions;
+  return [];
+}
+
+function normalizeImportedQuestion(sourceQuestion, index) {
+  const questionText = stripHtml(sourceQuestion.questiontext || sourceQuestion.questionText || sourceQuestion.content || '');
+  const answers = Array.isArray(sourceQuestion.answertext) ? sourceQuestion.answertext : [];
+  const optionLines = answers
+    .map((answer, answerIndex) => {
+      const letter = String.fromCharCode(65 + answerIndex);
+      return `${letter}. ${stripHtml(answer.answer || answer.text || '')}`.trim();
+    })
+    .filter(line => line.replace(/^[A-Z]\.\s*/, '').trim() !== '');
+
+  const contentParts = [];
+  contentParts.push(sourceQuestion.slot !== undefined && sourceQuestion.slot !== null ? `Câu ${sourceQuestion.slot}:` : `Câu ${index + 1}:`);
+  contentParts.push(questionText);
+  if (optionLines.length > 0) contentParts.push(optionLines.join('\n'));
+
+  const correctAnswers = answers
+    .filter(answer => answer.iscorrect === true || Number(answer.fraction) > 0)
+    .map(answer => stripHtml(answer.answer || answer.text || ''))
+    .filter(Boolean);
+
+  const generalFeedback = stripHtml(sourceQuestion.generalfeedback || sourceQuestion.generalFeedback || '');
+  const rightAnswer = stripHtml(sourceQuestion.rightanswer || sourceQuestion.rightAnswer || '');
+  const answerParts = [];
+
+  if (generalFeedback) {
+    answerParts.push(generalFeedback);
+  } else if (rightAnswer) {
+    answerParts.push(`Đáp án đúng là: ${rightAnswer}`);
+  } else if (correctAnswers.length > 0) {
+    answerParts.push(`Đáp án đúng là: ${correctAnswers.join('; ')}`);
+  }
+
+  return {
+    content: contentParts.filter(Boolean).join('\n').trim(),
+    answer: answerParts.join('\n\n').trim(),
+    tags: ['json', 'import', sourceQuestion.type || 'question'].filter(Boolean)
+  };
+}
 
 /**
  * Lấy danh sách câu hỏi (hỗ trợ lọc theo subjectId và tìm kiếm thời gian thực)
@@ -62,6 +188,16 @@ export async function createQuestion(req, res, next) {
       return res.status(400).json({ success: false, message: 'Môn học không tồn tại trong hệ thống' });
     }
 
+    const duplicateQuestion = findSimilarQuestion(content, db.questions);
+    if (duplicateQuestion) {
+      const percent = Math.round(duplicateQuestion.similarity * 100);
+      return res.status(409).json({
+        success: false,
+        message: `Câu hỏi này đã có trong hệ thống (${percent}% giống câu hỏi hiện có).`,
+        data: { duplicate: duplicateQuestion }
+      });
+    }
+
     // Xử lý tags (đảm bảo là mảng các từ viết thường và cắt khoảng trắng)
     let processedTags = [];
     if (Array.isArray(tags)) {
@@ -120,6 +256,17 @@ export async function updateQuestion(req, res, next) {
       if (content.trim() === '') {
         return res.status(400).json({ success: false, message: 'Nội dung câu hỏi không được để trống' });
       }
+
+      const duplicateQuestion = findSimilarQuestion(content, db.questions, id);
+      if (duplicateQuestion) {
+        const percent = Math.round(duplicateQuestion.similarity * 100);
+        return res.status(409).json({
+          success: false,
+          message: `Câu hỏi này đã có trong hệ thống (${percent}% giống câu hỏi hiện có).`,
+          data: { duplicate: duplicateQuestion }
+        });
+      }
+
       db.questions[questionIndex].content = content.trim();
     }
 
@@ -171,6 +318,84 @@ export async function deleteQuestion(req, res, next) {
     res.json({
       success: true,
       message: 'Xóa câu hỏi thành công!'
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Import câu hỏi từ JSON dạng Moodle/API: { questions: [...] }
+ */
+export async function importQuestions(req, res, next) {
+  try {
+    const { subjectId, questions: directQuestions } = req.body;
+    const sourceQuestions = Array.isArray(directQuestions) ? directQuestions : getQuestionArray(req.body);
+
+    if (!subjectId) {
+      return res.status(400).json({ success: false, message: 'Vui lòng chọn môn học trước khi import.' });
+    }
+    if (!Array.isArray(sourceQuestions) || sourceQuestions.length === 0) {
+      return res.status(400).json({ success: false, message: 'File JSON không có mảng questions hợp lệ.' });
+    }
+
+    const db = await readDb();
+    const subjectExists = db.subjects.some(s => s.id === subjectId);
+    if (!subjectExists) {
+      return res.status(400).json({ success: false, message: 'Môn học không tồn tại trong hệ thống.' });
+    }
+
+    const now = Date.now();
+    const importedQuestions = [];
+    const skipped = [];
+
+    sourceQuestions.forEach((sourceQuestion, index) => {
+      const normalized = normalizeImportedQuestion(sourceQuestion, index);
+      if (!normalized.content || !normalized.answer) {
+        skipped.push({ index, slot: sourceQuestion.slot, reason: 'Thiếu nội dung câu hỏi hoặc đáp án.' });
+        return;
+      }
+
+      const duplicateQuestion = findSimilarQuestion(normalized.content, [...db.questions, ...importedQuestions]);
+      if (duplicateQuestion) {
+        skipped.push({
+          index,
+          slot: sourceQuestion.slot,
+          reason: 'Câu hỏi này đã có trong hệ thống.',
+          similarity: Number(duplicateQuestion.similarity.toFixed(2)),
+          duplicateId: duplicateQuestion.id
+        });
+        return;
+      }
+
+      importedQuestions.push({
+        id: `q_${now}_${index}`,
+        subjectId,
+        content: normalized.content,
+        answer: normalized.answer,
+        tags: normalized.tags,
+        createdAt: new Date(now + index).toISOString(),
+        sourceId: sourceQuestion.id || null,
+        sourceSlot: sourceQuestion.slot || null
+      });
+    });
+
+    if (importedQuestions.length === 0) {
+      return res.status(400).json({ success: false, message: skipped.some(item => item.reason === 'Câu hỏi này đã có trong hệ thống.') ? 'Các câu hỏi trong file đã có trong hệ thống.' : 'Không có câu hỏi hợp lệ để import.', skipped });
+    }
+
+    db.questions.push(...importedQuestions);
+    await writeDb(db);
+
+    res.status(201).json({
+      success: true,
+      message: `Đã import ${importedQuestions.length} câu hỏi thành công.`,
+      data: {
+        importedCount: importedQuestions.length,
+        skippedCount: skipped.length,
+        skipped,
+        questions: importedQuestions
+      }
     });
   } catch (error) {
     next(error);
