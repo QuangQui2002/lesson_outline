@@ -35,7 +35,8 @@ export async function createSubject(req, res, next) {
 
     const newSubject = {
       id: 'sub_' + Date.now(),
-      name: name.trim()
+      name: name.trim(),
+      createdAt: new Date().toISOString()
     };
 
     db.subjects.push(newSubject);

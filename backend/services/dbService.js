@@ -45,6 +45,13 @@ function ensureSupabaseSuccess(result, action) {
   return result.data;
 }
 
+function normalizeSubject(subject) {
+  return {
+    ...subject,
+    createdAt: subject.createdAt || new Date().toISOString()
+  };
+}
+
 async function readSupabaseDb() {
   const [subjectsResult, questionsResult] = await Promise.all([
     supabase.from('subjects').select('*').order('createdAt', { ascending: true }),
@@ -58,7 +65,7 @@ async function readSupabaseDb() {
 }
 
 async function writeSupabaseDb(data) {
-  const subjects = Array.isArray(data.subjects) ? data.subjects : [];
+  const subjects = Array.isArray(data.subjects) ? data.subjects.map(normalizeSubject) : [];
   const questions = Array.isArray(data.questions) ? data.questions : [];
 
   ensureSupabaseSuccess(

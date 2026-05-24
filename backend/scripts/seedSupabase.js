@@ -25,10 +25,17 @@ function ensureSuccess(result, action) {
   return result.data;
 }
 
+function normalizeSubject(subject) {
+  return {
+    ...subject,
+    createdAt: subject.createdAt || new Date().toISOString()
+  };
+}
+
 async function main() {
   const rawData = await fs.readFile(dbPath, 'utf8');
   const db = JSON.parse(rawData);
-  const subjects = Array.isArray(db.subjects) ? db.subjects : [];
+  const subjects = Array.isArray(db.subjects) ? db.subjects.map(normalizeSubject) : [];
   const questions = Array.isArray(db.questions) ? db.questions : [];
 
   ensureSuccess(
