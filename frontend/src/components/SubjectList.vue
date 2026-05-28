@@ -40,16 +40,6 @@
     </div>
 
     <div class="subject-nav" style="max-height: 45vh; overflow-y: auto; padding-right: 2px;">
-      <!-- Tất cả môn học -->
-      <div 
-        class="subject-item" 
-        :class="{ active: !activeSubjectId }"
-        @click="$emit('select-subject', null)"
-      >
-        <span class="subject-name">Tất Cả Môn Học</span>
-        <span class="subject-count">{{ totalQuestionsCount }}</span>
-      </div>
-
       <!-- Từng môn học cụ thể sau khi lọc tìm kiếm -->
       <div 
         v-for="subject in filteredSubjects" 
@@ -94,10 +84,6 @@ export default {
       type: Object,
       default: () => ({})
     },
-    totalQuestionsCount: {
-      type: Number,
-      default: 0
-    }
   },
   emits: ['select-subject', 'add-subject', 'delete-subject'],
   data() {

@@ -126,6 +126,73 @@ function normalizeImportedQuestion(sourceQuestion, index) {
   };
 }
 
+function buildImportAnalysis(sourceQuestions, existingQuestions, subjectId, now = Date.now()) {
+  const importableQuestions = [];
+  const skipped = [];
+
+  sourceQuestions.forEach((sourceQuestion, index) => {
+    const normalized = normalizeImportedQuestion(sourceQuestion, index);
+    if (!normalized.content || !normalized.answer) {
+      skipped.push({ index, slot: sourceQuestion.slot, reason: 'Thiếu nội dung câu hỏi hoặc đáp án.', type: 'missing_required' });
+      return;
+    }
+
+    const duplicateQuestion = findSimilarQuestion(normalized.content, [...existingQuestions, ...importableQuestions]);
+    if (duplicateQuestion) {
+      skipped.push({
+        index,
+        slot: sourceQuestion.slot,
+        reason: 'Câu hỏi này đã có trong hệ thống.',
+        type: 'duplicate',
+        similarity: Number(duplicateQuestion.similarity.toFixed(2)),
+        duplicateId: duplicateQuestion.id
+      });
+      return;
+    }
+
+    importableQuestions.push({
+      id: `q_${now}_${index}`,
+      subjectId,
+      content: normalized.content,
+      answer: normalized.answer,
+      tags: normalized.tags,
+      createdAt: new Date(now + index).toISOString(),
+      sourceId: sourceQuestion.id || null,
+      sourceSlot: sourceQuestion.slot || null
+    });
+  });
+
+  return {
+    totalCount: sourceQuestions.length,
+    importableCount: importableQuestions.length,
+    skippedCount: skipped.length,
+    missingRequiredCount: skipped.filter(item => item.type === 'missing_required').length,
+    duplicateCount: skipped.filter(item => item.type === 'duplicate').length,
+    importableQuestions,
+    skipped
+  };
+}
+
+async function validateImportRequest(req) {
+  const { subjectId, questions: directQuestions } = req.body;
+  const sourceQuestions = Array.isArray(directQuestions) ? directQuestions : getQuestionArray(req.body);
+
+  if (!subjectId) {
+    return { error: { status: 400, message: 'Vui lòng chọn môn học trước khi import.' } };
+  }
+  if (!Array.isArray(sourceQuestions) || sourceQuestions.length === 0) {
+    return { error: { status: 400, message: 'File JSON không có mảng questions hợp lệ.' } };
+  }
+
+  const db = await readDb();
+  const subjectExists = db.subjects.some(s => s.id === subjectId);
+  if (!subjectExists) {
+    return { error: { status: 400, message: 'Môn học không tồn tại trong hệ thống.' } };
+  }
+
+  return { subjectId, sourceQuestions, db };
+}
+
 /**
  * Lấy danh sách câu hỏi (hỗ trợ lọc theo subjectId và tìm kiếm thời gian thực)
  */
@@ -157,6 +224,27 @@ export async function getQuestions(req, res, next) {
     res.json({
       success: true,
       data: result
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getQuestionStats(req, res, next) {
+  try {
+    const db = await readDb();
+    const countsBySubject = {};
+
+    db.questions.forEach(question => {
+      countsBySubject[question.subjectId] = (countsBySubject[question.subjectId] || 0) + 1;
+    });
+
+    res.json({
+      success: true,
+      data: {
+        total: db.questions.length,
+        countsBySubject
+      }
     });
   } catch (error) {
     next(error);
@@ -325,67 +413,59 @@ export async function deleteQuestion(req, res, next) {
 }
 
 /**
+ * Preview câu hỏi từ JSON trước khi import thật
+ */
+export async function previewImportQuestions(req, res, next) {
+  try {
+    const validation = await validateImportRequest(req);
+    if (validation.error) {
+      return res.status(validation.error.status).json({ success: false, message: validation.error.message });
+    }
+
+    const analysis = buildImportAnalysis(validation.sourceQuestions, validation.db.questions, validation.subjectId);
+
+    res.json({
+      success: true,
+      message: 'Đã phân tích file JSON import.',
+      data: {
+        totalCount: analysis.totalCount,
+        importableCount: analysis.importableCount,
+        skippedCount: analysis.skippedCount,
+        missingRequiredCount: analysis.missingRequiredCount,
+        duplicateCount: analysis.duplicateCount,
+        skipped: analysis.skipped,
+        previewQuestions: analysis.importableQuestions.slice(0, 5)
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
  * Import câu hỏi từ JSON dạng Moodle/API: { questions: [...] }
  */
 export async function importQuestions(req, res, next) {
   try {
-    const { subjectId, questions: directQuestions } = req.body;
-    const sourceQuestions = Array.isArray(directQuestions) ? directQuestions : getQuestionArray(req.body);
-
-    if (!subjectId) {
-      return res.status(400).json({ success: false, message: 'Vui lòng chọn môn học trước khi import.' });
-    }
-    if (!Array.isArray(sourceQuestions) || sourceQuestions.length === 0) {
-      return res.status(400).json({ success: false, message: 'File JSON không có mảng questions hợp lệ.' });
+    const validation = await validateImportRequest(req);
+    if (validation.error) {
+      return res.status(validation.error.status).json({ success: false, message: validation.error.message });
     }
 
-    const db = await readDb();
-    const subjectExists = db.subjects.some(s => s.id === subjectId);
-    if (!subjectExists) {
-      return res.status(400).json({ success: false, message: 'Môn học không tồn tại trong hệ thống.' });
-    }
-
-    const now = Date.now();
-    const importedQuestions = [];
-    const skipped = [];
-
-    sourceQuestions.forEach((sourceQuestion, index) => {
-      const normalized = normalizeImportedQuestion(sourceQuestion, index);
-      if (!normalized.content || !normalized.answer) {
-        skipped.push({ index, slot: sourceQuestion.slot, reason: 'Thiếu nội dung câu hỏi hoặc đáp án.' });
-        return;
-      }
-
-      const duplicateQuestion = findSimilarQuestion(normalized.content, [...db.questions, ...importedQuestions]);
-      if (duplicateQuestion) {
-        skipped.push({
-          index,
-          slot: sourceQuestion.slot,
-          reason: 'Câu hỏi này đã có trong hệ thống.',
-          similarity: Number(duplicateQuestion.similarity.toFixed(2)),
-          duplicateId: duplicateQuestion.id
-        });
-        return;
-      }
-
-      importedQuestions.push({
-        id: `q_${now}_${index}`,
-        subjectId,
-        content: normalized.content,
-        answer: normalized.answer,
-        tags: normalized.tags,
-        createdAt: new Date(now + index).toISOString(),
-        sourceId: sourceQuestion.id || null,
-        sourceSlot: sourceQuestion.slot || null
-      });
-    });
+    const analysis = buildImportAnalysis(validation.sourceQuestions, validation.db.questions, validation.subjectId);
+    const importedQuestions = analysis.importableQuestions;
+    const skipped = analysis.skipped;
 
     if (importedQuestions.length === 0) {
-      return res.status(400).json({ success: false, message: skipped.some(item => item.reason === 'Câu hỏi này đã có trong hệ thống.') ? 'Các câu hỏi trong file đã có trong hệ thống.' : 'Không có câu hỏi hợp lệ để import.', skipped });
+      return res.status(400).json({
+        success: false,
+        message: skipped.some(item => item.type === 'duplicate') ? 'Các câu hỏi trong file đã có trong hệ thống.' : 'Không có câu hỏi hợp lệ để import.',
+        skipped
+      });
     }
 
-    db.questions.push(...importedQuestions);
-    await writeDb(db);
+    validation.db.questions.push(...importedQuestions);
+    await writeDb(validation.db);
 
     res.status(201).json({
       success: true,

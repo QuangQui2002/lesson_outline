@@ -28,6 +28,9 @@ export default {
     if (search) params.search = search;
     return apiClient.get('/questions', { params }).then(res => res.data);
   },
+  getQuestionStats() {
+    return apiClient.get('/questions/stats').then(res => res.data);
+  },
   createQuestion(questionData) {
     return apiClient.post('/questions', questionData).then(res => res.data);
   },
@@ -36,6 +39,12 @@ export default {
   },
   deleteQuestion(id) {
     return apiClient.delete(`/questions/${id}`).then(res => res.data);
+  },
+  previewImportQuestions(subjectId, importData) {
+    return apiClient.post('/questions/import/preview', {
+      subjectId,
+      ...importData
+    }).then(res => res.data);
   },
   importQuestions(subjectId, importData) {
     return apiClient.post('/questions/import', {

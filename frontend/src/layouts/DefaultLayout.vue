@@ -42,6 +42,10 @@
         </div>
         
         <div class="action-buttons">
+          <button class="btn btn-secondary" @click="$emit('export-json')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 0.25rem;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            Xuất JSON
+          </button>
           <button class="btn btn-secondary" @click="$emit('import-json')">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 0.25rem;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><polyline points="9 15 12 18 15 15"></polyline></svg>
             Import JSON
@@ -70,7 +74,7 @@ import { useDarkMode } from '../composables/useDarkMode.js';
 
 export default {
   name: 'DefaultLayout',
-  emits: ['open-ocr', 'open-add', 'import-json'],
+  emits: ['open-ocr', 'open-add', 'import-json', 'export-json'],
   setup() {
     const { isDark, toggleDarkMode, initTheme } = useDarkMode();
     

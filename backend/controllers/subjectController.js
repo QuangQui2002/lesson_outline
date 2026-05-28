@@ -6,9 +6,18 @@ import { readDb, writeDb } from '../services/dbService.js';
 export async function getSubjects(req, res, next) {
   try {
     const db = await readDb();
+    const questionCounts = {};
+
+    db.questions.forEach(question => {
+      questionCounts[question.subjectId] = (questionCounts[question.subjectId] || 0) + 1;
+    });
+
     res.json({
       success: true,
-      data: db.subjects
+      data: db.subjects.map(subject => ({
+        ...subject,
+        questionCount: questionCounts[subject.id] || 0
+      }))
     });
   } catch (error) {
     next(error);
