@@ -419,7 +419,7 @@ button, input, textarea, select {
 
 .search-input {
   width: 100%;
-  padding: 0.85rem 1rem 0.85rem 3rem;
+  padding: 0.85rem 3.75rem 0.85rem 3rem;
   background: var(--bg-main);
   border-radius: var(--radius-md);
   font-size: 0.95rem;
@@ -432,6 +432,32 @@ button, input, textarea, select {
   border-color: var(--primary);
   background: var(--bg-card);
   box-shadow: 0 0 0 4px var(--primary-light);
+}
+
+.search-clear-btn {
+  position: absolute;
+  right: 0.9rem;
+  top: 50%;
+  width: 2.35rem;
+  height: 2.35rem;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 999px;
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.search-clear-btn:hover {
+  background: var(--primary-light);
+  color: var(--primary);
 }
 
 .add-subject-form {
