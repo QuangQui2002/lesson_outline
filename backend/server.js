@@ -1,4 +1,4 @@
-import 'dotenv/config';
+﻿import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import cron from 'node-cron';
@@ -6,7 +6,10 @@ import subjectRoutes from './routes/subjectRoutes.js';
 import questionRoutes from './routes/questionRoutes.js';
 import ocrRoutes from './routes/ocrRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { telegramApiNotifier } from './middleware/telegramApiNotifier.js';
 import { getDbHealth } from './services/dbService.js';
+import { getDailyApiStats, resetDailyApiStats } from './services/apiStatsService.js';
+import { formatDailyApiReport, isTelegramConfigured, sendTelegramMessage } from './services/telegramService.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -20,6 +23,8 @@ app.use(cors({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.use('/api', telegramApiNotifier);
 
 app.use('/api/subjects', subjectRoutes);
 app.use('/api/questions', questionRoutes);
@@ -62,3 +67,20 @@ cron.schedule('*/10 * * * *', async () => {
     console.error('[keep-alive] Ping failed:', error.message);
   }
 });
+cron.schedule(process.env.TELEGRAM_DAILY_REPORT_CRON || '59 23 * * *', async () => {
+  if (!isTelegramConfigured()) {
+    await resetDailyApiStats();
+    return;
+  }
+
+  try {
+    const stats = await getDailyApiStats();
+    await sendTelegramMessage(formatDailyApiReport(stats));
+    await resetDailyApiStats();
+  } catch (error) {
+    console.error('[telegram-report] Failed to send daily report:', error.message);
+  }
+}, {
+  timezone: 'Asia/Ho_Chi_Minh'
+});
+

@@ -1,4 +1,4 @@
-import fs from 'fs/promises';
+﻿import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createClient } from '@supabase/supabase-js';
@@ -19,8 +19,12 @@ const supabase = supabaseUrl && supabaseKey
 
 let writePromise = Promise.resolve();
 
-function isSupabaseEnabled() {
+export function isSupabaseEnabled() {
   return Boolean(supabase);
+}
+
+export function getSupabaseClient() {
+  return supabase;
 }
 
 async function readJsonDb() {
@@ -38,7 +42,7 @@ async function writeJsonDb(data) {
   await fs.writeFile(dbPath, JSON.stringify(data, null, 2), 'utf8');
 }
 
-function ensureSupabaseSuccess(result, action) {
+export function ensureSupabaseSuccess(result, action) {
   if (result.error) {
     throw new Error(`${action}: ${result.error.message}`);
   }
@@ -136,3 +140,4 @@ export async function getDbHealth() {
     message: 'Da ket noi Supabase thanh cong.'
   };
 }
+
