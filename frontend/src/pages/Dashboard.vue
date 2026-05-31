@@ -103,17 +103,17 @@
             placeholder="Tìm kiếm nhanh theo nội dung câu hỏi, đáp án hoặc từ khóa (tags)..." 
             class="search-input"
           />
-          <button
-            v-if="searchQuery"
-            type="button"
-            class="search-clear-btn"
-            title="Xoa noi dung tim kiem"
-            aria-label="Xoa noi dung tim kiem"
-            @click="searchQuery = ''"
-          >
-            &times;
-          </button>
         </div>
+        <button
+          v-if="searchQuery"
+          type="button"
+          class="search-clear-btn"
+          title="Xoa noi dung tim kiem"
+          aria-label="Xoa noi dung tim kiem"
+          @click="searchQuery = ''"
+        >
+          <span aria-hidden="true">&times;</span>
+        </button>
       </section>
 
       <!-- Danh sách câu hỏi lọc theo môn học & tìm kiếm -->

@@ -419,7 +419,7 @@ button, input, textarea, select {
 
 .search-input {
   width: 100%;
-  padding: 0.85rem 3.75rem 0.85rem 3rem;
+  padding: 0.85rem 1rem 0.85rem 3rem;
   background: var(--bg-main);
   border-radius: var(--radius-md);
   font-size: 0.95rem;
@@ -435,29 +435,30 @@ button, input, textarea, select {
 }
 
 .search-clear-btn {
-  position: absolute;
-  right: 0.9rem;
-  top: 50%;
-  width: 2.35rem;
-  height: 2.35rem;
-  transform: translateY(-50%);
+  flex: 0 0 3rem;
+  width: 3rem;
+  height: 3rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: none;
-  border-radius: 999px;
-  background: var(--bg-card);
-  color: var(--text-muted);
-  font-size: 1.75rem;
-  font-weight: 700;
+  border: 1px solid rgba(239, 68, 68, 0.18);
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(249, 115, 22, 0.1));
+  color: #ef4444;
+  font-size: 1.8rem;
+  font-weight: 800;
   line-height: 1;
   cursor: pointer;
+  box-shadow: 0 10px 24px rgba(239, 68, 68, 0.12);
   transition: var(--transition);
 }
 
 .search-clear-btn:hover {
-  background: var(--primary-light);
-  color: var(--primary);
+  border-color: rgba(239, 68, 68, 0.38);
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  color: white;
+  box-shadow: 0 14px 30px rgba(239, 68, 68, 0.28);
+  transform: translateY(-1px);
 }
 
 .add-subject-form {
@@ -967,8 +968,8 @@ textarea.form-control {
   }
   
   .search-wrapper {
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: row;
+    align-items: center;
   }
 }
 
@@ -1029,6 +1030,14 @@ textarea.form-control {
   .search-wrapper {
     padding: 1rem;
     margin-bottom: 1.25rem;
+    gap: 0.75rem;
+  }
+
+  .search-clear-btn {
+    flex-basis: 2.75rem;
+    width: 2.75rem;
+    height: 2.75rem;
+    font-size: 1.65rem;
   }
 
   .stats-grid {
