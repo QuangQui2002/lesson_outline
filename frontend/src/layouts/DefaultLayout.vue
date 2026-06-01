@@ -1,7 +1,6 @@
-<template>
+﻿<template>
   <div class="app-container">
-    
-    <!-- Sidebar bên trái (Trái tim của Dashboard) -->
+    <!-- Sidebar bên trái -->
     <aside class="sidebar">
       <!-- Logo ứng dụng -->
       <div class="logo-section">
@@ -19,7 +18,7 @@
         </div>
       </div>
 
-      <!-- Danh sách Môn học (Chèn qua slot hoặc dùng trực tiếp) -->
+      <!-- Danh sách môn học -->
       <slot name="sidebar"></slot>
 
       <!-- Phần chân sidebar bao gồm Dark Mode toggle -->
@@ -33,8 +32,7 @@
 
     <!-- Khu vực nội dung chính bên phải -->
     <main class="main-content">
-      
-      <!-- Thanh điều hướng trên cùng (Top Bar) -->
+      <!-- Thanh điều hướng trên cùng -->
       <header class="top-bar">
         <div class="page-title">
           <h1>Ngân Hàng Câu Hỏi Đề Cương</h1>
@@ -63,9 +61,7 @@
 
       <!-- Nội dung trang hiển thị ở đây -->
       <slot></slot>
-
     </main>
-
   </div>
 </template>
 
