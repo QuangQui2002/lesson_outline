@@ -108,7 +108,7 @@ export const formatApiCallMessage = ({ req, statusCode, durationMs }) => {
   const time = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
 
   return [
-    '<b>New API request</b>',
+    '<b>API request failed</b>',
     '',
     `<b>Action:</b> ${escapeHtml(getActionName(req))}`,
     `<b>Endpoint:</b> <code>${escapeHtml(req.method)} ${escapeHtml(req.originalUrl)}</code>`,

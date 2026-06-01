@@ -87,8 +87,15 @@ function getQuestionArray(importPayload) {
   return [];
 }
 
-function normalizeImportedQuestion(sourceQuestion, index) {
-  const questionText = stripHtml(sourceQuestion.questiontext || sourceQuestion.questionText || sourceQuestion.content || '');
+function stripQuestionNumberPrefix(content = '') {
+  return String(content)
+    .replace(/^\s*c(?:a|\u00e2)u\s*\d+\s*[:.\-)\u2013\u2014]?\s*/i, '')
+    .replace(/^\s*\d+\s*\/\s*\d+\s*(?:\u0111i\u1ec3m|diem|point|points)\s*/i, '')
+    .trim();
+}
+
+function normalizeImportedQuestion(sourceQuestion) {
+  const questionText = stripQuestionNumberPrefix(stripHtml(sourceQuestion.questiontext || sourceQuestion.questionText || sourceQuestion.content || ''));
   const answers = Array.isArray(sourceQuestion.answertext) ? sourceQuestion.answertext : [];
   const optionLines = answers
     .map((answer, answerIndex) => {
@@ -98,7 +105,6 @@ function normalizeImportedQuestion(sourceQuestion, index) {
     .filter(line => line.replace(/^[A-Z]\.\s*/, '').trim() !== '');
 
   const contentParts = [];
-  contentParts.push(sourceQuestion.slot !== undefined && sourceQuestion.slot !== null ? `Câu ${sourceQuestion.slot}:` : `Câu ${index + 1}:`);
   contentParts.push(questionText);
   if (optionLines.length > 0) contentParts.push(optionLines.join('\n'));
 

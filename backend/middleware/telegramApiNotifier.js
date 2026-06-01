@@ -36,6 +36,10 @@ export const telegramApiNotifier = (req, res, next) => {
       return;
     }
 
+    if (res.statusCode < 400) {
+      return;
+    }
+
     const message = formatApiCallMessage({
       req,
       statusCode: res.statusCode,
