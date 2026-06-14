@@ -9,13 +9,17 @@ create table if not exists public.questions (
   "subjectId" text not null references public.subjects(id) on delete cascade,
   content text not null,
   answer text not null,
+  "quizName" text not null default 'Khác',
   tags text[] not null default '{}',
   "createdAt" timestamptz not null default now(),
   "sourceId" bigint,
   "sourceSlot" integer
 );
 
+alter table public.questions add column if not exists "quizName" text not null default 'Khác';
+
 create index if not exists questions_subject_id_idx on public.questions("subjectId");
+create index if not exists questions_quiz_name_idx on public.questions("quizName");
 create index if not exists questions_created_at_idx on public.questions("createdAt");
 
 alter table public.subjects enable row level security;

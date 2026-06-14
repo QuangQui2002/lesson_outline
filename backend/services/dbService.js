@@ -49,11 +49,55 @@ export function ensureSupabaseSuccess(result, action) {
   return result.data;
 }
 
+function normalizeQuestion(question) {
+  return {
+    ...question,
+    quizName: normalizeQuizName(question.quizName)
+  };
+}
+
+function normalizeQuizName(quizName = '') {
+  const normalized = String(quizName || '').trim();
+  return normalized || 'Khac';
+}
+
+function toSupabaseQuestionPayload(question) {
+  const normalized = normalizeQuestion(question);
+  return {
+    id: normalized.id,
+    subjectId: normalized.subjectId,
+    content: normalized.content,
+    answer: normalized.answer,
+    quizName: normalizeQuizName(normalized.quizName),
+    tags: Array.isArray(normalized.tags) ? normalized.tags : [],
+    createdAt: normalized.createdAt || new Date().toISOString(),
+    sourceId: normalized.sourceId ?? null,
+    sourceSlot: normalized.sourceSlot ?? null
+  };
+}
+
 function normalizeSubject(subject) {
   return {
     ...subject,
     createdAt: subject.createdAt || new Date().toISOString()
   };
+}
+
+async function deleteRowsMissingFromSnapshot(table, desiredIds, action) {
+  const existingRows = ensureSupabaseSuccess(
+    await supabase.from(table).select('id'),
+    action
+  );
+  const staleIds = existingRows
+    .map(row => row.id)
+    .filter(id => !desiredIds.has(id));
+
+  for (const id of staleIds) {
+    ensureSupabaseSuccess(
+      await supabase.from(table).delete().eq('id', id),
+      action
+    );
+  }
 }
 
 async function readSupabaseDb() {
@@ -63,37 +107,39 @@ async function readSupabaseDb() {
   ]);
 
   const subjects = ensureSupabaseSuccess(subjectsResult, 'Loi doc subjects tu Supabase');
-  const questions = ensureSupabaseSuccess(questionsResult, 'Loi doc questions tu Supabase');
+  const questions = ensureSupabaseSuccess(questionsResult, 'Loi doc questions tu Supabase').map(normalizeQuestion);
 
   return { subjects, questions };
 }
 
 async function writeSupabaseDb(data) {
   const subjects = Array.isArray(data.subjects) ? data.subjects.map(normalizeSubject) : [];
-  const questions = Array.isArray(data.questions) ? data.questions : [];
-
-  ensureSupabaseSuccess(
-    await supabase.from('questions').delete().not('id', 'is', null),
-    'Loi xoa questions tren Supabase'
-  );
-  ensureSupabaseSuccess(
-    await supabase.from('subjects').delete().not('id', 'is', null),
-    'Loi xoa subjects tren Supabase'
-  );
+  const questions = Array.isArray(data.questions) ? data.questions.map(toSupabaseQuestionPayload) : [];
 
   if (subjects.length > 0) {
     ensureSupabaseSuccess(
-      await supabase.from('subjects').insert(subjects),
+      await supabase.from('subjects').upsert(subjects, { onConflict: 'id' }),
       'Loi ghi subjects len Supabase'
     );
   }
 
   if (questions.length > 0) {
     ensureSupabaseSuccess(
-      await supabase.from('questions').insert(questions),
+      await supabase.from('questions').upsert(questions, { onConflict: 'id' }),
       'Loi ghi questions len Supabase'
     );
   }
+
+  await deleteRowsMissingFromSnapshot(
+    'questions',
+    new Set(questions.map(question => question.id)),
+    'Loi dong bo questions tren Supabase'
+  );
+  await deleteRowsMissingFromSnapshot(
+    'subjects',
+    new Set(subjects.map(subject => subject.id)),
+    'Loi dong bo subjects tren Supabase'
+  );
 }
 
 export async function readDb() {
@@ -105,7 +151,7 @@ export async function readDb() {
 }
 
 export async function writeDb(data) {
-  writePromise = writePromise.then(async () => {
+  writePromise = writePromise.catch(() => {}).then(async () => {
     if (isSupabaseEnabled()) {
       await writeSupabaseDb(data);
       return;

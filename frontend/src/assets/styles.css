@@ -404,6 +404,30 @@ button, input, textarea, select {
   align-items: center;
 }
 
+.quiz-filter-wrapper {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  margin: -1rem 0 2rem;
+  padding: 1rem 1.25rem;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.quiz-filter-wrapper label {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.quiz-filter-select {
+  max-width: 360px;
+}
+
 .search-input-container {
   flex: 1;
   position: relative;
@@ -574,6 +598,16 @@ button, input, textarea, select {
   border-radius: var(--radius-full);
   font-weight: 700;
   text-transform: uppercase;
+}
+
+.quiz-badge {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.75rem;
+  background: var(--bg-soft);
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  font-weight: 700;
 }
 
 .question-actions {

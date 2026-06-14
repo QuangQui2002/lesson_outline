@@ -33,6 +33,30 @@ export const sendTelegramMessage = async (message) => {
   }
 };
 
+export const sendTelegramDocument = async ({ buffer, filename, caption = '' }) => {
+  if (!isTelegramConfigured()) {
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('chat_id', process.env.TELEGRAM_CHAT_ID);
+  if (caption) {
+    formData.append('caption', caption);
+    formData.append('parse_mode', 'HTML');
+  }
+  formData.append('document', new Blob([buffer], { type: 'application/json' }), filename);
+
+  const response = await fetch(`${TELEGRAM_API_BASE_URL}/bot${process.env.TELEGRAM_BOT_TOKEN}/sendDocument`, {
+    method: 'POST',
+    body: formData
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Telegram document API error ${response.status}: ${errorText}`);
+  }
+};
+
 export const getStatusLabel = (statusCode) => {
   if (statusCode === 304) return 'Cached';
   if (statusCode >= 500) return 'Server error';

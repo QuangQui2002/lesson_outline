@@ -116,6 +116,16 @@
         </button>
       </section>
 
+      <section v-if="activeSubjectId" class="quiz-filter-wrapper">
+        <label for="quizFilter">Bài tập</label>
+        <select id="quizFilter" v-model="activeQuizName" class="form-control quiz-filter-select">
+          <option value="">Tất cả</option>
+          <option v-for="quizName in activeQuizNames" :key="quizName" :value="quizName">
+            {{ quizName }}
+          </option>
+        </select>
+      </section>
+
       <!-- Danh sách câu hỏi lọc theo môn học & tìm kiếm -->
       <section>
         <div v-if="isLoading" class="ocr-loading-container" style="padding: 5rem 0;">
@@ -137,6 +147,7 @@
         :subjects="subjects"
         :question="editingQuestion"
         :default-subject-id="activeSubjectId"
+        :quiz-names="activeQuizNames"
         @close="closeQuestionModal"
         @save="handleSaveQuestion"
       />
@@ -179,6 +190,7 @@ export default {
       questionStats: { total: 0, countsBySubject: {} },
       filteredQuestions: [], // Danh sách câu hỏi hiển thị sau lọc/search
       activeSubjectId: null,
+      activeQuizName: '',
       searchQuery: '',
       isLoading: false,
       isQuestionModalOpen: false,
@@ -198,6 +210,9 @@ export default {
       return 0;
     },
     // Tính toán số lượng câu hỏi trên mỗi môn học
+    activeQuizNames() {
+      return this.questionStats.quizNamesBySubject?.[this.activeSubjectId] || [];
+    },
     questionCounts() {
       const counts = { ...(this.questionStats.countsBySubject || {}) };
 
@@ -217,6 +232,10 @@ export default {
     },
     // Theo dõi môn học đang chọn để fetch dữ liệu từ API
     activeSubjectId() {
+      this.activeQuizName = '';
+      this.loadQuestions();
+    },
+    activeQuizName() {
       this.loadQuestions();
     }
   },
@@ -263,7 +282,7 @@ export default {
           total += count;
         });
 
-        this.questionStats = { total, countsBySubject };
+        this.questionStats = { total, countsBySubject, quizNamesBySubject: {} };
       }
     },
     // Lấy câu hỏi hiển thị có lọc theo môn học & tìm kiếm
@@ -273,7 +292,7 @@ export default {
           this.filteredQuestions = [];
           return;
         }
-        const response = await api.getQuestions(this.activeSubjectId, this.searchQuery);
+        const response = await api.getQuestions(this.activeSubjectId, this.searchQuery, this.activeQuizName);
         if (response.success) {
           this.filteredQuestions = response.data;
         }

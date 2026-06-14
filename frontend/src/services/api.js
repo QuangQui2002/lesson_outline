@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const apiBaseURL = 'https://lesson-outline.onrender.com/api'
-
+// const apiBaseURL = 'http://localhost:3000/api'
 // Kết nối tới API của Express Backend chạy ở cổng 3000
 const apiClient = axios.create({
   baseURL: apiBaseURL,
@@ -23,10 +23,11 @@ export default {
   },
 
   // --- API Câu hỏi ---
-  getQuestions(subjectId = null, search = '') {
+  getQuestions(subjectId = null, search = '', quizName = '') {
     const params = {};
     if (subjectId) params.subjectId = subjectId;
     if (search) params.search = search;
+    if (quizName) params.quizName = quizName;
     return apiClient.get('/questions', { params }).then(res => res.data);
   },
   getQuestionStats() {

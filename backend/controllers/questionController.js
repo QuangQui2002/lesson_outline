@@ -16,6 +16,12 @@ function stripHtml(html = '') {
 
 
 const DUPLICATE_SIMILARITY_THRESHOLD = 0.8;
+const DEFAULT_QUIZ_NAME = 'Khac';
+
+function normalizeQuizName(quizName = '') {
+  const normalized = stripHtml(quizName).trim();
+  return normalized || DEFAULT_QUIZ_NAME;
+}
 
 function normalizeQuestionForCompare(content = '') {
   return String(content)
@@ -80,8 +86,15 @@ function findSimilarQuestion(content, questions, excludeId = null) {
 
   return bestMatch;
 }
-function getQuestionArray(importPayload) {
+function getQuestionArray(importPayload, subjectId = '', subjectName = '') {
   if (Array.isArray(importPayload)) return importPayload;
+  if (Array.isArray(importPayload?.subjects)) {
+    const matchedSubject = importPayload.subjects.find(subject =>
+      subject.id === subjectId ||
+      (subjectName && String(subject.name || '').trim().toLowerCase() === subjectName.trim().toLowerCase())
+    );
+    if (Array.isArray(matchedSubject?.questions)) return matchedSubject.questions;
+  }
   if (Array.isArray(importPayload?.questions)) return importPayload.questions;
   if (Array.isArray(importPayload?.data?.questions)) return importPayload.data.questions;
   return [];
@@ -94,7 +107,7 @@ function stripQuestionNumberPrefix(content = '') {
     .trim();
 }
 
-function normalizeImportedQuestion(sourceQuestion) {
+function normalizeImportedQuestion(sourceQuestion, quizName = DEFAULT_QUIZ_NAME) {
   const questionText = stripQuestionNumberPrefix(stripHtml(sourceQuestion.questiontext || sourceQuestion.questionText || sourceQuestion.content || ''));
   const answers = Array.isArray(sourceQuestion.answertext) ? sourceQuestion.answertext : [];
   const optionLines = answers
@@ -113,7 +126,7 @@ function normalizeImportedQuestion(sourceQuestion) {
     .map(answer => stripHtml(answer.answer || answer.text || ''))
     .filter(Boolean);
 
-  const generalFeedback = stripHtml(sourceQuestion.generalfeedback || sourceQuestion.generalFeedback || '');
+  const generalFeedback = stripHtml(sourceQuestion.generalfeedback || sourceQuestion.generalFeedback || sourceQuestion.answer || '');
   const rightAnswer = stripHtml(sourceQuestion.rightanswer || sourceQuestion.rightAnswer || '');
   const answerParts = [];
 
@@ -128,16 +141,17 @@ function normalizeImportedQuestion(sourceQuestion) {
   return {
     content: contentParts.filter(Boolean).join('\n').trim(),
     answer: answerParts.join('\n\n').trim(),
+    quizName: normalizeQuizName(sourceQuestion.quizName || sourceQuestion.quiz?.name || quizName),
     tags: ['json', 'import', sourceQuestion.type || 'question'].filter(Boolean)
   };
 }
 
-function buildImportAnalysis(sourceQuestions, existingQuestions, subjectId, now = Date.now()) {
+function buildImportAnalysis(sourceQuestions, existingQuestions, subjectId, quizName = DEFAULT_QUIZ_NAME, now = Date.now()) {
   const importableQuestions = [];
   const skipped = [];
 
   sourceQuestions.forEach((sourceQuestion, index) => {
-    const normalized = normalizeImportedQuestion(sourceQuestion, index);
+    const normalized = normalizeImportedQuestion(sourceQuestion, quizName);
     if (!normalized.content || !normalized.answer) {
       skipped.push({ index, slot: sourceQuestion.slot, reason: 'Thiếu nội dung câu hỏi hoặc đáp án.', type: 'missing_required' });
       return;
@@ -161,6 +175,7 @@ function buildImportAnalysis(sourceQuestions, existingQuestions, subjectId, now 
       subjectId,
       content: normalized.content,
       answer: normalized.answer,
+      quizName: normalized.quizName,
       tags: normalized.tags,
       createdAt: new Date(now + index).toISOString(),
       sourceId: sourceQuestion.id || null,
@@ -181,6 +196,7 @@ function buildImportAnalysis(sourceQuestions, existingQuestions, subjectId, now 
 
 async function validateImportRequest(req) {
   const { subjectId, questions: directQuestions } = req.body;
+  const quizName = normalizeQuizName(req.body?.quizName || req.body?.quiz?.name);
   const sourceQuestions = Array.isArray(directQuestions) ? directQuestions : getQuestionArray(req.body);
 
   if (!subjectId) {
@@ -196,7 +212,7 @@ async function validateImportRequest(req) {
     return { error: { status: 400, message: 'Môn học không tồn tại trong hệ thống.' } };
   }
 
-  return { subjectId, sourceQuestions, db };
+  return { subjectId, sourceQuestions, quizName, db };
 }
 
 /**
@@ -204,13 +220,18 @@ async function validateImportRequest(req) {
  */
 export async function getQuestions(req, res, next) {
   try {
-    const { subjectId, search } = req.query;
+    const { subjectId, search, quizName } = req.query;
     const db = await readDb();
     let result = db.questions;
 
     // Lọc theo môn học nếu có
     if (subjectId) {
       result = result.filter(q => q.subjectId === subjectId);
+    }
+
+    if (quizName && quizName.trim() !== '') {
+      const normalizedQuizName = normalizeQuizName(quizName);
+      result = result.filter(q => normalizeQuizName(q.quizName) === normalizedQuizName);
     }
 
     // Tìm kiếm nếu có
@@ -220,7 +241,8 @@ export async function getQuestions(req, res, next) {
         const matchContent = q.content && q.content.toLowerCase().includes(searchKeyword);
         const matchAnswer = q.answer && q.answer.toLowerCase().includes(searchKeyword);
         const matchTags = q.tags && q.tags.some(tag => tag.toLowerCase().includes(searchKeyword));
-        return matchContent || matchAnswer || matchTags;
+        const matchQuizName = normalizeQuizName(q.quizName).toLowerCase().includes(searchKeyword);
+        return matchContent || matchAnswer || matchTags || matchQuizName;
       });
     }
 
@@ -240,16 +262,29 @@ export async function getQuestionStats(req, res, next) {
   try {
     const db = await readDb();
     const countsBySubject = {};
+    const quizNamesBySubject = {};
 
     db.questions.forEach(question => {
       countsBySubject[question.subjectId] = (countsBySubject[question.subjectId] || 0) + 1;
+      if (!quizNamesBySubject[question.subjectId]) {
+        quizNamesBySubject[question.subjectId] = new Set();
+      }
+      quizNamesBySubject[question.subjectId].add(normalizeQuizName(question.quizName));
     });
+
+    const normalizedQuizNamesBySubject = Object.fromEntries(
+      Object.entries(quizNamesBySubject).map(([subjectId, quizNames]) => [
+        subjectId,
+        Array.from(quizNames).sort((a, b) => a.localeCompare(b, 'vi'))
+      ])
+    );
 
     res.json({
       success: true,
       data: {
         total: db.questions.length,
-        countsBySubject
+        countsBySubject,
+        quizNamesBySubject: normalizedQuizNamesBySubject
       }
     });
   } catch (error) {
@@ -262,7 +297,7 @@ export async function getQuestionStats(req, res, next) {
  */
 export async function createQuestion(req, res, next) {
   try {
-    const { subjectId, content, answer, tags } = req.body;
+    const { subjectId, content, answer, tags, quizName } = req.body;
 
     if (!subjectId) {
       return res.status(400).json({ success: false, message: 'ID môn học là bắt buộc' });
@@ -305,6 +340,7 @@ export async function createQuestion(req, res, next) {
       subjectId: subjectId,
       content: content.trim(),
       answer: answer.trim(),
+      quizName: normalizeQuizName(quizName),
       tags: processedTags,
       createdAt: new Date().toISOString()
     };
@@ -328,7 +364,7 @@ export async function createQuestion(req, res, next) {
 export async function updateQuestion(req, res, next) {
   try {
     const { id } = req.params;
-    const { subjectId, content, answer, tags } = req.body;
+    const { subjectId, content, answer, tags, quizName } = req.body;
 
     const db = await readDb();
     const questionIndex = db.questions.findIndex(q => q.id === id);
@@ -369,6 +405,12 @@ export async function updateQuestion(req, res, next) {
         return res.status(400).json({ success: false, message: 'Đáp án không được để trống' });
       }
       db.questions[questionIndex].answer = answer.trim();
+    }
+
+    if (quizName !== undefined) {
+      db.questions[questionIndex].quizName = normalizeQuizName(quizName);
+    } else if (!db.questions[questionIndex].quizName) {
+      db.questions[questionIndex].quizName = DEFAULT_QUIZ_NAME;
     }
 
     if (tags !== undefined) {
@@ -428,7 +470,7 @@ export async function previewImportQuestions(req, res, next) {
       return res.status(validation.error.status).json({ success: false, message: validation.error.message });
     }
 
-    const analysis = buildImportAnalysis(validation.sourceQuestions, validation.db.questions, validation.subjectId);
+    const analysis = buildImportAnalysis(validation.sourceQuestions, validation.db.questions, validation.subjectId, validation.quizName);
 
     res.json({
       success: true,
@@ -458,8 +500,11 @@ export async function importQuestions(req, res, next) {
       return res.status(validation.error.status).json({ success: false, message: validation.error.message });
     }
 
-    const analysis = buildImportAnalysis(validation.sourceQuestions, validation.db.questions, validation.subjectId);
-    const importedQuestions = analysis.importableQuestions;
+    const analysis = buildImportAnalysis(validation.sourceQuestions, validation.db.questions, validation.subjectId, validation.quizName);
+    const importedQuestions = analysis.importableQuestions.map(question => ({
+      ...question,
+      quizName: normalizeQuizName(question.quizName || validation.quizName || req.body?.quiz?.name)
+    }));
     const skipped = analysis.skipped;
 
     if (importedQuestions.length === 0) {

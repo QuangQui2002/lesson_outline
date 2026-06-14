@@ -32,6 +32,24 @@
             </select>
           </div>
 
+          <div class="form-group">
+            <label for="questionQuizName">Bài tập</label>
+            <input
+              id="questionQuizName"
+              v-model="formData.quizName"
+              type="text"
+              class="form-control"
+              list="quizNameOptions"
+              placeholder="Khác"
+            />
+            <datalist id="quizNameOptions">
+              <option v-for="quizName in quizNames" :key="quizName" :value="quizName"></option>
+            </datalist>
+            <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
+              Neu de trong, cau hoi se thuoc bai tap Khac.
+            </span>
+          </div>
+
           <!-- Nội dung câu hỏi -->
           <div class="form-group">
             <label for="questionContent">Nội Dung Câu Hỏi *</label>
@@ -107,6 +125,10 @@ export default {
     defaultSubjectId: {
       type: String,
       default: ''
+    },
+    quizNames: {
+      type: Array,
+      default: () => []
     }
   },
   emits: ['close', 'save'],
@@ -117,6 +139,7 @@ export default {
         subjectId: '',
         content: '',
         answer: '',
+        quizName: 'Khác',
         tags: []
       },
       tagsInput: ''
@@ -143,6 +166,7 @@ export default {
           subjectId: this.question.subjectId,
           content: this.question.content,
           answer: this.question.answer,
+          quizName: this.question.quizName || 'Khác',
           tags: [...(this.question.tags || [])]
         };
         this.tagsInput = (this.question.tags || []).join(', ');
@@ -153,6 +177,7 @@ export default {
           subjectId: this.defaultSubjectId || '',
           content: '',
           answer: '',
+          quizName: 'Khác',
           tags: []
         };
         this.tagsInput = '';
@@ -166,6 +191,7 @@ export default {
         .filter(tag => tag !== '');
 
       this.formData.tags = parsedTags;
+      this.formData.quizName = this.formData.quizName?.trim() || 'Kh?c';
 
       this.$emit('save', { ...this.formData });
     }

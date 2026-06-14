@@ -24,6 +24,10 @@
             {{ getSubjectName(question.subjectId) }}
           </span>
 
+          <span class="quiz-badge">
+            {{ question.quizName || 'Khác' }}
+          </span>
+
           <!-- Các nút thao tác sửa / xóa -->
           <div class="question-actions">
             <button 
