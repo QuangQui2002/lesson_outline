@@ -19,6 +19,7 @@
 
     <!-- Nội dung chính: Thống kê & Ô tìm kiếm & Danh sách câu hỏi -->
     <div>
+      <HamsterLoading v-if="showGlobalLoading" :message="loadingMessage" />
       <input
         ref="jsonImportInput"
         type="file"
@@ -128,10 +129,7 @@
 
       <!-- Danh sách câu hỏi lọc theo môn học & tìm kiếm -->
       <section>
-        <div v-if="isLoading" class="ocr-loading-container" style="padding: 5rem 0;">
-          <div class="spinner"></div>
-          <p style="color: var(--text-muted);">Đang tải câu hỏi...</p>
-        </div>
+        <HamsterLoading v-if="isLoading" message="Đang tải câu hỏi..." inline />
         <QuestionList
           v-else
           :questions="filteredQuestions"
@@ -172,6 +170,7 @@ import SubjectList from '../components/SubjectList.vue';
 import QuestionList from '../components/QuestionList.vue';
 import QuestionModal from '../components/QuestionModal.vue';
 import OcrModal from '../components/OcrModal.vue';
+import HamsterLoading from '../components/HamsterLoading.vue';
 import api from '../services/api.js';
 import { useNotification } from '../composables/useNotification.js';
 
@@ -182,7 +181,8 @@ export default {
     SubjectList,
     QuestionList,
     QuestionModal,
-    OcrModal
+    OcrModal,
+    HamsterLoading
   },
   data() {
     return {
@@ -193,6 +193,8 @@ export default {
       activeQuizName: '',
       searchQuery: '',
       isLoading: false,
+      isActionLoading: false,
+      loadingMessage: '',
       isQuestionModalOpen: false,
       isOcrModalOpen: false,
       isJsonImportModalOpen: false,
@@ -203,6 +205,9 @@ export default {
     };
   },
   computed: {
+    showGlobalLoading() {
+      return this.isActionLoading || this.isImportingJson;
+    },
     totalQuestions() {
       return this.questionStats.total;
     },
@@ -245,6 +250,7 @@ export default {
   methods: {
     async loadInitialData() {
       this.isLoading = true;
+      this.loadingMessage = 'Đang tải dữ liệu...';
       try {
         await this.loadSubjects();
         if (!this.activeSubjectId && this.subjects.length > 0) {
@@ -258,6 +264,7 @@ export default {
         console.error('Lỗi khi tải dữ liệu ban đầu:', error);
       } finally {
         this.isLoading = false;
+        this.loadingMessage = '';
       }
     },
     async loadSubjects() {
@@ -340,6 +347,8 @@ export default {
     },
     async handleAddSubject(name) {
       const { toast } = useNotification();
+      this.isActionLoading = true;
+      this.loadingMessage = 'Đang thêm môn học...';
       try {
         const response = await api.createSubject(name);
         if (response.success) {
@@ -349,10 +358,15 @@ export default {
         }
       } catch (error) {
         toast(error.response?.data?.message || 'Không thể tạo môn học mới.', 'error');
+      } finally {
+        this.isActionLoading = false;
+        this.loadingMessage = '';
       }
     },
     async handleDeleteSubject(id) {
       const { toast } = useNotification();
+      this.isActionLoading = true;
+      this.loadingMessage = 'Đang xóa môn học...';
       try {
         const response = await api.deleteSubject(id);
         if (response.success) {
@@ -368,6 +382,9 @@ export default {
         }
       } catch (error) {
         toast('Có lỗi xảy ra khi xóa môn học.', 'error');
+      } finally {
+        this.isActionLoading = false;
+        this.loadingMessage = '';
       }
     },
     triggerJsonImport() {
@@ -408,6 +425,7 @@ export default {
       }
 
       this.isImportingJson = true;
+      this.loadingMessage = 'Đang kiểm tra file JSON...';
       try {
         const importData = JSON.parse(this.jsonImportText);
         const response = await api.previewImportQuestions(this.activeSubjectId, importData);
@@ -423,6 +441,7 @@ export default {
         toast(message, 'error');
       } finally {
         this.isImportingJson = false;
+        this.loadingMessage = '';
       }
     },
     async confirmImportJson() {
@@ -433,6 +452,7 @@ export default {
       }
 
       this.isImportingJson = true;
+      this.loadingMessage = 'Đang import câu hỏi...';
       try {
         const importData = JSON.parse(this.jsonImportText);
         const response = await api.importQuestions(this.activeSubjectId, importData);
@@ -452,10 +472,13 @@ export default {
         toast(error.response?.data?.message || 'Không thể import JSON.', 'error');
       } finally {
         this.isImportingJson = false;
+        this.loadingMessage = '';
       }
     },
     async handleSaveQuestion(questionData) {
       const { toast } = useNotification();
+      this.isActionLoading = true;
+      this.loadingMessage = questionData.id ? 'Đang cập nhật câu hỏi...' : 'Đang lưu câu hỏi...';
       try {
         let response;
         if (questionData.id) {
@@ -478,10 +501,15 @@ export default {
         }
       } catch (error) {
         toast(error.response?.data?.message || 'Không thể lưu câu hỏi.', 'error');
+      } finally {
+        this.isActionLoading = false;
+        this.loadingMessage = '';
       }
     },
     async handleDeleteQuestion(id) {
       const { toast } = useNotification();
+      this.isActionLoading = true;
+      this.loadingMessage = 'Đang xóa câu hỏi...';
       try {
         const response = await api.deleteQuestion(id);
         if (response.success) {
@@ -493,6 +521,9 @@ export default {
         }
       } catch (error) {
         toast('Không thể xóa câu hỏi.', 'error');
+      } finally {
+        this.isActionLoading = false;
+        this.loadingMessage = '';
       }
     },
     openAddQuestionModal() {
