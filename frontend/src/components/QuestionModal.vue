@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div v-if="isOpen" class="modal-backdrop" @click.self="$emit('close')">
     <div class="modal-content question-modal-content">
       
@@ -191,10 +191,11 @@ export default {
         .filter(tag => tag !== '');
 
       this.formData.tags = parsedTags;
-      this.formData.quizName = this.formData.quizName?.trim() || 'Kh?c';
+      this.formData.quizName = this.formData.quizName?.trim() || 'Khác';
 
       this.$emit('save', { ...this.formData });
     }
   }
 };
 </script>
+

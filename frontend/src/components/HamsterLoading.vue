@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="hamster-loading" :class="{ 'hamster-loading--inline': inline }" role="status" aria-live="polite">
     <div class="hamster-loading__card">
       <div aria-label="Orange and tan hamster running in a metal wheel" role="img" class="wheel-and-hamster">
@@ -30,7 +30,7 @@ export default {
   props: {
     message: {
       type: String,
-      default: '?ang x? l?...'
+      default: 'Đang xử lý...'
     },
     inline: {
       type: Boolean,
@@ -358,3 +358,4 @@ export default {
   }
 }
 </style>
+

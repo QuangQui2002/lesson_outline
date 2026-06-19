@@ -53,7 +53,7 @@
             <h3>{{ selectedLesson.lessonName }}</h3>
           </div>
           <div class="lesson-video-player__actions">
-            <a v-if="selectedLmsUrl" class="btn btn-secondary btn-sm" :href="selectedLmsUrl" target="_blank" rel="noopener noreferrer">M? tr?n LMS</a>
+            <a v-if="selectedLmsUrl" class="btn btn-secondary btn-sm" :href="selectedLmsUrl" target="_blank" rel="noopener noreferrer">Mở trên LMS</a>
           </div>
         </div>
 
@@ -62,7 +62,7 @@
             :key="selectedVideoUrl"
             class="lesson-video-frame"
             :src="selectedVideoUrl"
-            :title="selectedLesson?.lessonName || 'Video b?i h?c'"
+            :title="selectedLesson?.lessonName || 'Video bài học'"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
           ></iframe>
         </div>
@@ -156,16 +156,17 @@ export default {
     },
     selectLesson(lesson) {
       this.selectedLessonKey = this.getLessonKey(lesson);
-      this.expandedWeekKey = lesson.weekName || 'Ch?a r? tu?n';
+      this.expandedWeekKey = lesson.weekName || 'Chưa rõ tuần';
     },
     isWeekExpanded(weekName) {
-      return this.expandedWeekKey === (weekName || 'Ch?a r? tu?n');
+      return this.expandedWeekKey === (weekName || 'Chưa rõ tuần');
     },
     toggleWeek(weekName) {
-      const key = weekName || 'Ch?a r? tu?n';
+      const key = weekName || 'Chưa rõ tuần';
       this.expandedWeekKey = this.expandedWeekKey === key ? '' : key;
     }
   }
 };
 </script>
+
 
