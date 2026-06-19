@@ -5,6 +5,7 @@ import cron from 'node-cron';
 import subjectRoutes from './routes/subjectRoutes.js';
 import questionRoutes from './routes/questionRoutes.js';
 import ocrRoutes from './routes/ocrRoutes.js';
+import lessonVideoRoutes from './routes/lessonVideoRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { telegramApiNotifier } from './middleware/telegramApiNotifier.js';
 import { getDbHealth, readDb } from './services/dbService.js';
@@ -68,14 +69,15 @@ app.use(cors({
   allowedHeaders: ['Content-Type']
 }));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: process.env.JSON_BODY_LIMIT || '10mb' }));
 
 app.use('/api', telegramApiNotifier);
 
 app.use('/api/subjects', subjectRoutes);
 app.use('/api/questions', questionRoutes);
 app.use('/api/ocr', ocrRoutes);
+app.use('/api/lesson-videos', lessonVideoRoutes);
 
 app.get('/api/ping', (req, res) => {
   res.type('text/plain').send('xin c\u1ea3m \u01a1n');

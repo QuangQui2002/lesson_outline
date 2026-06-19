@@ -1,0 +1,54 @@
+{
+  "manifest_version": 3,
+  "name": "LMS TVU Lesson Videos",
+  "version": "1.0.0",
+  "description": "Lấy danh sách bài học video từ LMS TVU và lưu vào hệ thống học tập.",
+  "permissions": [
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://lms-tvu.onschool.edu.vn/*",
+    "http://localhost:3000/*",
+    "https://lesson-outline.onrender.com/*",
+    "https://*.cmctelecom.vn/*",
+    "https://s3.cloud.cmctelecom.vn/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://lms-tvu.onschool.edu.vn/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "styles.css"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "https://lms-tvu.onschool.edu.vn/*",
+        "https://*.cmctelecom.vn/*",
+        "https://s3.cloud.cmctelecom.vn/*"
+      ],
+      "js": [
+        "video-controls.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true,
+      "world": "MAIN"
+    }
+  ],
+  "action": {
+    "default_title": "Lưu bài học video",
+    "default_popup": "popup.html"
+  }
+}
+
+

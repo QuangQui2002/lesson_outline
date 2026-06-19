@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-const apiBaseURL = 'https://lesson-outline.onrender.com/api'
-// const apiBaseURL = 'http://localhost:3000/api'
+// const apiBaseURL = 'https://lesson-outline.onrender.com/api'
+const apiBaseURL = 'http://localhost:3000/api'
 // Kết nối tới API của Express Backend chạy ở cổng 3000
 const apiClient = axios.create({
   baseURL: apiBaseURL,
@@ -53,6 +53,13 @@ export default {
       subjectId,
       ...importData
     }).then(res => res.data);
+  },
+
+  // --- API Bài học video ---
+  getLessonVideos(subjectId = null) {
+    const params = {};
+    if (subjectId) params.subjectId = subjectId;
+    return apiClient.get('/lesson-videos', { params }).then(res => res.data);
   },
 
   // --- API OCR ---

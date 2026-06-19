@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <DefaultLayout 
     @open-ocr="openOcrModal"
     @open-add="openAddQuestionModal"
@@ -117,6 +117,33 @@
         </button>
       </section>
 
+      <section class="view-toggle-wrapper">
+        <button
+          type="button"
+          class="btn"
+          :class="activeView === 'questions' ? 'btn-primary' : 'btn-secondary'"
+          @click="activeView = 'questions'"
+        >
+          Ngân hàng câu hỏi
+        </button>
+        <button
+          type="button"
+          class="btn"
+          :class="activeView === 'videos' ? 'btn-primary' : 'btn-secondary'"
+          @click="openLessonVideos"
+        >
+          Bài học video
+        </button>
+      </section>
+
+      <LessonVideoList
+        v-if="activeView === 'videos'"
+        :lessons="lessonVideos"
+        :is-loading="isLessonVideoLoading"
+        @refresh="loadLessonVideos"
+      />
+
+      <template v-else>
       <section v-if="activeSubjectId" class="quiz-filter-wrapper">
         <label for="quizFilter">Bài tập</label>
         <select id="quizFilter" v-model="activeQuizName" class="form-control quiz-filter-select">
@@ -139,6 +166,7 @@
         />
       </section>
 
+      </template>
       <!-- Modal Thêm/Sửa câu hỏi -->
       <QuestionModal
         :is-open="isQuestionModalOpen"
@@ -171,6 +199,7 @@ import QuestionList from '../components/QuestionList.vue';
 import QuestionModal from '../components/QuestionModal.vue';
 import OcrModal from '../components/OcrModal.vue';
 import HamsterLoading from '../components/HamsterLoading.vue';
+import LessonVideoList from '../components/LessonVideoList.vue';
 import api from '../services/api.js';
 import { useNotification } from '../composables/useNotification.js';
 
@@ -182,7 +211,8 @@ export default {
     QuestionList,
     QuestionModal,
     OcrModal,
-    HamsterLoading
+    HamsterLoading,
+    LessonVideoList
   },
   data() {
     return {
@@ -201,6 +231,9 @@ export default {
       isImportingJson: false,
       jsonImportText: '',
       jsonImportPreview: null,
+      activeView: 'questions',
+      lessonVideos: [],
+      isLessonVideoLoading: false,
       editingQuestion: null
     };
   },
@@ -239,6 +272,7 @@ export default {
     activeSubjectId() {
       this.activeQuizName = '';
       this.loadQuestions();
+      if (this.activeView === 'videos') this.loadLessonVideos();
     },
     activeQuizName() {
       this.loadQuestions();
@@ -309,6 +343,27 @@ export default {
     },
     selectSubject(subjectId) {
       this.activeSubjectId = subjectId;
+    },
+    async openLessonVideos() {
+      this.activeView = 'videos';
+      await this.loadLessonVideos();
+    },
+    async loadLessonVideos() {
+      const { toast } = useNotification();
+      if (!this.activeSubjectId) {
+        this.lessonVideos = [];
+        return;
+      }
+
+      this.isLessonVideoLoading = true;
+      try {
+        const response = await api.getLessonVideos(this.activeSubjectId);
+        if (response.success) this.lessonVideos = response.data;
+      } catch (error) {
+        toast(error.response?.data?.message || 'Không thể tải danh sách bài học video.', 'error');
+      } finally {
+        this.isLessonVideoLoading = false;
+      }
     },
     exportQuestionsJson() {
       const { toast } = useNotification();
