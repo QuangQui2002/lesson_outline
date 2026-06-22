@@ -1,833 +1,596 @@
 {
-    "success": true,
-    "data": {
-        "id": 400,
-        "fullname": "Vi tích phân A2",
-        "shortname": "110002",
-        "summary": null,
-        "startdate": 1781370000,
-        "enddate": 1786899599,
-        "attendance": 1785689700,
-        "examdate": "16/08/2026",
-        "credits": 2,
-        "sci": 0,
-        "progress": 0,
-        "totalProgress": 8,
-
-        "sections": [
-            {
-                "id": 3927,
-                "sectiontype": "LIPE",
-                "name": "GIỚI THIỆU TỔNG QUAN",
-                "summary": "<h3 style=\"text-align: center;\">Vi tích phân A2</h3>\r\n<h4 class=\"subtitle\"><strong>Mô tả học phần</strong></h4>\r\n<p dir=\"ltr\">Môn học cung cấp các kiến thức cơ bản của giải tích: đạo hàm và vi phân hàm nhiều biến; tích phân bội hai, tích phân bội ba; tích phân đường, tích phân mặt; phương trình vi phân cấp 1, 2. Đóng vai trò then chốt trong việc rèn luyện tư duy khoa học, cung cấp các công cụ toán học để sinh viên học các học phần khác ở bậc đại học</p>\r\n<ul>\r\n<li dir=\"ltr\" aria-level=\"1\">\r\n<p dir=\"ltr\" role=\"presentation\">Về kiến thức</p>\r\n</li>\r\n</ul>\r\n<ul>\r\n<li dir=\"ltr\" aria-level=\"1\">\r\n<p dir=\"ltr\" role=\"presentation\">Nắm vững các kiến thức nền tảng: hàm nhiều biến, giới hạn kép và liên tục, đạo hàm riêng, vi phân và ứng dụng; cách tính tích phân bội: bội 2, bội 3; tích phân đường: loại 1, loại 2; tích phân mặt: loại 1, loại 2; tích phân phụ thuộc tham số. </p>\r\n</li>\r\n<li dir=\"ltr\" aria-level=\"1\">\r\n<p dir=\"ltr\" role=\"presentation\">Xác định được các dạng phương trình vi phân cấp 1 và 2.</p>\r\n</li>\r\n<li dir=\"ltr\" aria-level=\"1\">\r\n<p dir=\"ltr\" role=\"presentation\">Giải được các bài toán.</p>\r\n</li>\r\n</ul>\r\n<ul>\r\n<li dir=\"ltr\" aria-level=\"1\">\r\n<p dir=\"ltr\" role=\"presentation\">Về kỹ năng</p>\r\n</li>\r\n</ul>\r\n<ul>\r\n<li dir=\"ltr\" aria-level=\"1\">\r\n<p dir=\"ltr\" role=\"presentation\">Hiểu và vận dụng được các kỹ năng tính toán để giải các bài toán cụ thể.</p>\r\n</li>\r\n<li dir=\"ltr\" aria-level=\"1\">\r\n<p dir=\"ltr\" role=\"presentation\">Biết vận dụng các phương pháp và tư duy sáng tạo vào khoa học kỹ thuật.</p>\r\n</li>\r\n</ul>\r\n<ul>\r\n<li dir=\"ltr\" aria-level=\"1\">\r\n<p dir=\"ltr\" role=\"presentation\">Về năng lực tự chủ và trách nhiệm</p>\r\n</li>\r\n</ul>\r\n<ul>\r\n<li dir=\"ltr\" aria-level=\"1\">\r\n<p dir=\"ltr\" role=\"presentation\">Có ý thức tự học, kỹ năng quản lý thời gian, phương pháp học tập tích cực.</p>\r\n</li>\r\n<li dir=\"ltr\" aria-level=\"1\">\r\n<p dir=\"ltr\" role=\"presentation\">Có kỹ năng làm việc nhóm và giao tiếp</p>\r\n</li>\r\n</ul>\r\n<h4 class=\"subtitle\"> </h4>\r\n<h4 class=\"subtitle\"><strong>Thời gian</strong></h4>\r\n<ul class=\"cs_course_syslebus\">\r\n<li><i class=\"fa fa-check\"></i>    Ngày bắt đầu - Ngày chốt điểm chuyên cần: <strong><!--ngay_bat_dau-->14/06/2026<!--end_ngay_bat_dau--> - <!--D_CC-->02/08/2026<!--end_D_CC--></strong></li>\r\n<li><i class=\"fa fa-check\"></i>    Ngày thi dự kiến: <strong style=\"font-size: 15px;\"><!--ngay_thi-->16/08/2026<!--end_ngay_thi--></strong></li>\r\n</ul>\r\n<p>Chúc anh/chị sinh viên học tập tốt!</p>",
-                "modules": [
-                    {
-                        "id": 851,
-                        "cmid": 20382,
-                        "type": "forum",
-                        "name": "Diễn đàn thảo luận",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": 0,
-                        "sci": false,
-                        "moduletype": "I"
-                    }
-                ]
-            },
-            {
-                "id": 3928,
-                "sectiontype": "LIPE",
-                "name": "Tuần 1 (14/06/2026 - 21/06/2026)",
-                "summary": "<p><strong id=\"docs-internal-guid-5c5fbe34-7fff-1f3b-5aa0-5612b8479d02\">Chương 1: Đạo hàm và vi phân hàm nhiều biến</strong></p>",
-                "modules": [
-                    {
-                        "id": 10986,
-                        "cmid": 20383,
-                        "type": "hvp",
-                        "name": "Tập hợp trong Rⁿ",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 10987,
-                        "cmid": 20384,
-                        "type": "hvp",
-                        "name": "Hàm hai biến",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 10988,
-                        "cmid": 20385,
-                        "type": "hvp",
-                        "name": "Bài tập ôn tập về hàm nhiều biến",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 10989,
-                        "cmid": 20386,
-                        "type": "hvp",
-                        "name": "Biểu diễn hình học của hàm hai biến",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 10990,
-                        "cmid": 20387,
-                        "type": "hvp",
-                        "name": "Tính chất của giới hạn",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 10991,
-                        "cmid": 20388,
-                        "type": "hvp",
-                        "name": "Sự liên tục",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 10992,
-                        "cmid": 20389,
-                        "type": "hvp",
-                        "name": "Bài tập về sự liên tục",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    }
-                ]
-            },
-            {
-                "id": 3929,
-                "sectiontype": "LIPE",
-                "name": "Tuần 2 (22/06/2026 - 28/06/2026)",
-                "summary": "<p><strong id=\"docs-internal-guid-e2123b38-7fff-362b-1e49-e07701436bb3\">Chương 1: Đạo hàm và vi phân hàm nhiều biến (tiếp theo)</strong></p>",
-                "modules": [
-                    {
-                        "id": 10993,
-                        "cmid": 20391,
-                        "type": "hvp",
-                        "name": "Đạo hàm riêng theo các biến x và y",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 10994,
-                        "cmid": 20392,
-                        "type": "hvp",
-                        "name": "Mô tả hình học của đạo hàm riêng",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 10995,
-                        "cmid": 20393,
-                        "type": "hvp",
-                        "name": "Tính chất của đạo hàm riêng",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 10996,
-                        "cmid": 20394,
-                        "type": "hvp",
-                        "name": "Đạo hàm riêng cấp cao",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 10997,
-                        "cmid": 20395,
-                        "type": "hvp",
-                        "name": "Vi phân toàn phần",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 10998,
-                        "cmid": 20396,
-                        "type": "hvp",
-                        "name": "Vi phân cấp cao",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 10999,
-                        "cmid": 20397,
-                        "type": "hvp",
-                        "name": "Đạo hàm hàm hợp trong các trường hợp một và hai biến",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11000,
-                        "cmid": 20398,
-                        "type": "hvp",
-                        "name": "Vi phân cấp một của hàm hợp",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11001,
-                        "cmid": 20399,
-                        "type": "hvp",
-                        "name": "Đạo hàm của hàm ẩn",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11002,
-                        "cmid": 20400,
-                        "type": "hvp",
-                        "name": "Bài tập về đạo hàm của hàm ẩn",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11003,
-                        "cmid": 20401,
-                        "type": "hvp",
-                        "name": "Cực trị tự do",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11004,
-                        "cmid": 20402,
-                        "type": "hvp",
-                        "name": "Điều kiện cần của cực trị",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11005,
-                        "cmid": 20403,
-                        "type": "hvp",
-                        "name": "Cực trị có điều kiện và các điều kiện cần, đủ",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11006,
-                        "cmid": 20404,
-                        "type": "hvp",
-                        "name": "Sơ đồ khảo sát cực trị có điều kiện và chú ý",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11007,
-                        "cmid": 20405,
-                        "type": "hvp",
-                        "name": "Giá trị lớn nhất, nhỏ nhất trên miền đóng. Định nghĩa và định lý Weierstrass",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11008,
-                        "cmid": 20406,
-                        "type": "hvp",
-                        "name": "Bài tập tìm giá trị lớn nhất, nhỏ nhất trên miền đóng",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 3244,
-                        "cmid": 20408,
-                        "type": "quiz",
-                        "name": "Luyện tập trắc nghiệm 1",
-                        "intro": "<p>Đây là bài luyện tập trắc nghiệm tính điểm chuyên cần. Nội dung kiến thức nằm trong Chương 1. Anh/chị nên làm bài ít nhất 10 lần để nắm kiến thức.</p>",
-                        "url": null,
-                        "completionstate": 0,
-                        "sci": false,
-                        "moduletype": "P"
-                    }
-                ]
-            },
-            {
-                "id": 3930,
-                "sectiontype": "LIPE",
-                "name": "Tuần 3 (29/06/2026 - 05/07/2026)",
-                "summary": "<p><strong id=\"docs-internal-guid-7066c5a3-7fff-6f8c-0c8c-b7dbf6895ac2\">Chương 3: Tích phân đường - Tích phân mặt</strong></p>",
-                "modules": [
-                    {
-                        "id": 11009,
-                        "cmid": 20409,
-                        "type": "hvp",
-                        "name": "Khái niệm và tính chất của tích phân kép",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11010,
-                        "cmid": 20410,
-                        "type": "hvp",
-                        "name": "Cách tính tích phân hai lớp.",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11011,
-                        "cmid": 20411,
-                        "type": "hvp",
-                        "name": "Tính tích phân kép bằng tọa độ cực",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11012,
-                        "cmid": 20412,
-                        "type": "hvp",
-                        "name": "Tính tích phân kép bằng tọa độ cực suy rộng",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11013,
-                        "cmid": 20413,
-                        "type": "hvp",
-                        "name": "Bài tập tích phân kép",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11014,
-                        "cmid": 20414,
-                        "type": "hvp",
-                        "name": "Định nghĩa, các tính chất của tích phân bội ba",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11015,
-                        "cmid": 20415,
-                        "type": "hvp",
-                        "name": "Tính tích phân bội ba bằng tọa độ trụ",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11016,
-                        "cmid": 20416,
-                        "type": "hvp",
-                        "name": "Đổi biến sang tọa độ trụ",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11017,
-                        "cmid": 20417,
-                        "type": "hvp",
-                        "name": "Tọa độ cầu",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11018,
-                        "cmid": 20418,
-                        "type": "hvp",
-                        "name": "Bài tập tích phân bội ba",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11019,
-                        "cmid": 20419,
-                        "type": "hvp",
-                        "name": "Ứng dụng tích phân bội trong hình học",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11020,
-                        "cmid": 20420,
-                        "type": "hvp",
-                        "name": "Tính thể tích khối bằng tích phân bội",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11021,
-                        "cmid": 20421,
-                        "type": "hvp",
-                        "name": "Ứng dụng tích phân bội trong hình học",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11022,
-                        "cmid": 20422,
-                        "type": "hvp",
-                        "name": "Bài tập ứng dụng tích phân bội",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 3245,
-                        "cmid": 20424,
-                        "type": "quiz",
-                        "name": "Luyện tập trắc nghiệm 2",
-                        "intro": "<p>Đây là bài luyện tập trắc nghiệm tính điểm chuyên cần. Nội dung kiến thức nằm trong Chương 2. Anh/chị nên làm bài ít nhất 10 lần để nắm kiến thức.</p>",
-                        "url": null,
-                        "completionstate": 0,
-                        "sci": false,
-                        "moduletype": "P"
-                    },
-                    {
-                        "id": 3246,
-                        "cmid": 20425,
-                        "type": "quiz",
-                        "name": "Bài tập giữa kỳ số 1",
-                        "intro": "<p dir=\"ltr\">Bài tập giữa kỳ số 1: 20% (Nộp trên hệ thống LMS).</p>\r\n<p dir=\"ltr\">Đây là bài kiểm tra dạng trắc nghiệm. Kiểm tra kiến thức Chương 1. Anh/chị vui lòng kiểm tra thiết bị làm bài, đường truyền mạng internet vì đây là bài kiểm tra có giới hạn số lần làm bài.</p>",
-                        "url": null,
-                        "completionstate": 0,
-                        "sci": false,
-                        "moduletype": "E"
-                    }
-                ]
-            },
-            {
-                "id": 3931,
-                "sectiontype": "LIPE",
-                "name": "Tuần 4 (06/07/2026 - 12/07/2026)",
-                "summary": "<p><strong id=\"docs-internal-guid-5bd5c793-7fff-547e-4cf8-c73331d70b6b\">Chương 2: Tích phân bội</strong></p>",
-                "modules": [
-                    {
-                        "id": 11023,
-                        "cmid": 20426,
-                        "type": "hvp",
-                        "name": "Định nghĩa và tính chất của tích phân đường loại 1",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11024,
-                        "cmid": 20427,
-                        "type": "hvp",
-                        "name": "Cách tính tích phân đường loại một",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11025,
-                        "cmid": 20428,
-                        "type": "hvp",
-                        "name": "Bài tập về tích phân đường loại 1",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11026,
-                        "cmid": 20429,
-                        "type": "hvp",
-                        "name": "Định nghĩa và tính chất của tích phân đường loại 2",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11027,
-                        "cmid": 20430,
-                        "type": "hvp",
-                        "name": "Cách tính tích phân đường loại hai",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11028,
-                        "cmid": 20431,
-                        "type": "hvp",
-                        "name": "Công thức Green",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11029,
-                        "cmid": 20432,
-                        "type": "hvp",
-                        "name": "Tích phân không phụ thuộc đường đi",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11030,
-                        "cmid": 20433,
-                        "type": "hvp",
-                        "name": "Bài tập về tích phân đường loại 2",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11031,
-                        "cmid": 20434,
-                        "type": "hvp",
-                        "name": "Định nghĩa và tính chất của tích phân mặt loại 1",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11032,
-                        "cmid": 20435,
-                        "type": "hvp",
-                        "name": "Cách tính và ứng dụng tích phân mặt loại 1",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11033,
-                        "cmid": 20436,
-                        "type": "hvp",
-                        "name": "Các định nghĩa về tích phân mặt loại 2",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11034,
-                        "cmid": 20437,
-                        "type": "hvp",
-                        "name": "Các định lí và công thức cơ bản",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11035,
-                        "cmid": 20438,
-                        "type": "hvp",
-                        "name": "Bài tập về tích phân mặt loại hai",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 3247,
-                        "cmid": 20440,
-                        "type": "quiz",
-                        "name": "Luyện tập trắc nghiệm 3",
-                        "intro": "<p>Đây là bài luyện tập trắc nghiệm tính điểm chuyên cần. Nội dung kiến thức nằm trong Chương 2, 3. Anh/chị nên làm bài ít nhất 10 lần để nắm kiến thức.</p>",
-                        "url": null,
-                        "completionstate": 0,
-                        "sci": false,
-                        "moduletype": "P"
-                    }
-                ]
-            },
-            {
-                "id": 3932,
-                "sectiontype": "LIPE",
-                "name": "Tuần 5 (13/07/2026 - 19/07/2026)",
-                "summary": "<p><strong id=\"docs-internal-guid-9c4b7587-7fff-897a-d2a2-0d0e0a4b6644\">Chương 4: Phương trình vi phân cấp</strong></p>",
-                "modules": [
-                    {
-                        "id": 11036,
-                        "cmid": 20441,
-                        "type": "hvp",
-                        "name": "Các khái niệm cơ bản về phương trình vi phân cấp 1",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11037,
-                        "cmid": 20442,
-                        "type": "hvp",
-                        "name": "Phương trình vi phân tách biến và các dạng đưa về phương trình vi phân tách biến",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11038,
-                        "cmid": 20443,
-                        "type": "hvp",
-                        "name": "Phương trình vi phân tuyến tính cấp 1",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11039,
-                        "cmid": 20444,
-                        "type": "hvp",
-                        "name": "Phương trình vi phân đẳng cấp cấp 1",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11040,
-                        "cmid": 20445,
-                        "type": "hvp",
-                        "name": "Phương trình vi phân toàn phần",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11041,
-                        "cmid": 20446,
-                        "type": "hvp",
-                        "name": "Phương trình vi phân Bernoulli",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11042,
-                        "cmid": 20447,
-                        "type": "hvp",
-                        "name": "Bài tập về phương trình vi phân cấp 1",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 3248,
-                        "cmid": 20449,
-                        "type": "quiz",
-                        "name": "Bài tập giữa kỳ số 2",
-                        "intro": "<p dir=\"ltr\">Bài tập giữa kỳ số 2: 20% (Nộp trên hệ thống LMS).</p>\r\n<p dir=\"ltr\">Đây là bài kiểm tra dạng trắc nghiệm. Kiểm tra kiến thức Chương 2, 3. Anh/chị vui lòng kiểm tra thiết bị làm bài, đường truyền mạng internet vì đây là bài kiểm tra có giới hạn số lần làm bài.</p>\r\n<p></p>",
-                        "url": null,
-                        "completionstate": 0,
-                        "sci": false,
-                        "moduletype": "E"
-                    }
-                ]
-            },
-            {
-                "id": 3933,
-                "sectiontype": "LIPE",
-                "name": "Tuần 6 (20/07/2026 - 26/07/2026)",
-                "summary": "<p><strong id=\"docs-internal-guid-ff8c1d46-7fff-c77a-5c3f-653b0663ac5b\">Chương 4: Phương trình vi phân cấp (tiếp theo)</strong></p>",
-                "modules": [
-                    {
-                        "id": 11043,
-                        "cmid": 20450,
-                        "type": "hvp",
-                        "name": "Định nghĩa, cấu trúc nghiệm và phương pháp giải phương trình vi phân tuyến tính cấp 2",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11044,
-                        "cmid": 20451,
-                        "type": "hvp",
-                        "name": "Phân loại và phương pháp giải phương trình vi phân tuyến tính cấp 2 hệ số hằng",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 11045,
-                        "cmid": 20452,
-                        "type": "hvp",
-                        "name": "Bài tập về phương trình vi phân cấp 2",
-                        "intro": "",
-                        "url": null,
-                        "completionstate": null,
-                        "sci": false,
-                        "moduletype": "L"
-                    },
-                    {
-                        "id": 3249,
-                        "cmid": 20454,
-                        "type": "quiz",
-                        "name": "Luyện tập trắc nghiệm 4",
-                        "intro": "<p>Đây là bài luyện tập trắc nghiệm tính điểm chuyên cần. Nội dung kiến thức nằm trong Chương 3, 4. Anh/chị nên làm bài ít nhất 10 lần để nắm kiến thức.</p>",
-                        "url": null,
-                        "completionstate": 0,
-                        "sci": false,
-                        "moduletype": "P"
-                    }
-                ]
-            },
-            {
-                "id": 3934,
-                "sectiontype": "LIPE",
-                "name": "Tuần 7 (27/07/2026 - 02/08/2026)",
-                "summary": "<p><strong id=\"docs-internal-guid-51637a42-7fff-fcd8-147f-28007fae5582\">Ôn tập</strong></p>",
-                "modules": [
-                    {
-                        "id": 3250,
-                        "cmid": 20455,
-                        "type": "quiz",
-                        "name": "Luyện tập trước thi",
-                        "intro": "<p dir=\"ltr\">Đây là bài luyện tập trước thi dạng trắc nghiệm. Anh/chị nên làm bài ít nhất 10 lần để nắm kiến thức.</p>\r\n<p dir=\"ltr\">Chúc anh/chị thi tốt!</p>",
-                        "url": null,
-                        "completionstate": 0,
-                        "sci": false,
-                        "moduletype": "P"
-                    }
-                ]
-            }
-        ]
-       
-    }
+    "attempt": {
+        "id": 184963,
+        "quiz": 2580,
+        "userid": 1735,
+        "attempt": 2,
+        "uniqueid": 185120,
+        "state": "inprogress",
+        "timestart": 1782094104,
+        "timefinish": 0,
+        "timemodified": 1782094104,
+        "sumgrades": null,
+        "timeremaining": 0,
+        "totalquestions": 20,
+        "quizgrade": null,
+        "quizmaxgrade": 10
+    },
+    "course": {
+        "id": 326,
+        "name": "Cấu trúc dữ liệu và giải thuật"
+    },
+    "quiz": {
+        "id": 2580,
+        "name": "Luyện tập trắc nghiệm 1",
+        "camshot": {
+            "delay": 30,
+            "width": 480
+        }
+    },
+    "totalquestions": 20,
+    "currentpage": 1,
+    "totalpage": 1,
+    "layout": "[[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]]",
+    "questions": [
+        {
+            "id": 31088,
+            "slot": 1,
+            "type": "singlechoice",
+            "questiontext": "Độ phức tạp của giải thuật sắp xếp nổi bọt (Bubble Sort).",
+            "order": 1,
+            "maxgrade": 1,
+            "flagged": false,
+            "tags": [],
+            "answertext": [
+                {
+                    "id": 119516,
+                    "answer": "T(n) = O(n)"
+                },
+                {
+                    "id": 119518,
+                    "answer": "T(n) = O(nlog<sub>2</sub>n)"
+                },
+                {
+                    "id": 119519,
+                    "answer": "T(n) = O(n<sup>3</sup>)"
+                },
+                {
+                    "id": 119517,
+                    "answer": "T(n) = O(n<sup>2</sup>)"
+                }
+            ]
+        },
+        {
+            "id": 31090,
+            "slot": 2,
+            "type": "singlechoice",
+            "questiontext": "Độ phức tạp của giải thuật sắp xếp chèn trực tiếp (Insertion Sort).",
+            "order": 2,
+            "maxgrade": 1,
+            "flagged": false,
+            "tags": [],
+            "answertext": [
+                {
+                    "id": 119525,
+                    "answer": "T(n) = O(nlog<sub>2</sub>n)"
+                },
+                {
+                    "id": 119526,
+                    "answer": "T(n) = O(n<sup>2</sup>)"
+                },
+                {
+                    "id": 119527,
+                    "answer": "T(n) = O(n<sup>3</sup>)"
+                },
+                {
+                    "id": 119524,
+                    "answer": "T(n) = O(n)"
+                }
+            ]
+        },
+        {
+            "id": 31085,
+            "slot": 3,
+            "type": "singlechoice",
+            "questiontext": "Độ phức tạp của hàm:<br>int tongchan(int n)<br>{<br>int i, tong=0;<br>for (i=1;i&lt;=n; i++)<br>if (i%2==0)<br>tong=tong+i;<br>return tong;<br>}",
+            "order": 3,
+            "maxgrade": 1,
+            "flagged": false,
+            "tags": [],
+            "answertext": [
+                {
+                    "id": 119507,
+                    "answer": "T(n) = O(n<sup>3</sup>)"
+                },
+                {
+                    "id": 119506,
+                    "answer": "T(n) = O(n)"
+                },
+                {
+                    "id": 119505,
+                    "answer": "T(n) = O(n<sup>2</sup>)"
+                },
+                {
+                    "id": 119504,
+                    "answer": "T(n) = O(1)"
+                }
+            ]
+        },
+        {
+            "id": 31081,
+            "slot": 4,
+            "type": "singlechoice",
+            "questiontext": "Cho biết kết quả in ra màn hình của đoạn chương trình sau:<br>float a=11;<br>float b=4;<br>int c;<br>c=a/b;<br>printf(&quot;%d&quot;,c);",
+            "order": 4,
+            "maxgrade": 1,
+            "flagged": false,
+            "tags": [],
+            "answertext": [
+                {
+                    "id": 119488,
+                    "answer": "0"
+                },
+                {
+                    "id": 119489,
+                    "answer": "2"
+                },
+                {
+                    "id": 119490,
+                    "answer": "0.0"
+                },
+                {
+                    "id": 119491,
+                    "answer": "2.0"
+                }
+            ]
+        },
+        {
+            "id": 31087,
+            "slot": 5,
+            "type": "singlechoice",
+            "questiontext": "Độ phức tạp của hàm:<br>void hoanvi(int &amp;x, int &amp;y)<br>{<br>int z=x;<br>x=y;<br>y=z;<br>}",
+            "order": 5,
+            "maxgrade": 1,
+            "flagged": false,
+            "tags": [],
+            "answertext": [
+                {
+                    "id": 119514,
+                    "answer": "T(n) = O(n)"
+                },
+                {
+                    "id": 119515,
+                    "answer": "T(n) = O(n<sup>3</sup>)"
+                },
+                {
+                    "id": 119513,
+                    "answer": "T(n) = O(n<sup>2</sup>)"
+                },
+                {
+                    "id": 119512,
+                    "answer": "T(n) = O(1)"
+                }
+            ]
+        },
+        {
+            "id": 31067,
+            "slot": 6,
+            "type": "singlechoice",
+            "questiontext": "Trong khi lưu trữ và quản lý thông tin nhân viên (số lượng tối đa là 1000) gồm: mã số, họ tên, năm sinh và hệ số lương (có phần thập phân) , một lập trình viên khai báo cấu trúc dữ liệu như sau:<br>typedef struct nv<br>{<br>char ma<br>so[4];<br>char hoten[30];<br>int namsinh;<br>int hsluong;<br>}nv;<br>Cấu trúc dữ liệu trên chưa thỏa tiêu chuẩn đánh giá nào?",
+            "order": 6,
+            "maxgrade": 1,
+            "flagged": false,
+            "tags": [],
+            "answertext": [
+                {
+                    "id": 119433,
+                    "answer": "Phù hợp với các thao tác trên đó; tiết kiệm tài nguyên hệ thống."
+                },
+                {
+                    "id": 119430,
+                    "answer": "Phù hợp với các thao tác trên đó."
+                },
+                {
+                    "id": 119431,
+                    "answer": "Phản ánh đúng thực tế."
+                },
+                {
+                    "id": 119432,
+                    "answer": "Tiết kiệm tài nguyên hệ thống."
+                }
+            ]
+        },
+        {
+            "id": 31075,
+            "slot": 7,
+            "type": "singlechoice",
+            "questiontext": "Dạng hàm thể hiện độ phức tạp có thể chấp nhận được:",
+            "order": 7,
+            "maxgrade": 1,
+            "flagged": false,
+            "tags": [],
+            "answertext": [
+                {
+                    "id": 119465,
+                    "answer": "n<sup>n</sup>"
+                },
+                {
+                    "id": 119462,
+                    "answer": "n<sup>3</sup>"
+                },
+                {
+                    "id": 119463,
+                    "answer": "2<sup>n</sup>"
+                },
+                {
+                    "id": 119464,
+                    "answer": "n!"
+                }
+            ]
+        },
+        {
+            "id": 31079,
+            "slot": 8,
+            "type": "singlechoice",
+            "questiontext": "Cho biết kết quả in ra màn hình của đoạn chương trình sau:<br>int a=10;<br>int b=3;<br>float c;<br>c=(float)a/b;<br>printf(“%5.2f”,c);",
+            "order": 8,
+            "maxgrade": 1,
+            "flagged": false,
+            "tags": [],
+            "answertext": [
+                {
+                    "id": 119483,
+                    "answer": "3.33"
+                },
+                {
+                    "id": 119481,
+                    "answer": "3.00"
+                },
+                {
+                    "id": 119480,
+                    "answer": "3.333"
+                },
+                {
+                    "id": 119482,
+                    "answer": "0"
+                }
+            ]
+        },
+        {
+            "id": 31089,
+            "slot": 9,
+            "type": "singlechoice",
+            "questiontext": "Độ phức tạp của giải thuật sắp xếp đổi chỗ trực tiếp (Interchange Sort).",
+            "order": 9,
+            "maxgrade": 1,
+            "flagged": false,
+            "tags": [],
+            "answertext": [
+                {
+                    "id": 119522,
+                    "answer": "T(n) = O(n<sup>2</sup>)"
+                },
+                {
+                    "id": 119521,
+                    "answer": "T(n) = O(nlog<sub>2</sub>n)"
+                },
+                {
+                    "id": 119523,
+                    "answer": "T(n) = O(n<sup>3</sup>)"
+                },
+                {
+                    "id": 119520,
+                    "answer": "T(n) = O(n)"
+                }
+            ]
+        },
+        {
+            "id": 31084,
+            "slot": 10,
+            "type": "singlechoice",
+            "questiontext": "Cho biết kết quả in ra màn hình của đoạn chương trình sau:<br>int a=11;<br>float b=4.2;<br>int c;<br>c=a*b;<br>printf(&quot;%d&quot;,c);",
+            "order": 10,
+            "maxgrade": 1,
+            "flagged": false,
+            "tags": [],
+            "answertext": [
+                {
+                    "id": 119502,
+                    "answer": "46"
+                },
+                {
+                    "id": 119501,
+                    "answer": "44.0"
+                },
+                {
+                    "id": 119500,
+                    "answer": "44"
+                },
+                {
+                    "id": 119503,
+                    "answer": "46.2"
+                }
+            ]
+        },
+        {
+            "id": 30948,
+            "slot": 11,
+            "type": "singlechoice",
+            "questiontext": "Trong bốn phương pháp sắp xếp: chọn trực tiếp (Selection Sort), chèn trực tiếp (Insertion Sort), đổi chỗ trực tiếp (Interchange Sort) và nổi bọt (Bubble Sort). Phương pháp nào thực hiện sắp xếp nhanh nhất với một dãy đã có thứ tự? Giải thích.",
+            "order": 11,
+            "maxgrade": 1,
+            "flagged": false,
+            "tags": [],
+            "answertext": [
+                {
+                    "id": 118957,
+                    "answer": "Chọn trực tiếp (Selection Sort) do có số lần hoán vị ít nhất."
+                },
+                {
+                    "id": 118954,
+                    "answer": "Nổi bọt (Bubble Sort) do có số lần so sánh ít nhất"
+                },
+                {
+                    "id": 118956,
+                    "answer": "Chèn trực tiếp (Insertion Sort) do có số lần so sánh ít nhất."
+                },
+                {
+                    "id": 118955,
+                    "answer": "Đổi chỗ trực tiếp (Interchange Sort) do có số lần so sánh và hoán vị ít nhất."
+                }
+            ]
+        },
+        {
+            "id": 30939,
+            "slot": 12,
+            "type": "singlechoice",
+            "questiontext": "Cho dãy số: 19, 3, 13, 10, 2, 18, 5, 7<br>Áp dụng giải thuật sắp xếp cây (Heap Sort) trên dãy số đã cho, sau khi hiệu chỉnh dãy số trên thành heap (giai đoạn 1) được kết quả như sau:",
+            "order": 12,
+            "maxgrade": 1,
+            "flagged": false,
+            "tags": [],
+            "answertext": [
+                {
+                    "id": 118920,
+                    "answer": "19, 10, 18, 3, 2, 13, 5, 7"
+                },
+                {
+                    "id": 118921,
+                    "answer": "19, 3, 18, 10, 2, 13, 5, 7"
+                },
+                {
+                    "id": 118918,
+                    "answer": "19, 10, 18, 7, 2, 13, 5, 3"
+                },
+                {
+                    "id": 118919,
+                    "answer": "19, 18, 13, 10, 7, 5, 3, 2"
+                }
+            ]
+        },
+        {
+            "id": 30951,
+            "slot": 13,
+            "type": "singlechoice",
+            "questiontext": "Cho dãy số: 3, 10, 13, 18, 2, 19, 5, 7<br>Áp dụng giải thuật sắp xếp đổi chỗ trực tiếp (Interchange Sort) theo thứ tự giảm dần trên dãy số đã cho, sau vòng lặp thứ nhất được kết quả:",
+            "order": 13,
+            "maxgrade": 1,
+            "flagged": false,
+            "tags": [],
+            "answertext": [
+                {
+                    "id": 118967,
+                    "answer": "19, 10, 13, 18, 2, 3, 5, 7"
+                },
+                {
+                    "id": 118969,
+                    "answer": "19, 3, 10, 13, 2, 18, 5, 7"
+                },
+                {
+                    "id": 118966,
+                    "answer": "10, 3, 13, 18, 2, 19, 5, 7"
+                },
+                {
+                    "id": 118968,
+                    "answer": "19, 3, 10, 13, 18, 2, 7, 5"
+                }
+            ]
+        },
+        {
+            "id": 30921,
+            "slot": 14,
+            "type": "singlechoice",
+            "questiontext": "Cho hàm sắp xếp:<br>void ProSort(int a[], int N)<br>{int min,i,j;<br>for (i=1; i&lt;N; i++)<br>{<br>min = i;<br>for(j=i+1; j&lt;=N; j++)<br>if (a[j ]&lt;a[min])<br>min = j;<br>Swap(a[min],a[i]);<br>}<br>}<br>Hàm trên cài đặt giải thuật sắp xếp nào?",
+            "order": 14,
+            "maxgrade": 1,
+            "flagged": false,
+            "tags": [],
+            "answertext": [
+                {
+                    "id": 118849,
+                    "answer": "Nổi bọt (Bubble Sort)."
+                },
+                {
+                    "id": 118848,
+                    "answer": "Chèn trực tiếp (Insertion Sort)."
+                },
+                {
+                    "id": 118847,
+                    "answer": "Đổi chỗ trực tiếp (Interchange Sort)."
+                },
+                {
+                    "id": 118846,
+                    "answer": "Chọn trực tiếp (Selection Sort)."
+                }
+            ]
+        },
+        {
+            "id": 30920,
+            "slot": 15,
+            "type": "singlechoice",
+            "questiontext": "Giải thuật sắp xếp sau đây:<br>- Bước 1: i = 1;<br>- Bước 2: Tìm phần tử a[min] nhỏ nhất trong dãy hiện hành từ a[i] đến a[N].<br>- Bước 3: Hoán vị a[min] và a[i] .<br>- Bước 4: Nếu i &lt;= N-1 thì i = i+1; Lặp lại Bước 2 là phương pháp sắp xếp nào?",
+            "order": 15,
+            "maxgrade": 1,
+            "flagged": false,
+            "tags": [],
+            "answertext": [
+                {
+                    "id": 118844,
+                    "answer": "Chèn trực tiếp (Insertion Sort)."
+                },
+                {
+                    "id": 118842,
+                    "answer": "Nổi bọt (Bubble Sort)."
+                },
+                {
+                    "id": 118843,
+                    "answer": "Đổi chỗ trực tiếp (Interchange Sort)."
+                },
+                {
+                    "id": 118845,
+                    "answer": "Chọn trực tiếp (Selection Sort)."
+                }
+            ]
+        },
+        {
+            "id": 30924,
+            "slot": 16,
+            "type": "singlechoice",
+            "questiontext": "Giải thuật sắp xếp sau đây:<br>-Bước 1 : i = 1;<br>-Bước 2 : j = i+1;<br>-Bước 3 :<br>Trong khi j &lt;= N thực hiện<br>Nếu a[j]&lt;a[i]: a[i]↔a[j];<br>j = j+1;<br>-Bước 4 :<br>i = i+1;<br>Nếu i<sub> </sub>&lt; n: Lặp lại Bước 2. Ngược lại: Dừng.<br>là phương pháp sắp xếp nào?",
+            "order": 16,
+            "maxgrade": 1,
+            "flagged": false,
+            "tags": [],
+            "answertext": [
+                {
+                    "id": 118859,
+                    "answer": "Đổi chỗ trực tiếp (Interchange Sort)"
+                },
+                {
+                    "id": 118860,
+                    "answer": "Nổi bọt (Bubble Sort)"
+                },
+                {
+                    "id": 118858,
+                    "answer": "Chèn trực tiếp (Insertion Sort))"
+                },
+                {
+                    "id": 118861,
+                    "answer": "Chọn trực tiếp (Selection Sort)"
+                }
+            ]
+        },
+        {
+            "id": 30943,
+            "slot": 17,
+            "type": "singlechoice",
+            "questiontext": "Áp dụng giải thuật sắp xếp chọn trực tiếp (Selection Sort) trên dãy số: 19, 3, 13, 10, 2, 18, 5, 7<br>Tổng số lần hoán vị sau vòng lặp thứ tư là bao nhiêu?",
+            "order": 17,
+            "maxgrade": 1,
+            "flagged": false,
+            "tags": [],
+            "answertext": [
+                {
+                    "id": 118934,
+                    "answer": "2"
+                },
+                {
+                    "id": 118935,
+                    "answer": "3"
+                },
+                {
+                    "id": 118936,
+                    "answer": "4"
+                },
+                {
+                    "id": 118937,
+                    "answer": "5"
+                }
+            ]
+        },
+        {
+            "id": 30942,
+            "slot": 18,
+            "type": "singlechoice",
+            "questiontext": "Áp dụng phương pháp tìm kiếm tuyến tính để tìm kiếm số 74 trên dãy số sau: 17, 23, 28, 30, 33, 35, 74, 93<br>Số nào trên dãy số được duyệt ở lần duyệt thứ 2?",
+            "order": 18,
+            "maxgrade": 1,
+            "flagged": false,
+            "tags": [],
+            "answertext": [
+                {
+                    "id": 118932,
+                    "answer": "23"
+                },
+                {
+                    "id": 118933,
+                    "answer": "17"
+                },
+                {
+                    "id": 118930,
+                    "answer": "30"
+                },
+                {
+                    "id": 118931,
+                    "answer": "35"
+                }
+            ]
+        },
+        {
+            "id": 30946,
+            "slot": 19,
+            "type": "singlechoice",
+            "questiontext": "Áp dụng giải thuật sắp xếp nổi bọt (Bubble Sort) trên dãy số: 19, 3, 13, 10, 2, 18, 5, 7<br>Tổng số lần hoán vị sau vòng lặp thứ hai là bao nhiêu?",
+            "order": 19,
+            "maxgrade": 1,
+            "flagged": false,
+            "tags": [],
+            "answertext": [
+                {
+                    "id": 118949,
+                    "answer": "9"
+                },
+                {
+                    "id": 118947,
+                    "answer": "7"
+                },
+                {
+                    "id": 118946,
+                    "answer": "6"
+                },
+                {
+                    "id": 118948,
+                    "answer": "8"
+                }
+            ]
+        },
+        {
+            "id": 30929,
+            "slot": 20,
+            "type": "singlechoice",
+            "questiontext": "Khi ứng dụng phương pháp tìm kiếm nhị phân để tìm kiếm số 33 trên dãy số sau: 17, 23, 28, 30, 33, 35, 74, 93<br>Số nào trên dãy số được duyệt đầu tiên?",
+            "order": 20,
+            "maxgrade": 1,
+            "flagged": false,
+            "tags": [],
+            "answertext": [
+                {
+                    "id": 118880,
+                    "answer": "30"
+                },
+                {
+                    "id": 118878,
+                    "answer": "17"
+                },
+                {
+                    "id": 118879,
+                    "answer": "33"
+                },
+                {
+                    "id": 118881,
+                    "answer": "35"
+                }
+            ]
+        }
+    ]
 }

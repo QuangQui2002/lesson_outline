@@ -56,6 +56,7 @@
       #${PANEL_ID} .sound { background: rgba(16, 185, 129, 0.72); color: white; }
       #${PANEL_ID} .action { background: linear-gradient(135deg, #4f46e5, #2563eb); color: white; }
       #${PANEL_ID} .action.question { background: linear-gradient(135deg, #0f766e, #14b8a6); }
+      #${PANEL_ID} .action.answer { background: linear-gradient(135deg, #7c3aed, #db2777); }
     `;
     document.documentElement.appendChild(style);
   }
@@ -67,6 +68,9 @@
     }
     if (/\/attempt\/\d+\/review\/?$/.test(pathname)) {
       return '<button type="button" class="action question import-questions" title="Import câu hỏi review">Lấy câu hỏi</button>';
+    }
+    if (/\/attempt\/\d+\/?$/.test(pathname)) {
+      return '<button type="button" class="action answer solve-attempt" title="Nhờ AI trả lời attempt">AI đáp án</button>';
     }
     return '';
   }
@@ -160,6 +164,7 @@
         if (button.classList.contains('pip')) togglePictureInPicture();
         if (button.classList.contains('save-video')) sendToolbarAction('SAVE_VIDEO');
         if (button.classList.contains('import-questions')) sendToolbarAction('IMPORT_QUESTIONS');
+        if (button.classList.contains('solve-attempt')) sendToolbarAction('SOLVE_ATTEMPT');
       });
       document.documentElement.appendChild(panel);
       window.postMessage({ source: 'lms-tvu-helper-toolbar', type: 'TOOLBAR_READY', hasAction: actionHtml !== '' }, '*');
@@ -214,3 +219,5 @@
   setInterval(watchVideos, 2000);
   setInterval(keepActiveVideoPlaying, 1200);
 })();
+
+

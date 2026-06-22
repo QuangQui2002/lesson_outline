@@ -8,8 +8,17 @@ function getAttemptIdFromUrl() {
   return match ? match[1] : '';
 }
 
+function getLiveAttemptIdFromUrl() {
+  const match = location.pathname.match(/\/attempt\/(\d+)(?:\/)?$/);
+  return match ? match[1] : '';
+}
+
 function isAttemptReviewPage() {
   return Boolean(getAttemptIdFromUrl());
+}
+
+function isLiveAttemptPage() {
+  return Boolean(getLiveAttemptIdFromUrl());
 }
 
 function isLessonVideoPage() {
@@ -133,6 +142,99 @@ async function saveCourseLessons() {
   }
 }
 
+function escapeHtml(value = '') {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function renderAiAnswerPanel(answers = []) {
+  let panel = document.querySelector('#lms-ai-answer-panel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'lms-ai-answer-panel';
+    document.body.appendChild(panel);
+  }
+
+  const answerItems = answers.length > 0
+    ? answers.map(answer => `
+      <div class="lms-ai-answer-item">
+        <strong>Câu ${escapeHtml(answer.slot)}: ${escapeHtml(answer.answerLabel || '')}</strong>
+        <p>${escapeHtml(answer.answerText || 'Không có nội dung đáp án.')}</p>
+        ${answer.explanation ? `<small>${escapeHtml(answer.explanation)}</small>` : ''}
+      </div>
+    `).join('')
+    : '<p class="lms-ai-answer-empty">AI chưa trả về đáp án.</p>';
+
+  panel.innerHTML = `
+    <div class="lms-ai-answer-header">
+      <span>Đáp án AI</span>
+      <button id="lms-ai-answer-close" type="button" title="Đóng">×</button>
+    </div>
+    <div class="lms-ai-answer-body">${answerItems}</div>
+  `;
+  panel.querySelector('#lms-ai-answer-close').addEventListener('click', () => panel.remove());
+}
+
+
+function renderAiStatusPanel(message = 'Đang xử lý...', type = 'loading') {
+  let panel = document.querySelector('#lms-ai-answer-panel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'lms-ai-answer-panel';
+    document.body.appendChild(panel);
+  }
+
+  panel.innerHTML = `
+    <div class="lms-ai-answer-header">
+      <span>Đáp án AI</span>
+      <button id="lms-ai-answer-close" type="button" title="Đóng">×</button>
+    </div>
+    <div class="lms-ai-answer-body">
+      <p class="lms-ai-answer-empty lms-ai-answer-${type}">${escapeHtml(message)}</p>
+    </div>
+  `;
+  panel.querySelector('#lms-ai-answer-close').addEventListener('click', () => panel.remove());
+}
+async function collectLiveAttemptQuestions() {
+  const attemptId = getLiveAttemptIdFromUrl();
+  if (!attemptId) throw new Error('Không tìm thấy mã attempt trên URL.');
+
+  setStatus('Đang tải câu hỏi attempt trang 1...', 'loading');
+  const firstPage = await fetchJson('https://lms-tvu.onschool.edu.vn/api/attempts/' + attemptId + '?page=1');
+  const payload = firstPage?.data || firstPage || {};
+  const totalPage = Number(payload.totalpage || firstPage.totalpage || 1) || 1;
+  const questions = [...(payload.questions || firstPage.questions || [])];
+
+  for (let page = 2; page <= totalPage; page += 1) {
+    setStatus('Đang tải câu hỏi attempt trang ' + page + '/' + totalPage + '...', 'loading');
+    const pageJson = await fetchJson('https://lms-tvu.onschool.edu.vn/api/attempts/' + attemptId + '?page=' + page);
+    const pagePayload = pageJson?.data || pageJson || {};
+    questions.push(...(pagePayload.questions || pageJson.questions || []));
+  }
+
+  return { ...payload, questions, totalquestions: questions.length };
+}
+
+async function solveLiveAttemptQuestions() {
+  renderAiStatusPanel('Đang tải câu hỏi từ LMS...', 'loading');
+  try {
+    const attemptJson = await collectLiveAttemptQuestions();
+    renderAiStatusPanel('Đang nhờ AI trả lời ' + (attemptJson.questions?.length || 0) + ' câu hỏi...', 'loading');
+    setStatus('Đang nhờ AI trả lời ' + (attemptJson.questions?.length || 0) + ' câu hỏi...', 'loading');
+    const response = await chrome.runtime.sendMessage({ type: 'SOLVE_ATTEMPT_QUESTIONS', attemptJson });
+    if (!response?.ok) throw new Error(response?.message || 'Không lấy được đáp án AI.');
+    const answers = response.data?.data?.answers || [];
+    renderAiAnswerPanel(answers);
+    setStatus('Đã nhận ' + answers.length + ' đáp án AI.', 'success');
+  } catch (error) {
+    renderAiStatusPanel('Lỗi: ' + error.message, 'error');
+    setStatus('Lỗi: ' + error.message, 'error');
+  }
+}
 async function collectAttemptReviewQuestions() {
   const attemptId = getAttemptIdFromUrl();
   if (!attemptId) throw new Error('Kh\u00f4ng t\u00ecm th\u1ea5y m\u00e3 attempt tr\u00ean URL.');
@@ -170,12 +272,13 @@ function createFloatingButton() {
   const currentWidget = document.querySelector('#lesson-video-widget');
   const reviewPage = isAttemptReviewPage();
   const lessonPage = isLessonVideoPage();
-  if (!reviewPage && !lessonPage) {
+  const liveAttemptPage = isLiveAttemptPage();
+  if (!reviewPage && !lessonPage && !liveAttemptPage) {
     if (currentWidget) currentWidget.remove();
     return;
   }
 
-  const widgetType = reviewPage ? 'review' : 'video';
+  const widgetType = reviewPage ? 'review' : liveAttemptPage ? 'solve' : 'video';
   if (currentWidget?.dataset.widgetType === widgetType) return;
   if (currentWidget) currentWidget.remove();
 
@@ -184,13 +287,19 @@ function createFloatingButton() {
   widget.dataset.widgetType = widgetType;
   widget.classList.add('lesson-video-widget--mini');
   if (isLmsVideoDetailPage()) widget.classList.add('lesson-video-widget--compact');
-  widget.innerHTML = reviewPage
-    ? '<button id="lesson-video-button" class="lesson-video-button lesson-video-button--question" type="button" title="Import câu hỏi review vào ngân hàng câu hỏi"><span>Lấy câu hỏi</span><small>Review</small></button><div id="lesson-video-status" data-type="info">Sẵn sàng.</div>'
-    : '<button id="lesson-video-button" class="lesson-video-button lesson-video-button--video" type="button" title="Lưu danh sách bài học video của môn này"><span>Lưu video</span><small>Bài học</small></button><div id="lesson-video-status" data-type="info">Sẵn sàng.</div>';
-  document.body.appendChild(widget);
-  document.querySelector('#lesson-video-button').addEventListener('click', reviewPage ? saveAttemptReviewQuestions : saveCourseLessons);
-}
 
+  if (reviewPage) {
+    widget.innerHTML = '<button id="lesson-video-button" class="lesson-video-button lesson-video-button--question" type="button" title="Import câu hỏi review vào ngân hàng câu hỏi"><span>Lấy câu hỏi</span><small>Review</small></button><div id="lesson-video-status" data-type="info">Sẵn sàng.</div>';
+  } else if (liveAttemptPage) {
+    widget.innerHTML = '<button id="lesson-video-button" class="lesson-video-button lesson-video-button--answer" type="button" title="Nhờ AI trả lời câu hỏi trong attempt"><span>AI đáp án</span><small>Attempt</small></button><div id="lesson-video-status" data-type="info">Sẵn sàng.</div>';
+  } else {
+    widget.innerHTML = '<button id="lesson-video-button" class="lesson-video-button lesson-video-button--video" type="button" title="Lưu danh sách bài học video của môn này"><span>Lưu video</span><small>Bài học</small></button><div id="lesson-video-status" data-type="info">Sẵn sàng.</div>';
+  }
+
+  document.body.appendChild(widget);
+  const handler = reviewPage ? saveAttemptReviewQuestions : liveAttemptPage ? solveLiveAttemptQuestions : saveCourseLessons;
+  document.querySelector('#lesson-video-button').addEventListener('click', handler);
+}
 createFloatingButton();
 
 window.addEventListener('message', event => {
@@ -209,6 +318,11 @@ window.addEventListener('message', event => {
 
   if (event.data.type === 'IMPORT_QUESTIONS') {
     if (isAttemptReviewPage()) saveAttemptReviewQuestions();
+    return;
+  }
+
+  if (event.data.type === 'SOLVE_ATTEMPT') {
+    if (isLiveAttemptPage()) solveLiveAttemptQuestions();
   }
 });
 
@@ -249,6 +363,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return false;
   }
 
+  if (message?.type === 'RUN_SOLVE_ATTEMPT_QUESTIONS') {
+    if (!isLiveAttemptPage()) {
+      sendResponse({ ok: false, message: 'Trang hiện tại không phải trang attempt đang làm bài.' });
+      return false;
+    }
+    solveLiveAttemptQuestions();
+    sendResponse({ ok: true, message: 'Đã bắt đầu nhờ AI trả lời attempt.' });
+    return false;
+  }
+
   if (message?.type === 'RUN_IMPORT_REVIEW_QUESTIONS') {
     if (!isAttemptReviewPage()) {
       sendResponse({ ok: false, message: 'Trang hiện tại không phải trang review câu hỏi.' });
@@ -261,6 +385,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   return false;
 });
+
+
+
 
 
 

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "LMS TVU Lesson Videos",
   "version": "1.0.0",
-  "description": "Lấy danh sách bài học video từ LMS TVU và lưu vào hệ thống học tập.",
+  "description": "Lấy video bài học, câu hỏi LMS TVU và hỗ trợ AI đáp án.",
   "permissions": [
     "storage",
     "tabs"
@@ -46,9 +46,7 @@
     }
   ],
   "action": {
-    "default_title": "Lưu bài học video",
+    "default_title": "LMS TVU Helper",
     "default_popup": "popup.html"
   }
 }
-
-

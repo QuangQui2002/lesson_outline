@@ -136,6 +136,23 @@
         </button>
       </section>
 
+      <section class="extension-download-card">
+        <div class="extension-download-card__content">
+          <span class="extension-download-card__kicker">Extension LMS TVU</span>
+          <h3>Tải Extension LMS</h3>
+          <p>Phiên bản mới nhất: <strong>{{ extensionInfo.version }}</strong> • {{ extensionInfo.note }}</p>
+          <ol>
+            <li>Tải file extension mới nhất.</li>
+            <li>Giải nén file vừa tải xuống.</li>
+            <li>Mở <code>chrome://extensions</code> và bật Developer mode.</li>
+            <li>Bấm Load unpacked rồi chọn thư mục <code>support_lms_extension</code>.</li>
+          </ol>
+        </div>
+        <a class="btn btn-primary extension-download-card__button" :href="extensionInfo.downloadUrl" download>
+          Tải extension mới nhất
+        </a>
+      </section>
+
       <LessonVideoList
         v-if="activeView === 'videos'"
         :lessons="lessonVideos"
@@ -234,6 +251,11 @@ export default {
       activeView: 'questions',
       lessonVideos: [],
       isLessonVideoLoading: false,
+      extensionInfo: {
+        version: '1.0.0',
+        downloadUrl: '/downloads/support_lms_extension.zip',
+        note: 'Hỗ trợ lưu video, lấy câu hỏi và AI đáp án trên LMS.'
+      },
       editingQuestion: null
     };
   },
@@ -654,3 +676,4 @@ export default {
   padding-left: 1.25rem;
 }
 </style>
+

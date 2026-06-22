@@ -6,6 +6,7 @@ import subjectRoutes from './routes/subjectRoutes.js';
 import questionRoutes from './routes/questionRoutes.js';
 import ocrRoutes from './routes/ocrRoutes.js';
 import lessonVideoRoutes from './routes/lessonVideoRoutes.js';
+import attemptAnswerRoutes from './routes/attemptAnswerRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { telegramApiNotifier } from './middleware/telegramApiNotifier.js';
 import { getDbHealth, readDb } from './services/dbService.js';
@@ -78,6 +79,7 @@ app.use('/api/subjects', subjectRoutes);
 app.use('/api/questions', questionRoutes);
 app.use('/api/ocr', ocrRoutes);
 app.use('/api/lesson-videos', lessonVideoRoutes);
+app.use('/api/attempt-answers', attemptAnswerRoutes);
 
 app.get('/api/ping', (req, res) => {
   res.type('text/plain').send('xin c\u1ea3m \u01a1n');
@@ -142,4 +144,5 @@ cron.schedule(process.env.TELEGRAM_DAILY_REPORT_CRON || '59 23 * * *', async () 
 }, {
   timezone: 'Asia/Ho_Chi_Minh'
 });
+
 

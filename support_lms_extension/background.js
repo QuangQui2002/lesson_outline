@@ -72,6 +72,15 @@ async function importCourseLessons(courseJson) {
   }, backendUrl);
 }
 
+
+async function solveAttemptQuestions(attemptJson) {
+  const payload = attemptJson?.data || attemptJson || {};
+  return requestBackendJson('/attempt-answers/solve', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+}
 async function importAttemptQuestions(reviewJson) {
   const payload = reviewJson?.data || reviewJson || {};
   const course = payload.course || {};
@@ -93,6 +102,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+
+  if (message?.type === 'SOLVE_ATTEMPT_QUESTIONS') {
+    solveAttemptQuestions(message.attemptJson)
+      .then(data => sendResponse({ ok: true, data }))
+      .catch(error => sendResponse({ ok: false, message: error.message }));
+    return true;
+  }
   if (message?.type === 'IMPORT_ATTEMPT_REVIEW_QUESTIONS') {
     importAttemptQuestions(message.reviewJson)
       .then(data => sendResponse({ ok: true, data }))
@@ -102,3 +118,4 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   return false;
 });
+

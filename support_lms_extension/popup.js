@@ -11,6 +11,7 @@ function getPageType(url = '') {
     if (parsedUrl.hostname !== 'lms-tvu.onschool.edu.vn') return 'other';
     if (/^\/course\/\d+\/?$/.test(pathname) || /^\/course\/\d+\/video\/\d+\/?$/.test(pathname)) return 'video';
     if (/\/attempt\/\d+\/review\/?$/.test(pathname)) return 'review';
+    if (/\/attempt\/\d+\/?$/.test(pathname)) return 'attempt';
     return 'lms';
   } catch (error) {
     return 'other';
@@ -42,23 +43,28 @@ function setupPageActions(tab) {
   const pageType = getPageType(tab?.url || '');
   const saveVideos = document.querySelector('#saveVideos');
   const importQuestions = document.querySelector('#importQuestions');
+  const solveAttempt = document.querySelector('#solveAttempt');
   const currentPageType = document.querySelector('#currentPageType');
 
   saveVideos.disabled = pageType !== 'video';
   importQuestions.disabled = pageType !== 'review';
+  solveAttempt.disabled = pageType !== 'attempt';
 
   if (pageType === 'video') currentPageType.textContent = 'Trang môn học/video LMS: có thể lưu video.';
   else if (pageType === 'review') currentPageType.textContent = 'Trang review: có thể lấy câu hỏi.';
+  else if (pageType === 'attempt') currentPageType.textContent = 'Trang attempt: có thể nhờ AI trả lời.';
   else if (pageType === 'lms') currentPageType.textContent = 'Trang LMS: chưa đúng trang chức năng.';
   else currentPageType.textContent = 'Không phải trang LMS TVU.';
 
   saveVideos.addEventListener('click', () => sendActionToActiveTab('RUN_SAVE_COURSE_LESSONS', 'Đã gửi lệnh lưu video sang trang LMS.'));
   importQuestions.addEventListener('click', () => sendActionToActiveTab('RUN_IMPORT_REVIEW_QUESTIONS', 'Đã gửi lệnh lấy câu hỏi sang trang LMS.'));
+  solveAttempt.addEventListener('click', () => sendActionToActiveTab('RUN_SOLVE_ATTEMPT_QUESTIONS', 'Đã gửi lệnh nhờ AI trả lời attempt.'));
 }
 
 async function init() {
-  setPopupStatus('Tự dùng local trước, lỗi thì chuyển sang server.', 'info');
+  setPopupStatus('Dùng Gemini backend cho AI đáp án.', 'info');
   setupPageActions(await getActiveTab());
 }
 
 init();
+

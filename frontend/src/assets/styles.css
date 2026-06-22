@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+﻿@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 
 :root {
   /* HSL Color System */
@@ -1198,6 +1198,78 @@ textarea.form-control {
   }
 }
 
+.extension-download-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid rgba(37, 99, 235, 0.16);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(124, 58, 237, 0.08));
+  box-shadow: var(--shadow-sm);
+}
+
+.extension-download-card__content {
+  min-width: 0;
+}
+
+.extension-download-card__kicker {
+  display: inline-flex;
+  margin-bottom: 0.35rem;
+  color: var(--primary);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.extension-download-card h3 {
+  margin: 0 0 0.35rem;
+  color: var(--text-main);
+  font-size: 1.15rem;
+}
+
+.extension-download-card p {
+  margin: 0 0 0.65rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.extension-download-card ol {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding-left: 1.2rem;
+  color: var(--text-main);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.extension-download-card code {
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.45rem;
+  background: rgba(15, 23, 42, 0.08);
+  color: var(--text-main);
+  font-size: 0.84rem;
+}
+
+.extension-download-card__button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .extension-download-card {
+    display: grid;
+  }
+
+  .extension-download-card__button {
+    width: 100%;
+    justify-content: center;
+  }
+}
 .view-toggle-wrapper {
   display: flex;
   gap: 0.75rem;
@@ -1446,3 +1518,4 @@ textarea.form-control {
     max-height: 360px;
   }
 }
+
