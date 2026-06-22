@@ -1,4 +1,7 @@
 ﻿import 'dotenv/config';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 import express from 'express';
 import cors from 'cors';
 import cron from 'node-cron';
@@ -14,8 +17,20 @@ import { getDailyApiStats, resetDailyApiStats } from './services/apiStatsService
 import { formatDailyApiReport, isTelegramConfigured, sendTelegramDocument, sendTelegramMessage } from './services/telegramService.js';
 
 const app = express();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const frontendDistPath = path.resolve(__dirname, '../frontend/dist');
+const hasFrontendBuild = fsExists(frontendDistPath);
 const PORT = process.env.PORT || 3000;
 const KEEP_ALIVE_URL = process.env.KEEP_ALIVE_URL || 'https://lesson-outline.onrender.com/api/ping';
+
+function fsExists(targetPath) {
+  try {
+    return Boolean(targetPath) && fs.existsSync(targetPath);
+  } catch (error) {
+    return false;
+  }
+}
 
 function buildImportableBackup(db) {
   const subjects = Array.isArray(db.subjects) ? db.subjects : [];
@@ -97,12 +112,19 @@ app.get('/api/health/db', async (req, res, next) => {
   }
 });
 
-app.get('/', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Lesson outline question bank API is running.'
+if (hasFrontendBuild) {
+  app.use(express.static(frontendDistPath));
+  app.get(/^\/(?!api(?:\/|$)).*/, (req, res) => {
+    res.sendFile(path.join(frontendDistPath, 'index.html'));
   });
-});
+} else {
+  app.get('/', (req, res) => {
+    res.json({
+      success: true,
+      message: 'Lesson outline question bank API is running. Frontend build not found.'
+    });
+  });
+}
 
 app.use(errorHandler);
 
