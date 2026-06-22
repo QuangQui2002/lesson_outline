@@ -10,7 +10,7 @@
   "host_permissions": [
     "https://lms-tvu.onschool.edu.vn/*",
     "http://localhost:3000/*",
-    "https://lesson-outline.onrender.com/*",
+    "https://lesson-outline-h788.onrender.com/*",
     "https://*.cmctelecom.vn/*",
     "https://s3.cloud.cmctelecom.vn/*"
   ],

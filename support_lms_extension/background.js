@@ -1,5 +1,5 @@
 ﻿const LOCAL_BACKEND_URL = 'http://localhost:3000/api';
-const SERVER_BACKEND_URL = 'https://lesson-outline.onrender.com/api';
+const SERVER_BACKEND_URL = 'https://lesson-outline-h788.onrender.com/api';
 
 function normalizeBackendUrl(url = '') {
   return String(url || LOCAL_BACKEND_URL).trim().replace(/\/+$/, '');

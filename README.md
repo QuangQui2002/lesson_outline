@@ -109,7 +109,7 @@ npm start
 Nếu frontend và backend deploy riêng, frontend không được gọi `localhost`. Hãy set biến môi trường cho frontend/static site:
 
 ```env
-VITE_API_BASE_URL=https://lesson-outline.onrender.com/api
+VITE_API_BASE_URL=https://lesson-outline-h788.onrender.com/api
 ```
 
 Lưu ý: với Vite, biến `VITE_*` được nhúng lúc build. Sau khi thêm hoặc sửa biến môi trường, cần redeploy frontend.
@@ -124,7 +124,7 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 Có thể kiểm tra backend bằng:
 
 ```text
-https://lesson-outline.onrender.com/api/health/db
+https://lesson-outline-h788.onrender.com/api/health/db
 ```
 
 Nếu trả `success: true`, backend đã kết nối Supabase thành công.

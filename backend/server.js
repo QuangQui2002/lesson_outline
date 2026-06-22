@@ -22,7 +22,7 @@ const __dirname = path.dirname(__filename);
 const frontendDistPath = path.resolve(__dirname, '../frontend/dist');
 const hasFrontendBuild = fsExists(frontendDistPath);
 const PORT = process.env.PORT || 3000;
-const KEEP_ALIVE_URL = process.env.KEEP_ALIVE_URL || 'https://lesson-outline.onrender.com/api/ping';
+const KEEP_ALIVE_URL = process.env.KEEP_ALIVE_URL || 'https://lesson-outline-h788.onrender.com/api/ping';
 
 function fsExists(targetPath) {
   try {
