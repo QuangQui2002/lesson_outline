@@ -34,11 +34,11 @@ function buildPrompt(questions = []) {
   }).join('\n\n');
 
   return `Bạn là trợ lý học tập. Hãy trả lời các câu hỏi trắc nghiệm sau bằng tiếng Việt.\n` +
-    `Chỉ trả về một JSON object hợp lệ, không markdown, không giải thích ngoài JSON. Không dùng dấu phẩy cuối mảng/object. Theo cấu trúc:\\n` +
-    `{"answers":[{"slot":1,"questionId":123,"answerLabel":"A","answerId":456,"answerText":"...","confidence":0.8,"explanation":"..."}]}\n` +
-    `Nếu không chắc, vẫn chọn đáp án hợp lý nhất và giải thích ngắn.\n\n${questionText}`;
+    `Chỉ trả về JSON hợp lệ, không markdown, không chữ ngoài JSON.\n` +
+    `Trả lời thật ngắn để JSON không bị cắt. Không dùng dấu phẩy cuối mảng/object.\n` +
+    `Cấu trúc bắt buộc: {"answers":[{"slot":1,"questionId":123,"answerLabel":"A","confidence":0.8,"explanation":"ngắn gọn"}]}\n` +
+    `Không cần trả answerText. Không cần trả answerId. Nếu không chắc, vẫn chọn đáp án hợp lý nhất.\n\n${questionText}`;
 }
-
 function parseModelList(value, fallback) {
   return String(value || fallback || '')
     .split(',')
@@ -64,8 +64,8 @@ function getGeminiTimeoutMs() {
 }
 
 function getGeminiMaxOutputTokens() {
-  const maxOutputTokens = Number(process.env.GEMINI_MAX_OUTPUT_TOKENS || 4096);
-  return Number.isFinite(maxOutputTokens) && maxOutputTokens > 0 ? maxOutputTokens : 4096;
+  const maxOutputTokens = Number(process.env.GEMINI_MAX_OUTPUT_TOKENS || 8192);
+  return Number.isFinite(maxOutputTokens) && maxOutputTokens > 0 ? maxOutputTokens : 8192;
 }
 
 function removeTrailingCommas(jsonText = '') {
@@ -198,6 +198,7 @@ export async function solveAttemptQuestions(payload = {}) {
     answers
   };
 }
+
 
 
 
