@@ -31,6 +31,10 @@ async function requestJson(url, options = {}) {
   return data;
 }
 
+async function requestServerBackendJson(path, options = {}) {
+  return requestJson(normalizeBackendUrl(SERVER_BACKEND_URL) + path, options);
+}
+
 async function requestBackendJson(path, options = {}, backendUrl = '') {
   if (backendUrl) return requestJson(normalizeBackendUrl(backendUrl) + path, options);
 
@@ -84,11 +88,11 @@ async function importCourseLessons(courseJson) {
 
 async function solveAttemptQuestions(attemptJson) {
   const payload = attemptJson?.data || attemptJson || {};
-  return requestBackendJson('/attempt-answers/solve', {
+  return requestServerBackendJson('/attempt-answers/solve', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
-  }, SERVER_BACKEND_URL);
+  });
 }
 async function importAttemptQuestions(reviewJson) {
   const payload = reviewJson?.data || reviewJson || {};
@@ -127,6 +131,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   return false;
 });
+
 
 
 
