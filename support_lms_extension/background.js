@@ -127,7 +127,7 @@ async function importAttemptQuestions(reviewJson) {
   return requestJson(normalizeBackendUrl(backendUrl) + '/questions/import', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ subjectId: subject.id, quizName: quiz.name || 'Khác', ...payload })
+    body: JSON.stringify({ ...payload, subjectId: subject.id, quizName: quiz.name || payload.quizName || 'Khác' })
   }, 120000);
 }
 
@@ -155,6 +155,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   return false;
 });
+
 
 
 
