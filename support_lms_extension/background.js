@@ -6,11 +6,20 @@ function normalizeBackendUrl(url = '') {
 }
 
 function getBackendUrls() {
-  return [LOCAL_BACKEND_URL, SERVER_BACKEND_URL].map(normalizeBackendUrl);
+  return [SERVER_BACKEND_URL, LOCAL_BACKEND_URL].map(normalizeBackendUrl);
 }
 
 async function requestJson(url, options = {}) {
-  const response = await fetch(url, options);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  let response;
+  try {
+    response = await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    throw new Error('Không kết nối được ' + url + ': ' + error.message);
+  } finally {
+    clearTimeout(timeoutId);
+  }
   const text = await response.text();
   let data = null;
   try {
@@ -118,4 +127,5 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   return false;
 });
+
 
