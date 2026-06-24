@@ -34,7 +34,7 @@ function buildPrompt(questions = []) {
   }).join('\n\n');
 
   return `Bạn là trợ lý học tập. Hãy trả lời các câu hỏi trắc nghiệm sau bằng tiếng Việt.\n` +
-    `Chỉ trả về JSON hợp lệ, không markdown, theo cấu trúc:\n` +
+    `Chỉ trả về một JSON object hợp lệ, không markdown, không giải thích ngoài JSON. Không dùng dấu phẩy cuối mảng/object. Theo cấu trúc:\\n` +
     `{"answers":[{"slot":1,"questionId":123,"answerLabel":"A","answerId":456,"answerText":"...","confidence":0.8,"explanation":"..."}]}\n` +
     `Nếu không chắc, vẫn chọn đáp án hợp lý nhất và giải thích ngắn.\n\n${questionText}`;
 }
@@ -68,15 +68,37 @@ function getGeminiMaxOutputTokens() {
   return Number.isFinite(maxOutputTokens) && maxOutputTokens > 0 ? maxOutputTokens : 4096;
 }
 
-function extractJsonObject(text = '') {
-  const cleanText = String(text || '').trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
-  try { return JSON.parse(cleanText); } catch (error) {}
-  const start = cleanText.indexOf('{');
-  const end = cleanText.lastIndexOf('}');
-  if (start !== -1 && end !== -1 && end > start) return JSON.parse(cleanText.slice(start, end + 1));
-  throw new Error('AI không trả về JSON hợp lệ.');
+function removeTrailingCommas(jsonText = '') {
+  return String(jsonText || '').replace(/,\s*([}\]])/g, '$1');
 }
 
+function extractJsonObject(text = '') {
+  const cleanText = String(text || '')
+    .trim()
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/```$/i, '')
+    .trim();
+
+  const candidates = [cleanText];
+  const start = cleanText.indexOf('{');
+  const end = cleanText.lastIndexOf('}');
+  if (start !== -1 && end !== -1 && end > start) {
+    candidates.push(cleanText.slice(start, end + 1));
+  }
+
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(candidate);
+    } catch (error) {
+      try {
+        return JSON.parse(removeTrailingCommas(candidate));
+      } catch (repairError) {}
+    }
+  }
+
+  throw new Error('AI không trả về JSON hợp lệ. Nội dung nhận được: ' + cleanText.slice(0, 500));
+}
 function normalizeAiAnswers(rawAnswers = [], questions = []) {
   const bySlot = new Map(questions.map(question => [Number(question.slot), question]));
   return rawAnswers.map((answer, index) => {
@@ -176,6 +198,7 @@ export async function solveAttemptQuestions(payload = {}) {
     answers
   };
 }
+
 
 
 
