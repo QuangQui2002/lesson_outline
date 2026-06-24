@@ -88,7 +88,7 @@ async function solveAttemptQuestions(attemptJson) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
-  });
+  }, SERVER_BACKEND_URL);
 }
 async function importAttemptQuestions(reviewJson) {
   const payload = reviewJson?.data || reviewJson || {};
@@ -127,5 +127,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   return false;
 });
+
 
 
