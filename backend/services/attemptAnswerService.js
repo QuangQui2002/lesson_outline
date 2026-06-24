@@ -47,26 +47,25 @@ function parseModelList(value, fallback) {
 }
 
 function getConfiguredProviders() {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
   if (!apiKey) return [];
 
-  return parseModelList(process.env.OPENAI_MODELS || process.env.OPENAI_MODEL, 'gpt-4o-mini').map(model => ({
-    name: 'OpenAI',
-    type: 'openai',
+  return parseModelList(process.env.GEMINI_MODELS || process.env.GEMINI_MODEL, 'gemini-2.0-flash').map(model => ({
+    name: 'Gemini',
+    type: 'gemini',
     apiKey,
-    model,
-    url: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1/chat/completions'
+    model
   }));
 }
 
-function getOpenAiTimeoutMs() {
-  const timeoutMs = Number(process.env.OPENAI_TIMEOUT_MS || 90000);
-  return Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 90000;
+function getGeminiTimeoutMs() {
+  const timeoutMs = Number(process.env.GEMINI_TIMEOUT_MS || 60000);
+  return Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 60000;
 }
 
-function getOpenAiMaxTokens() {
-  const maxTokens = Number(process.env.OPENAI_MAX_TOKENS || 4096);
-  return Number.isFinite(maxTokens) && maxTokens > 0 ? maxTokens : 4096;
+function getGeminiMaxOutputTokens() {
+  const maxOutputTokens = Number(process.env.GEMINI_MAX_OUTPUT_TOKENS || 4096);
+  return Number.isFinite(maxOutputTokens) && maxOutputTokens > 0 ? maxOutputTokens : 4096;
 }
 
 function extractJsonObject(text = '') {
@@ -101,28 +100,23 @@ function normalizeAiAnswers(rawAnswers = [], questions = []) {
   });
 }
 
-async function callOpenAi(provider, prompt) {
+async function callGemini(provider, prompt) {
   const controller = new AbortController();
-  const timeoutMs = getOpenAiTimeoutMs();
-  const timeoutId = setTimeout(() => controller.abort('OpenAI quá thời gian phản hồi'), timeoutMs);
+  const timeoutMs = getGeminiTimeoutMs();
+  const timeoutId = setTimeout(() => controller.abort('Gemini quá thời gian phản hồi'), timeoutMs);
   let response;
 
   try {
-    response = await fetch(provider.url, {
+    response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${provider.model}:generateContent?key=${provider.apiKey}`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${provider.apiKey}`,
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: provider.model,
-        messages: [
-          { role: 'system', content: 'Bạn là trợ lý giải trắc nghiệm. Chỉ trả về JSON hợp lệ, không markdown.' },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.2,
-        max_tokens: getOpenAiMaxTokens(),
-        response_format: { type: 'json_object' }
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.2,
+          responseMimeType: 'application/json',
+          maxOutputTokens: getGeminiMaxOutputTokens()
+        }
       }),
       signal: controller.signal
     });
@@ -137,10 +131,10 @@ async function callOpenAi(provider, prompt) {
     throw new Error(`${provider.name} API lỗi ${response.status}: ${JSON.stringify(data)}`);
   }
 
-  return data?.choices?.[0]?.message?.content || '';
+  return data?.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('\n') || '';
 }
 async function callAiProvider(provider, prompt) {
-  return callOpenAi(provider, prompt);
+  return callGemini(provider, prompt);
 }
 
 export async function solveAttemptQuestions(payload = {}) {
@@ -150,7 +144,7 @@ export async function solveAttemptQuestions(payload = {}) {
 
   const providers = getConfiguredProviders();
   if (providers.length === 0) {
-    throw new Error('Backend chưa cấu hình OPENAI_API_KEY. Hãy thêm OpenAI API key vào file .env.');
+    throw new Error('Backend chưa cấu hình GEMINI_API_KEY. Hãy thêm Gemini API key vào file .env.');
   }
 
   const prompt = buildPrompt(questions);
