@@ -9,14 +9,14 @@ function getBackendUrls() {
   return [SERVER_BACKEND_URL, LOCAL_BACKEND_URL].map(normalizeBackendUrl);
 }
 
-async function requestJson(url, options = {}) {
+async function requestJson(url, options = {}, timeoutMs = 15000) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  const timeoutId = setTimeout(() => controller.abort('Quá thời gian chờ server'), timeoutMs);
   let response;
   try {
     response = await fetch(url, { ...options, signal: controller.signal });
   } catch (error) {
-    throw new Error('Không kết nối được ' + url + ': ' + error.message);
+    throw new Error('Không kết nối được ' + url + ': ' + (error.message || 'Quá thời gian chờ server'));
   } finally {
     clearTimeout(timeoutId);
   }
@@ -31,8 +31,8 @@ async function requestJson(url, options = {}) {
   return data;
 }
 
-async function requestServerBackendJson(path, options = {}) {
-  return requestJson(normalizeBackendUrl(SERVER_BACKEND_URL) + path, options);
+async function requestServerBackendJson(path, options = {}, timeoutMs = 180000) {
+  return requestJson(normalizeBackendUrl(SERVER_BACKEND_URL) + path, options, timeoutMs);
 }
 
 async function requestBackendJson(path, options = {}, backendUrl = '') {
@@ -131,6 +131,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   return false;
 });
+
+
 
 
 

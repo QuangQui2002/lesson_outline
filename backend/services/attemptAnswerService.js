@@ -58,6 +58,16 @@ function getConfiguredProviders() {
   }));
 }
 
+function getGeminiTimeoutMs() {
+  const timeoutMs = Number(process.env.GEMINI_TIMEOUT_MS || 60000);
+  return Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 60000;
+}
+
+function getGeminiMaxOutputTokens() {
+  const maxOutputTokens = Number(process.env.GEMINI_MAX_OUTPUT_TOKENS || 4096);
+  return Number.isFinite(maxOutputTokens) && maxOutputTokens > 0 ? maxOutputTokens : 4096;
+}
+
 function extractJsonObject(text = '') {
   const cleanText = String(text || '').trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
   try { return JSON.parse(cleanText); } catch (error) {}
@@ -91,17 +101,30 @@ function normalizeAiAnswers(rawAnswers = [], questions = []) {
 }
 
 async function callGemini(provider, prompt) {
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${provider.model}:generateContent?key=${provider.apiKey}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.2,
-        responseMimeType: 'application/json'
-      }
-    })
-  });
+  const controller = new AbortController();
+  const timeoutMs = getGeminiTimeoutMs();
+  const timeoutId = setTimeout(() => controller.abort('Gemini quá thời gian phản hồi'), timeoutMs);
+  let response;
+
+  try {
+    response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${provider.model}:generateContent?key=${provider.apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.2,
+          responseMimeType: 'application/json',
+          maxOutputTokens: getGeminiMaxOutputTokens()
+        }
+      }),
+      signal: controller.signal
+    });
+  } catch (error) {
+    throw new Error(`${provider.name} (${provider.model}) không phản hồi sau ${timeoutMs}ms: ${error.message || 'timeout'}`);
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   const data = await response.json().catch(() => null);
   if (!response.ok) {
@@ -110,7 +133,6 @@ async function callGemini(provider, prompt) {
 
   return data?.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('\n') || '';
 }
-
 async function callAiProvider(provider, prompt) {
   return callGemini(provider, prompt);
 }
@@ -154,3 +176,5 @@ export async function solveAttemptQuestions(payload = {}) {
     answers
   };
 }
+
+
