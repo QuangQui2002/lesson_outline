@@ -1,12 +1,11 @@
-﻿const LOCAL_BACKEND_URL = 'http://localhost:3000/api';
-const SERVER_BACKEND_URL = 'https://lesson-outline-h788.onrender.com/api';
+﻿const SERVER_BACKEND_URL = 'https://lesson-outline-h788.onrender.com/api';
 
 function normalizeBackendUrl(url = '') {
-  return String(url || LOCAL_BACKEND_URL).trim().replace(/\/+$/, '');
+  return String(url || SERVER_BACKEND_URL).trim().replace(/\/+$/, '');
 }
 
 function getBackendUrls() {
-  return [SERVER_BACKEND_URL, LOCAL_BACKEND_URL].map(normalizeBackendUrl);
+  return [SERVER_BACKEND_URL].map(normalizeBackendUrl);
 }
 
 async function requestJson(url, options = {}, timeoutMs = 15000) {
@@ -46,7 +45,7 @@ async function requestBackendJson(path, options = {}, backendUrl = '') {
       lastError = error;
     }
   }
-  throw lastError || new Error('Không kết nối được backend local hoặc server.');
+  throw lastError || new Error('Không kết nối được server backend.');
 }
 
 async function findOrCreateSubject(courseName) {
@@ -71,7 +70,7 @@ async function findOrCreateSubject(courseName) {
     }
   }
 
-  throw lastError || new Error('Không kết nối được backend local hoặc server.');
+  throw lastError || new Error('Không kết nối được server backend.');
 }
 
 async function importCourseLessons(courseJson) {
@@ -156,6 +155,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   return false;
 });
+
+
 
 
 

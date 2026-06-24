@@ -2,14 +2,13 @@
   "manifest_version": 3,
   "name": "LMS TVU Lesson Videos",
   "version": "1.0.0",
-  "description": "Lấy video bài học, câu hỏi LMS TVU và hỗ trợ AI đáp án.",
+  "description": "Láº¥y video bĂ i há»c, cĂ¢u há»i LMS TVU vĂ  há»— trá»£ AI Ä‘Ă¡p Ă¡n.",
   "permissions": [
     "storage",
     "tabs"
   ],
   "host_permissions": [
     "https://lms-tvu.onschool.edu.vn/*",
-    "http://localhost:3000/*",
     "https://lesson-outline-h788.onrender.com/*",
     "https://*.cmctelecom.vn/*",
     "https://s3.cloud.cmctelecom.vn/*"
