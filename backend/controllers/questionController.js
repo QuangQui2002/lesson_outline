@@ -1,4 +1,4 @@
-import { readDb, writeDb } from '../services/dbService.js';
+import { appendQuestions, readDb, writeDb } from '../services/dbService.js';
 function stripHtml(html = '') {
   return String(html)
     .replace(/<br\s*\/?>/gi, '\n')
@@ -515,8 +515,7 @@ export async function importQuestions(req, res, next) {
       });
     }
 
-    validation.db.questions.push(...importedQuestions);
-    await writeDb(validation.db);
+    await appendQuestions(importedQuestions);
 
     res.status(201).json({
       success: true,

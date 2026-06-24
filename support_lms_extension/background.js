@@ -94,17 +94,42 @@ async function solveAttemptQuestions(attemptJson) {
     body: JSON.stringify(payload)
   });
 }
-async function importAttemptQuestions(reviewJson) {
+function compactReviewPayload(reviewJson = {}) {
   const payload = reviewJson?.data || reviewJson || {};
+  const questions = Array.isArray(payload.questions) ? payload.questions.map(question => ({
+    id: question.id || null,
+    slot: question.slot || null,
+    type: question.type || '',
+    questiontext: question.questiontext || '',
+    answertext: Array.isArray(question.answertext) ? question.answertext.map(answer => ({
+      id: answer.id || null,
+      answer: answer.answer || answer.text || '',
+      fraction: answer.fraction ?? null,
+      iscorrect: Boolean(answer.iscorrect)
+    })) : [],
+    generalfeedback: question.generalfeedback || ''
+  })) : [];
+
+  return {
+    subjectId: payload.subjectId,
+    course: payload.course || {},
+    quiz: payload.quiz || {},
+    quizName: payload.quizName || payload.quiz?.name || 'Khác',
+    questions
+  };
+}
+
+async function importAttemptQuestions(reviewJson) {
+  const payload = compactReviewPayload(reviewJson);
   const course = payload.course || {};
   const quiz = payload.quiz || {};
   const courseName = course.name || course.fullname || ('Môn học ' + (course.id || '')).trim();
   const { subject, backendUrl } = await findOrCreateSubject(courseName || 'Môn học LMS');
-  return requestBackendJson('/questions/import', {
+  return requestJson(normalizeBackendUrl(backendUrl) + '/questions/import', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ subjectId: subject.id, quizName: quiz.name || 'Khác', ...payload })
-  }, backendUrl);
+  }, 120000);
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -131,6 +156,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   return false;
 });
+
 
 
 

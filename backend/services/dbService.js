@@ -150,6 +150,24 @@ export async function readDb() {
   return readJsonDb();
 }
 
+
+export async function appendQuestions(questions = []) {
+  const newQuestions = Array.isArray(questions) ? questions.map(toSupabaseQuestionPayload) : [];
+  if (newQuestions.length === 0) return [];
+
+  if (isSupabaseEnabled()) {
+    const result = await supabase
+      .from('questions')
+      .upsert(newQuestions, { onConflict: 'id' })
+      .select('*');
+    return ensureSupabaseSuccess(result, 'Loi import questions len Supabase').map(normalizeQuestion);
+  }
+
+  const db = await readJsonDb();
+  db.questions = [...(Array.isArray(db.questions) ? db.questions : []), ...newQuestions];
+  await writeJsonDb(db);
+  return newQuestions;
+}
 export async function writeDb(data) {
   writePromise = writePromise.catch(() => {}).then(async () => {
     if (isSupabaseEnabled()) {
@@ -186,4 +204,5 @@ export async function getDbHealth() {
     message: 'Da ket noi Supabase thanh cong.'
   };
 }
+
 
