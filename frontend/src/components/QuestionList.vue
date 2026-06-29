@@ -53,7 +53,7 @@
         <!-- Đáp án câu hỏi -->
         <div class="question-answer-box">
           <strong style="display: block; margin-bottom: 0.25rem; color: var(--primary); font-size: 0.8rem; text-transform: uppercase;">Đáp án:</strong>
-          {{ question.answer }}
+          <div class="question-answer-content" v-html="sanitizeQuestionContent(question.answer)"></div>
         </div>
 
         <!-- Từ khóa & Tags -->

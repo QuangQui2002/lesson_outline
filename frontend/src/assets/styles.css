@@ -733,6 +733,53 @@ button, input, textarea, select {
 [data-theme="dark"] .question-answer-box strong {
   color: #c4b5fd !important;
 }
+.question-answer-content img {
+  display: block;
+  width: auto;
+  max-width: min(420px, 100%);
+  max-height: 220px;
+  height: auto;
+  object-fit: contain;
+  margin: 0.65rem 0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+}
+
+.question-answer-content .automslc-omml,
+.question-answer-content .math,
+.question-answer-content .math-inline {
+  display: inline;
+  font-family: inherit;
+  font-size: 1em;
+  font-weight: inherit;
+  color: inherit;
+  letter-spacing: normal;
+  white-space: normal;
+}
+
+.question-answer-content sup {
+  font-size: 0.78em;
+  line-height: 0;
+  vertical-align: baseline;
+  position: relative;
+  top: -0.35em;
+}
+
+.question-answer-content sub {
+  font-size: 0.78em;
+  line-height: 0;
+  vertical-align: baseline;
+  position: relative;
+  top: 0.18em;
+}
+
+.question-answer-content a {
+  color: var(--primary);
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}
+
 .question-tags {
   display: flex;
   flex-wrap: wrap;
