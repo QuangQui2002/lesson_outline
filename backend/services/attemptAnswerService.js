@@ -36,6 +36,7 @@ function normalizeQuestion(question = {}, index = 0) {
     id: question.id || null,
     slot: question.slot || index + 1,
     type: question.type || '',
+    questionHtml: String(question.questiontext || question.content || '').trim(),
     questiontext: stripHtml(question.questiontext || question.content || ''),
     answers: answers.map((answer, answerIndex) => ({
       id: answer.id || null,
@@ -156,6 +157,7 @@ function findStoredAnswer(question = {}, storedQuestions = []) {
     slot: question.slot,
     questionId: question.id,
     questionText: question.questiontext,
+    questionHtml: question.questionHtml || '',
     source: 'database',
     answerLabel: matchedOption?.label || '',
     answerId: matchedOption?.id || null,
@@ -236,6 +238,7 @@ function normalizeAiAnswers(rawAnswers = [], questions = []) {
       slot,
       questionId: answer.questionId || question.id || null,
       questionText: question.questiontext || '',
+    questionHtml: question.questionHtml || '',
       source: 'ai',
       answerLabel: answer.answerLabel || matchedAnswer?.label || '',
       answerId: answer.answerId || matchedAnswer?.id || null,
@@ -345,3 +348,5 @@ export async function solveAttemptQuestions(payload = {}) {
     answers
   };
 }
+
+

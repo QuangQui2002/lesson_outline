@@ -1,4 +1,4 @@
-import { appendQuestions, readDb, writeDb } from '../services/dbService.js';
+﻿import { appendQuestions, readDb, writeDb } from '../services/dbService.js';
 function stripHtml(html = '') {
   return String(html)
     .replace(/<br\s*\/?>/gi, '\n')
@@ -107,19 +107,20 @@ function stripQuestionNumberPrefix(content = '') {
     .trim();
 }
 
-function normalizeImportedQuestion(sourceQuestion, quizName = DEFAULT_QUIZ_NAME) {
-  const questionText = stripQuestionNumberPrefix(stripHtml(sourceQuestion.questiontext || sourceQuestion.questionText || sourceQuestion.content || ''));
-  const answers = Array.isArray(sourceQuestion.answertext) ? sourceQuestion.answertext : [];
-  const optionLines = answers
-    .map((answer, answerIndex) => {
-      const letter = String.fromCharCode(65 + answerIndex);
-      return `${letter}. ${stripHtml(answer.answer || answer.text || '')}`.trim();
-    })
-    .filter(line => line.replace(/^[A-Z]\.\s*/, '').trim() !== '');
+function removeAnswerOptionLinesFromQuestionHtml(content = '') {
+  const parts = String(content || '')
+    .replace(/<br\s*\/?\s*>/gi, '\n')
+    .split(/\r?\n/)
+    .map(part => part.trim())
+    .filter(Boolean)
+    .filter(part => !/^[A-Z]\s*[.)]\s+/i.test(stripHtml(part)));
+  return parts.join('<br>').trim();
+}
 
-  const contentParts = [];
-  contentParts.push(questionText);
-  if (optionLines.length > 0) contentParts.push(optionLines.join('\n'));
+function normalizeImportedQuestion(sourceQuestion, quizName = DEFAULT_QUIZ_NAME) {
+  const rawQuestionContent = String(sourceQuestion.questiontext || sourceQuestion.questionText || sourceQuestion.content || '').trim();
+  const questionText = removeAnswerOptionLinesFromQuestionHtml(stripQuestionNumberPrefix(rawQuestionContent));
+  const answers = Array.isArray(sourceQuestion.answertext) ? sourceQuestion.answertext : [];
 
   const correctAnswers = answers
     .filter(answer => answer.iscorrect === true || Number(answer.fraction) > 0)
@@ -133,13 +134,13 @@ function normalizeImportedQuestion(sourceQuestion, quizName = DEFAULT_QUIZ_NAME)
   if (generalFeedback) {
     answerParts.push(generalFeedback);
   } else if (rightAnswer) {
-    answerParts.push(`Đáp án đúng là: ${rightAnswer}`);
+    answerParts.push(`??p ?n ??ng l?: ${rightAnswer}`);
   } else if (correctAnswers.length > 0) {
-    answerParts.push(`Đáp án đúng là: ${correctAnswers.join('; ')}`);
+    answerParts.push(`??p ?n ??ng l?: ${correctAnswers.join('; ')}`);
   }
 
   return {
-    content: contentParts.filter(Boolean).join('\n').trim(),
+    content: questionText.trim(),
     answer: answerParts.join('\n\n').trim(),
     quizName: normalizeQuizName(sourceQuestion.quizName || sourceQuestion.quiz?.name || quizName),
     tags: ['json', 'import', sourceQuestion.type || 'question'].filter(Boolean)
