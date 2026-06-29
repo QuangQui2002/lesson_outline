@@ -151,7 +151,7 @@ function escapeHtml(value = '') {
     .replace(/'/g, '&#39;');
 }
 
-function renderAiAnswerPanel(answers = []) {
+function renderAiAnswerPanel(answers = [], meta = {}) {
   let panel = document.querySelector('#lms-ai-answer-panel');
   if (!panel) {
     panel = document.createElement('div');
@@ -162,23 +162,24 @@ function renderAiAnswerPanel(answers = []) {
   const answerItems = answers.length > 0
     ? answers.map(answer => `
       <div class="lms-ai-answer-item">
-        <strong>Câu ${escapeHtml(answer.slot)}: ${escapeHtml(answer.answerLabel || '')}</strong>
-        <p>${escapeHtml(answer.answerText || 'Không có nội dung đáp án.')}</p>
+        <strong>Câu ${escapeHtml(answer.slot)}: ${escapeHtml(answer.answerLabel || '')} <em>${answer.source === 'database' ? 'Hệ thống' : 'AI'}</em></strong>
+        <p>${escapeHtml(answer.answerText || answer.questionText || 'Không có nội dung đáp án.')}</p>
         ${answer.explanation ? `<small>${escapeHtml(answer.explanation)}</small>` : ''}
       </div>
     `).join('')
-    : '<p class="lms-ai-answer-empty">AI chưa trả về đáp án.</p>';
+    : '<p class="lms-ai-answer-empty">Chưa có đáp án.</p>';
 
   panel.innerHTML = `
     <div class="lms-ai-answer-header">
-      <span>Đáp án AI</span>
+      <span>Đáp án câu hỏi</span>
       <button id="lms-ai-answer-close" type="button" title="Đóng">×</button>
     </div>
+    <div class="lms-ai-answer-summary">${meta.databaseCount || 0} câu từ hệ thống • ${meta.aiCount || 0} câu dùng AI</div>
+    ${meta.aiError ? `<div class="lms-ai-answer-warning">${escapeHtml(meta.aiError)}</div>` : ''}
     <div class="lms-ai-answer-body">${answerItems}</div>
   `;
   panel.querySelector('#lms-ai-answer-close').addEventListener('click', () => panel.remove());
 }
-
 
 function renderAiStatusPanel(message = 'Đang xử lý...', type = 'loading') {
   let panel = document.querySelector('#lms-ai-answer-panel');
@@ -227,9 +228,10 @@ async function solveLiveAttemptQuestions() {
     setStatus('Đang nhờ AI trả lời ' + (attemptJson.questions?.length || 0) + ' câu hỏi...', 'loading');
     const response = await chrome.runtime.sendMessage({ type: 'SOLVE_ATTEMPT_QUESTIONS', attemptJson });
     if (!response?.ok) throw new Error(response?.message || 'Không lấy được đáp án AI.');
-    const answers = response.data?.data?.answers || [];
-    renderAiAnswerPanel(answers);
-    setStatus('Đã nhận ' + answers.length + ' đáp án AI.', 'success');
+    const result = response.data?.data || {};
+    const answers = result.answers || [];
+    renderAiAnswerPanel(answers, result);
+    setStatus('Đã nhận ' + answers.length + ' đáp án (' + (result.databaseCount || 0) + ' từ hệ thống, ' + (result.aiCount || 0) + ' từ AI).', 'success');
   } catch (error) {
     renderAiStatusPanel('Lỗi: ' + error.message, 'error');
     setStatus('Lỗi: ' + error.message, 'error');
@@ -385,6 +387,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   return false;
 });
+
 
 
 

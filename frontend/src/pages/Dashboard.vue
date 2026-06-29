@@ -94,6 +94,27 @@
         </div>
       </div>
 
+
+      <section class="extension-download-card extension-download-card--compact">
+        <div class="extension-download-card__content">
+          <span class="extension-download-card__kicker">Extension LMS TVU</span>
+          <h3>Tải Extension LMS</h3>
+          <p>Phiên bản mới nhất: <strong>{{ extensionInfo.version }}</strong> • {{ extensionInfo.note }}</p>
+          <details class="extension-download-card__details">
+            <summary>Hướng dẫn cài đặt</summary>
+            <ol>
+              <li>Tải file extension mới nhất.</li>
+              <li>Giải nén file vừa tải xuống.</li>
+              <li>Mở <code>chrome://extensions</code> và bật Developer mode.</li>
+              <li>Bấm Load unpacked rồi chọn thư mục <code>support_lms_extension</code>.</li>
+            </ol>
+          </details>
+        </div>
+        <a class="btn btn-primary extension-download-card__button" :href="extensionInfo.downloadUrl" download>
+          Tải extension mới nhất
+        </a>
+      </section>
+
       <!-- Thanh tìm kiếm thời gian thực -->
       <section class="search-wrapper">
         <div class="search-input-container">
@@ -109,8 +130,8 @@
           v-if="searchQuery"
           type="button"
           class="search-clear-btn"
-          title="Xoa noi dung tim kiem"
-          aria-label="Xoa noi dung tim kiem"
+          title="Xóa nội dung tìm kiếm"
+          aria-label="Xóa nội dung tìm kiếm"
           @click="searchQuery = ''"
         >
           <span aria-hidden="true">&times;</span>
@@ -134,23 +155,6 @@
         >
           Bài học video
         </button>
-      </section>
-
-      <section class="extension-download-card">
-        <div class="extension-download-card__content">
-          <span class="extension-download-card__kicker">Extension LMS TVU</span>
-          <h3>Tải Extension LMS</h3>
-          <p>Phiên bản mới nhất: <strong>{{ extensionInfo.version }}</strong> • {{ extensionInfo.note }}</p>
-          <ol>
-            <li>Tải file extension mới nhất.</li>
-            <li>Giải nén file vừa tải xuống.</li>
-            <li>Mở <code>chrome://extensions</code> và bật Developer mode.</li>
-            <li>Bấm Load unpacked rồi chọn thư mục <code>support_lms_extension</code>.</li>
-          </ol>
-        </div>
-        <a class="btn btn-primary extension-download-card__button" :href="extensionInfo.downloadUrl" download>
-          Tải extension mới nhất
-        </a>
       </section>
 
       <LessonVideoList
@@ -676,4 +680,5 @@ export default {
   padding-left: 1.25rem;
 }
 </style>
+
 

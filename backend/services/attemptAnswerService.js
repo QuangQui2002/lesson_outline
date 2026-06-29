@@ -1,15 +1,33 @@
-﻿function stripHtml(value = '') {
+﻿import { readDb } from './dbService.js';
+
+function decodeEntities(value = '') {
   return String(value || '')
-    .replace(/<br\s*\/?\s*>/gi, '\n')
-    .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/g, ' ')
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
+    .replace(/&#39;/g, "'");
+}
+
+function stripHtml(value = '') {
+  return decodeEntities(value)
+    .replace(/<br\s*\/?\s*>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function htmlToLines(value = '') {
+  return decodeEntities(value)
+    .replace(/<br\s*\/?\s*>/gi, '\n')
+    .replace(/<\/p\s*>/gi, '\n')
+    .replace(/<\/div\s*>/gi, '\n')
+    .replace(/<\/li\s*>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .split(/\r?\n/)
+    .map(line => line.replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
 }
 
 function normalizeQuestion(question = {}, index = 0) {
@@ -39,80 +57,186 @@ function buildPrompt(questions = []) {
     `Cấu trúc bắt buộc: {"answers":[{"slot":1,"questionId":123,"answerLabel":"A","confidence":0.8,"explanation":"ngắn gọn"}]}\n` +
     `Không cần trả answerText. Không cần trả answerId. Nếu không chắc, vẫn chọn đáp án hợp lý nhất.\n\n${questionText}`;
 }
-function parseModelList(value, fallback) {
-  return String(value || fallback || '')
-    .split(',')
-    .map(model => model.trim())
-    .filter(Boolean);
+
+function normalizeStoredQuestionForCompare(content = '') {
+  return String(content || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase()
+    .replace(/^\s*cau\s*\d+\s*[:.\-\)]?/i, '')
+    .replace(/\b\d+\s*\/\s*\d+\s*(diem|point|points)\b/gi, '')
+    .replace(/[^a-z0-9]+/g, '')
+    .trim();
 }
 
-function getConfiguredProviders() {
-  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-  if (!apiKey) return [];
+function levenshteinDistance(a, b) {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  const previousRow = Array.from({ length: b.length + 1 }, (_, index) => index);
+  const currentRow = new Array(b.length + 1);
+  for (let i = 1; i <= a.length; i += 1) {
+    currentRow[0] = i;
+    for (let j = 1; j <= b.length; j += 1) {
+      const insertCost = currentRow[j - 1] + 1;
+      const deleteCost = previousRow[j] + 1;
+      const replaceCost = previousRow[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1);
+      currentRow[j] = Math.min(insertCost, deleteCost, replaceCost);
+    }
+    previousRow.splice(0, previousRow.length, ...currentRow);
+  }
+  return previousRow[b.length];
+}
 
-  return parseModelList(process.env.GEMINI_MODELS || process.env.GEMINI_MODEL, 'gemini-2.0-flash').map(model => ({
-    name: 'Gemini',
-    type: 'gemini',
-    apiKey,
-    model
-  }));
+function calculateSimilarity(contentA, contentB) {
+  const normalizedA = normalizeStoredQuestionForCompare(contentA);
+  const normalizedB = normalizeStoredQuestionForCompare(contentB);
+  if (!normalizedA || !normalizedB) return 0;
+  if (normalizedA === normalizedB) return 1;
+  const maxLength = Math.max(normalizedA.length, normalizedB.length);
+  return 1 - levenshteinDistance(normalizedA, normalizedB) / maxLength;
+}
+
+function getQuestionCompareText(question = {}) {
+  return stripHtml(question.questiontext || '');
+}
+
+function extractStoredQuestionText(content = '') {
+  const lines = htmlToLines(content || '');
+  const questionLines = [];
+  for (const line of lines) {
+    if (/^[A-Z]\s*[\.)]\s+/i.test(line)) break;
+    if (/^(Đáp án đúng là|Dap an dung la)\s*:/i.test(line)) break;
+    if (/^Vì\s*:/i.test(line)) break;
+    if (/^Vi\s*:/i.test(line)) break;
+    if (/^Tham khảo\s*:/i.test(line)) break;
+    if (/^Tham khao\s*:/i.test(line)) break;
+    questionLines.push(line);
+  }
+  return (questionLines.join(' ') || stripHtml(content)).trim();
+}
+
+function extractStoredCorrectAnswer(answerText = '') {
+  const cleanAnswer = stripHtml(answerText || '');
+  const match = cleanAnswer.match(/(?:Đáp án đúng là|Dap an dung la)\s*:\s*([^\n]+)/i);
+  return (match?.[1] || cleanAnswer.split('\n')[0] || '').trim();
+}
+
+function findMatchingOption(question = {}, correctAnswerText = '') {
+  const cleanCorrect = stripHtml(correctAnswerText || '').trim();
+  if (!cleanCorrect) return null;
+  const normalizedCorrect = normalizeStoredQuestionForCompare(cleanCorrect);
+  return question.answers?.find(option => {
+    const normalizedOption = normalizeStoredQuestionForCompare(option.text);
+    return normalizedOption && (
+      normalizedOption === normalizedCorrect ||
+      normalizedCorrect.includes(normalizedOption) ||
+      normalizedOption.includes(normalizedCorrect)
+    );
+  }) || null;
+}
+
+function findStoredAnswer(question = {}, storedQuestions = []) {
+  const questionCompareText = getQuestionCompareText(question);
+  let bestMatch = null;
+  for (const storedQuestion of storedQuestions) {
+    const storedQuestionText = extractStoredQuestionText(storedQuestion.content || '');
+    const similarity = calculateSimilarity(questionCompareText, storedQuestionText);
+    if (similarity >= 0.86 && (!bestMatch || similarity > bestMatch.similarity)) {
+      bestMatch = { storedQuestion, similarity, storedQuestionText };
+    }
+  }
+  if (!bestMatch) return null;
+
+  const correctAnswerText = extractStoredCorrectAnswer(bestMatch.storedQuestion.answer || '');
+  const matchedOption = findMatchingOption(question, correctAnswerText);
+  return {
+    slot: question.slot,
+    questionId: question.id,
+    questionText: question.questiontext,
+    source: 'database',
+    answerLabel: matchedOption?.label || '',
+    answerId: matchedOption?.id || null,
+    answerText: matchedOption?.text || correctAnswerText,
+    confidence: Number(bestMatch.similarity.toFixed(2)),
+    explanation: 'Tìm thấy câu hỏi trùng trong ngân hàng câu hỏi theo nội dung câu hỏi.'
+  };
+}
+
+async function findStoredAnswers(questions = []) {
+  const db = await readDb();
+  const storedQuestions = Array.isArray(db.questions) ? db.questions : [];
+  const matchedAnswers = [];
+  const unansweredQuestions = [];
+  for (const question of questions) {
+    const storedAnswer = findStoredAnswer(question, storedQuestions);
+    if (storedAnswer) matchedAnswers.push(storedAnswer);
+    else unansweredQuestions.push(question);
+  }
+  return { matchedAnswers, unansweredQuestions };
+}
+
+function getGeminiModels() {
+  const models = process.env.GEMINI_MODELS || process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+  return models.split(',').map(model => model.trim()).filter(Boolean);
 }
 
 function getGeminiTimeoutMs() {
-  const timeoutMs = Number(process.env.GEMINI_TIMEOUT_MS || 60000);
-  return Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 60000;
+  const timeout = Number(process.env.GEMINI_TIMEOUT_MS || 60000);
+  return Number.isFinite(timeout) && timeout > 0 ? timeout : 60000;
 }
 
 function getGeminiMaxOutputTokens() {
-  const maxOutputTokens = Number(process.env.GEMINI_MAX_OUTPUT_TOKENS || 8192);
-  return Number.isFinite(maxOutputTokens) && maxOutputTokens > 0 ? maxOutputTokens : 8192;
+  const maxTokens = Number(process.env.GEMINI_MAX_OUTPUT_TOKENS || 4096);
+  return Number.isFinite(maxTokens) && maxTokens > 0 ? maxTokens : 4096;
 }
 
-function removeTrailingCommas(jsonText = '') {
-  return String(jsonText || '').replace(/,\s*([}\]])/g, '$1');
+function getConfiguredProviders() {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
+  if (!apiKey) return [];
+  return getGeminiModels().map(model => ({ name: 'Gemini', model, apiKey }));
+}
+
+function removeTrailingCommas(value = '') {
+  return String(value || '').replace(/,\s*([}\]])/g, '$1');
 }
 
 function extractJsonObject(text = '') {
-  const cleanText = String(text || '')
-    .trim()
-    .replace(/^```json\s*/i, '')
-    .replace(/^```\s*/i, '')
-    .replace(/```$/i, '')
-    .trim();
-
-  const candidates = [cleanText];
-  const start = cleanText.indexOf('{');
-  const end = cleanText.lastIndexOf('}');
-  if (start !== -1 && end !== -1 && end > start) {
-    candidates.push(cleanText.slice(start, end + 1));
+  const cleanText = String(text || '').replace(/```json|```/gi, '').trim();
+  const firstBrace = cleanText.indexOf('{');
+  const lastBrace = cleanText.lastIndexOf('}');
+  if (firstBrace < 0 || lastBrace <= firstBrace) {
+    throw new Error('AI không trả về JSON hợp lệ. Nội dung nhận được: ' + cleanText.slice(0, 500));
   }
-
-  for (const candidate of candidates) {
+  const candidate = cleanText.slice(firstBrace, lastBrace + 1);
+  try {
+    return JSON.parse(candidate);
+  } catch (error) {
     try {
-      return JSON.parse(candidate);
-    } catch (error) {
-      try {
-        return JSON.parse(removeTrailingCommas(candidate));
-      } catch (repairError) {}
+      return JSON.parse(removeTrailingCommas(candidate));
+    } catch (repairError) {
+      throw new Error('AI không trả về JSON hợp lệ. Nội dung nhận được: ' + cleanText.slice(0, 500));
     }
   }
-
-  throw new Error('AI không trả về JSON hợp lệ. Nội dung nhận được: ' + cleanText.slice(0, 500));
 }
+
 function normalizeAiAnswers(rawAnswers = [], questions = []) {
   const bySlot = new Map(questions.map(question => [Number(question.slot), question]));
   return rawAnswers.map((answer, index) => {
     const slot = Number(answer.slot || index + 1);
     const question = bySlot.get(slot) || questions[index] || {};
-    const matchedAnswer = question.answers?.find(option => {
-      return String(option.id) === String(answer.answerId || '')
-        || String(option.label).toLowerCase() === String(answer.answerLabel || '').toLowerCase()
-        || option.text === answer.answerText;
-    });
-
+    const matchedAnswer = question.answers?.find(option =>
+      String(option.id) === String(answer.answerId || '') ||
+      String(option.label).toLowerCase() === String(answer.answerLabel || '').toLowerCase() ||
+      option.text === answer.answerText
+    );
     return {
       slot,
       questionId: answer.questionId || question.id || null,
+      questionText: question.questiontext || '',
+      source: 'ai',
       answerLabel: answer.answerLabel || matchedAnswer?.label || '',
       answerId: answer.answerId || matchedAnswer?.id || null,
       answerText: answer.answerText || matchedAnswer?.text || '',
@@ -127,7 +251,6 @@ async function callGemini(provider, prompt) {
   const timeoutMs = getGeminiTimeoutMs();
   const timeoutId = setTimeout(() => controller.abort('Gemini quá thời gian phản hồi'), timeoutMs);
   let response;
-
   try {
     response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${provider.model}:generateContent?key=${provider.apiKey}`, {
       method: 'POST',
@@ -147,14 +270,11 @@ async function callGemini(provider, prompt) {
   } finally {
     clearTimeout(timeoutId);
   }
-
   const data = await response.json().catch(() => null);
-  if (!response.ok) {
-    throw new Error(`${provider.name} API lỗi ${response.status}: ${JSON.stringify(data)}`);
-  }
-
+  if (!response.ok) throw new Error(`${provider.name} API lỗi ${response.status}: ${JSON.stringify(data)}`);
   return data?.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('\n') || '';
 }
+
 async function callAiProvider(provider, prompt) {
   return callGemini(provider, prompt);
 }
@@ -164,42 +284,64 @@ export async function solveAttemptQuestions(payload = {}) {
   const questions = rawQuestions.map(normalizeQuestion).filter(question => question.questiontext && question.answers.length > 0);
   if (questions.length === 0) throw new Error('Không có câu hỏi trắc nghiệm hợp lệ để AI trả lời.');
 
-  const providers = getConfiguredProviders();
-  if (providers.length === 0) {
-    throw new Error('Backend chưa cấu hình GEMINI_API_KEY. Hãy thêm Gemini API key vào file .env.');
-  }
-
-  const prompt = buildPrompt(questions);
-  const errors = [];
-  let parsed = null;
+  const { matchedAnswers, unansweredQuestions } = await findStoredAnswers(questions);
+  let aiAnswers = [];
   let usedProvider = null;
 
-  for (const provider of providers) {
-    try {
-      const text = await callAiProvider(provider, prompt);
-      parsed = extractJsonObject(text);
-      usedProvider = provider;
-      break;
-    } catch (error) {
-      errors.push(`${provider.name} (${provider.model}): ${error.message}`);
+  if (unansweredQuestions.length > 0) {
+    const providers = getConfiguredProviders();
+    if (providers.length === 0) {
+      if (matchedAnswers.length > 0) {
+        return {
+          totalQuestions: questions.length,
+          databaseCount: matchedAnswers.length,
+          aiCount: 0,
+          provider: '',
+          model: '',
+          answers: matchedAnswers.sort((a, b) => Number(a.slot) - Number(b.slot))
+        };
+      }
+      throw new Error('Backend chưa cấu hình GEMINI_API_KEY. Hãy thêm Gemini API key vào file .env.');
     }
+
+    const prompt = buildPrompt(unansweredQuestions);
+    const errors = [];
+    let parsed = null;
+    for (const provider of providers) {
+      try {
+        const text = await callAiProvider(provider, prompt);
+        parsed = extractJsonObject(text);
+        usedProvider = provider;
+        break;
+      } catch (error) {
+        errors.push(`${provider.name} (${provider.model}): ${error.message}`);
+      }
+    }
+
+    if (!parsed) {
+      if (matchedAnswers.length > 0) {
+        return {
+          totalQuestions: questions.length,
+          databaseCount: matchedAnswers.length,
+          aiCount: 0,
+          provider: '',
+          model: '',
+          aiError: `AI lỗi với ${unansweredQuestions.length} câu chưa có trong hệ thống. ${errors.join(' | ')}`,
+          answers: matchedAnswers.sort((a, b) => Number(a.slot) - Number(b.slot))
+        };
+      }
+      throw new Error(`Tất cả model AI đều lỗi. ${errors.join(' | ')}`);
+    }
+    aiAnswers = normalizeAiAnswers(Array.isArray(parsed.answers) ? parsed.answers : [], unansweredQuestions);
   }
 
-  if (!parsed) {
-    throw new Error(`Tất cả model AI đều lỗi. ${errors.join(' | ')}`);
-  }
-
-  const answers = normalizeAiAnswers(Array.isArray(parsed.answers) ? parsed.answers : [], questions);
-
+  const answers = [...matchedAnswers, ...aiAnswers].sort((a, b) => Number(a.slot) - Number(b.slot));
   return {
     totalQuestions: questions.length,
+    databaseCount: matchedAnswers.length,
+    aiCount: aiAnswers.length,
     provider: usedProvider?.name || '',
     model: usedProvider?.model || '',
     answers
   };
 }
-
-
-
-
-

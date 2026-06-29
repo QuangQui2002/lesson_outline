@@ -666,3 +666,37 @@
   color: #64748b;
 }
 
+
+.lms-ai-answer-item strong em {
+  display: inline-flex;
+  margin-left: 6px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #0369a1;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 900;
+  vertical-align: middle;
+}
+
+.lms-ai-answer-summary,
+.lms-ai-answer-warning {
+  margin: 12px 12px 0;
+  padding: 9px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.lms-ai-answer-summary {
+  color: #166534;
+  background: #dcfce7;
+  border: 1px solid #bbf7d0;
+}
+
+.lms-ai-answer-warning {
+  color: #92400e;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+}

@@ -1211,6 +1211,11 @@ textarea.form-control {
   box-shadow: var(--shadow-sm);
 }
 
+.extension-download-card--compact {
+  align-items: center;
+  padding: 0.95rem 1.1rem;
+}
+
 .extension-download-card__content {
   min-width: 0;
 }
@@ -1237,10 +1242,29 @@ textarea.form-control {
   line-height: 1.5;
 }
 
+.extension-download-card__details {
+  margin-top: 0.6rem;
+}
+
+.extension-download-card__details summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--primary);
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+  user-select: none;
+}
+
+.extension-download-card__details summary:hover {
+  text-decoration: underline;
+}
+
 .extension-download-card ol {
   display: grid;
   gap: 0.25rem;
-  margin: 0;
+  margin: 0.65rem 0 0;
   padding-left: 1.2rem;
   color: var(--text-main);
   font-size: 0.9rem;
