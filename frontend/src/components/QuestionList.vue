@@ -122,17 +122,32 @@ export default {
         }
       });
       const imageUrlPattern = /https:\/\/[^\s<>'"]+?\.(?:png|jpe?g|gif|webp)(?:\?[^\s<>'"]*)?/gi;
+      template.content.querySelectorAll('a[href]').forEach(link => {
+        const href = link.getAttribute('href') || '';
+        if (!imageUrlPattern.test(href)) return;
+        imageUrlPattern.lastIndex = 0;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'question-inline-image-group';
+        const image = document.createElement('img');
+        image.src = href;
+        image.alt = 'H?nh minh h?a c?u h?i';
+        image.loading = 'lazy';
+        wrapper.appendChild(image);
+        wrapper.appendChild(link.cloneNode(true));
+        link.replaceWith(wrapper);
+      });
       const walker = document.createTreeWalker(template.content, NodeFilter.SHOW_TEXT);
       const textNodes = [];
       while (walker.nextNode()) textNodes.push(walker.currentNode);
       textNodes.forEach(node => {
-        if (node.parentElement?.closest('a')) return;
         const value = node.nodeValue || '';
         if (!imageUrlPattern.test(value)) return;
         imageUrlPattern.lastIndex = 0;
         const fragment = document.createDocumentFragment();
         let lastIndex = 0;
+        let matched = false;
         value.replace(imageUrlPattern, (url, index) => {
+          matched = true;
           if (index > lastIndex) fragment.appendChild(document.createTextNode(value.slice(lastIndex, index)));
           const image = document.createElement('img');
           image.src = url;
@@ -142,6 +157,7 @@ export default {
           lastIndex = index + url.length;
           return url;
         });
+        if (!matched) return;
         if (lastIndex < value.length) fragment.appendChild(document.createTextNode(value.slice(lastIndex)));
         node.replaceWith(fragment);
       });
