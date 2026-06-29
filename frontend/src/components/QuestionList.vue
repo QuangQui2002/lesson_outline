@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div>
     <div class="questions-header">
       <h2>Danh sách Câu Hỏi ({{ questions.length }})</h2>
@@ -48,9 +48,7 @@
         </div>
 
         <!-- Nội dung câu hỏi -->
-        <div class="question-content">
-          {{ question.content }}
-        </div>
+        <div class="question-content" v-html="sanitizeQuestionContent(question.content)"></div>
 
         <!-- Đáp án câu hỏi -->
         <div class="question-answer-box">
@@ -98,6 +96,56 @@ export default {
     getSubjectName(subjectId) {
       const subject = this.subjects.find(s => s.id === subjectId);
       return subject ? subject.name : 'Môn học khác';
+    },
+    sanitizeQuestionContent(content = '') {
+      if (typeof window === 'undefined') return String(content || '');
+      const template = document.createElement('template');
+      template.innerHTML = String(content || '');
+      const allowedTags = new Set(['BR', 'IMG', 'A', 'U', 'B', 'STRONG', 'I', 'EM', 'P', 'DIV', 'SPAN', 'CODE', 'PRE', 'SUP', 'SUB']);
+      template.content.querySelectorAll('*').forEach(element => {
+        if (!allowedTags.has(element.tagName)) {
+          element.replaceWith(document.createTextNode(element.textContent || ''));
+          return;
+        }
+        [...element.attributes].forEach(attribute => {
+          const name = attribute.name.toLowerCase();
+          const attrValue = attribute.value || '';
+          if (element.tagName === 'IMG' && name === 'src' && /^(data:image\/|https:\/\/)/i.test(attrValue)) return;
+          if (element.tagName === 'A' && name === 'href' && /^https:\/\//i.test(attrValue)) return;
+          if (element.tagName === 'A' && ['target', 'rel'].includes(name)) return;
+          if (element.tagName === 'SPAN' && name === 'class' && /^(automslc-omml|math|math-inline|katex|katex-html|katex-mathml)$/i.test(attrValue)) return;
+          element.removeAttribute(attribute.name);
+        });
+        if (element.tagName === 'A') {
+          element.setAttribute('target', '_blank');
+          element.setAttribute('rel', 'noopener noreferrer');
+        }
+      });
+      const imageUrlPattern = /https:\/\/[^\s<>'"]+?\.(?:png|jpe?g|gif|webp)(?:\?[^\s<>'"]*)?/gi;
+      const walker = document.createTreeWalker(template.content, NodeFilter.SHOW_TEXT);
+      const textNodes = [];
+      while (walker.nextNode()) textNodes.push(walker.currentNode);
+      textNodes.forEach(node => {
+        if (node.parentElement?.closest('a')) return;
+        const value = node.nodeValue || '';
+        if (!imageUrlPattern.test(value)) return;
+        imageUrlPattern.lastIndex = 0;
+        const fragment = document.createDocumentFragment();
+        let lastIndex = 0;
+        value.replace(imageUrlPattern, (url, index) => {
+          if (index > lastIndex) fragment.appendChild(document.createTextNode(value.slice(lastIndex, index)));
+          const image = document.createElement('img');
+          image.src = url;
+          image.alt = 'H?nh minh h?a c?u h?i';
+          image.loading = 'lazy';
+          fragment.appendChild(image);
+          lastIndex = index + url.length;
+          return url;
+        });
+        if (lastIndex < value.length) fragment.appendChild(document.createTextNode(value.slice(lastIndex)));
+        node.replaceWith(fragment);
+      });
+      return template.innerHTML;
     },
     formatDate(dateString) {
       if (!dateString) return '';

@@ -647,6 +647,55 @@ button, input, textarea, select {
   white-space: pre-line;
 }
 
+
+
+.question-content img {
+  display: block;
+  width: auto;
+  max-width: min(520px, 100%);
+  max-height: 260px;
+  height: auto;
+  object-fit: contain;
+  margin: 0.65rem 0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+}
+
+.question-content .automslc-omml,
+.question-content .math,
+.question-content .math-inline {
+  display: inline;
+  font-family: inherit;
+  font-size: 1em;
+  font-weight: inherit;
+  color: inherit;
+  letter-spacing: normal;
+  white-space: normal;
+}
+
+.question-content sup {
+  font-size: 0.78em;
+  line-height: 0;
+  vertical-align: baseline;
+  position: relative;
+  top: -0.35em;
+}
+
+.question-content sub {
+  font-size: 0.78em;
+  line-height: 0;
+  vertical-align: baseline;
+  position: relative;
+  top: 0.18em;
+}
+
+.question-content a {
+  color: var(--primary);
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}
+
 .question-answer-box {
   background: #eef2ff;
   border-left: 4px solid #4f46e5;
@@ -673,7 +722,8 @@ button, input, textarea, select {
   text-shadow: 0 0 18px rgba(129, 140, 248, 0.18);
 }
 
-[data-theme="dark"] .question-answer-box {
+[data-theme="dark"] 
+.question-answer-box {
   background: rgba(99, 102, 241, 0.14);
   border-left-color: #a5b4fc;
   color: #e0e7ff;
@@ -1102,7 +1152,8 @@ textarea.form-control {
     font-size: 0.98rem;
   }
 
-  .question-answer-box {
+  
+.question-answer-box {
     padding: 0.85rem 1rem;
     font-size: 0.9rem;
   }
@@ -1542,4 +1593,5 @@ textarea.form-control {
     max-height: 360px;
   }
 }
+
 

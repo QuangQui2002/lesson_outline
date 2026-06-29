@@ -588,10 +588,13 @@
 #lms-ai-answer-panel {
   position: fixed;
   right: 18px;
-  top: 84px;
+  top: 72px;
   z-index: 2147483647;
+  display: flex;
+  flex-direction: column;
   width: min(360px, calc(100vw - 36px));
-  max-height: min(620px, calc(100vh - 120px));
+  max-height: calc(100vh - 96px);
+  max-height: calc(100dvh - 96px);
   overflow: hidden;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.98);
@@ -605,6 +608,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-shrink: 0;
   gap: 10px;
   padding: 12px 14px;
   color: #fff;
@@ -626,10 +630,12 @@
 
 .lms-ai-answer-body {
   display: grid;
+  flex: 1 1 auto;
   gap: 9px;
-  max-height: calc(min(620px, 100vh - 120px) - 52px);
-  overflow: auto;
-  padding: 12px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 12px 12px 18px;
 }
 
 .lms-ai-answer-item {
@@ -646,6 +652,63 @@
   font-size: 13px;
 }
 
+
+.lms-ai-question-text {
+  margin: 6px 0 8px;
+  padding: 8px;
+  border-radius: 10px;
+  background: #eef2ff;
+  color: #334155;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.lms-ai-question-text img {
+  display: block;
+  width: auto;
+  max-width: min(260px, 100%);
+  max-height: 170px;
+  height: auto;
+  object-fit: contain;
+  margin: 7px 0;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+}
+
+.lms-ai-question-text .automslc-omml,
+.lms-ai-question-text .math,
+.lms-ai-question-text .math-inline {
+  display: inline;
+  font-family: inherit;
+  font-size: 1em;
+  font-weight: inherit;
+  color: inherit;
+  letter-spacing: normal;
+  white-space: normal;
+}
+
+.lms-ai-question-text sup {
+  font-size: 0.78em;
+  line-height: 0;
+  vertical-align: baseline;
+  position: relative;
+  top: -0.35em;
+}
+
+.lms-ai-question-text sub {
+  font-size: 0.78em;
+  line-height: 0;
+  vertical-align: baseline;
+  position: relative;
+  top: 0.18em;
+}
+
+.lms-ai-question-text a {
+  color: #2563eb;
+  text-decoration: underline;
+}
 .lms-ai-answer-item p {
   margin: 0;
   color: #0f172a;
@@ -682,6 +745,7 @@
 
 .lms-ai-answer-summary,
 .lms-ai-answer-warning {
+  flex-shrink: 0;
   margin: 12px 12px 0;
   padding: 9px 10px;
   border-radius: 12px;
@@ -700,3 +764,5 @@
   background: #fef3c7;
   border: 1px solid #fde68a;
 }
+
+

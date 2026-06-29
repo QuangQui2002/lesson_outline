@@ -151,6 +151,58 @@ function escapeHtml(value = '') {
     .replace(/'/g, '&#39;');
 }
 
+function sanitizeQuestionHtml(value = '') {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const template = document.createElement('template');
+  template.innerHTML = raw;
+  const allowedTags = new Set(['BR', 'IMG', 'A', 'U', 'B', 'STRONG', 'I', 'EM', 'P', 'DIV', 'SPAN', 'CODE', 'PRE', 'SUP', 'SUB']);
+  template.content.querySelectorAll('*').forEach(element => {
+    if (!allowedTags.has(element.tagName)) {
+      element.replaceWith(document.createTextNode(element.textContent || ''));
+      return;
+    }
+    [...element.attributes].forEach(attribute => {
+      const name = attribute.name.toLowerCase();
+      const attrValue = attribute.value || '';
+      if (element.tagName === 'IMG' && name === 'src' && /^(data:image\/|https:\/\/)/i.test(attrValue)) return;
+      if (element.tagName === 'A' && name === 'href' && /^https:\/\//i.test(attrValue)) return;
+      if (element.tagName === 'A' && ['target', 'rel'].includes(name)) return;
+      if (element.tagName === 'SPAN' && name === 'class' && /^(automslc-omml|math|math-inline|katex|katex-html|katex-mathml)$/i.test(attrValue)) return;
+      element.removeAttribute(attribute.name);
+    });
+    if (element.tagName === 'A') {
+      element.setAttribute('target', '_blank');
+      element.setAttribute('rel', 'noopener noreferrer');
+    }
+  });
+  const imageUrlPattern = /https:\/\/[^\s<>'"]+?\.(?:png|jpe?g|gif|webp)(?:\?[^\s<>'"]*)?/gi;
+  const walker = document.createTreeWalker(template.content, NodeFilter.SHOW_TEXT);
+  const textNodes = [];
+  while (walker.nextNode()) textNodes.push(walker.currentNode);
+  textNodes.forEach(node => {
+    if (node.parentElement?.closest('a')) return;
+    const value = node.nodeValue || '';
+    if (!imageUrlPattern.test(value)) return;
+    imageUrlPattern.lastIndex = 0;
+    const fragment = document.createDocumentFragment();
+    let lastIndex = 0;
+    value.replace(imageUrlPattern, (url, index) => {
+      if (index > lastIndex) fragment.appendChild(document.createTextNode(value.slice(lastIndex, index)));
+      const image = document.createElement('img');
+      image.src = url;
+      image.alt = 'H?nh minh h?a c?u h?i';
+      image.loading = 'lazy';
+      fragment.appendChild(image);
+      lastIndex = index + url.length;
+      return url;
+    });
+    if (lastIndex < value.length) fragment.appendChild(document.createTextNode(value.slice(lastIndex)));
+    node.replaceWith(fragment);
+  });
+  return template.innerHTML;
+}
+
 function renderAiAnswerPanel(answers = [], meta = {}) {
   let panel = document.querySelector('#lms-ai-answer-panel');
   if (!panel) {
@@ -160,15 +212,17 @@ function renderAiAnswerPanel(answers = [], meta = {}) {
   }
 
   const answerItems = answers.length > 0
-    ? answers.map(answer => `
+    ? answers.map(answer => {
+      const questionHtml = sanitizeQuestionHtml(answer.questionHtml || answer.questionText || '');
+      return `
       <div class="lms-ai-answer-item">
         <strong>Câu ${escapeHtml(answer.slot)}: ${escapeHtml(answer.answerLabel || '')} <em>${answer.source === 'database' ? 'Hệ thống' : 'AI'}</em></strong>
-        <p>${escapeHtml(answer.answerText || answer.questionText || 'Không có nội dung đáp án.')}</p>
+        ${questionHtml ? `<div class="lms-ai-question-text">${questionHtml}</div>` : ''}
+        <p>${escapeHtml(answer.answerText || 'Không có nội dung đáp án.')}</p>
         ${answer.explanation ? `<small>${escapeHtml(answer.explanation)}</small>` : ''}
-      </div>
-    `).join('')
+      </div>`;
+    }).join('')
     : '<p class="lms-ai-answer-empty">Chưa có đáp án.</p>';
-
   panel.innerHTML = `
     <div class="lms-ai-answer-header">
       <span>Đáp án câu hỏi</span>
@@ -387,6 +441,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   return false;
 });
+
+
 
 
 
