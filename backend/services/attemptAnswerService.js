@@ -49,14 +49,15 @@ function normalizeQuestion(question = {}, index = 0) {
 function buildPrompt(questions = []) {
   const questionText = questions.map(question => {
     const answers = question.answers.map(answer => `${answer.label}. ${answer.text}`).join('\n');
-    return `Câu ${question.slot} (id: ${question.id || 'N/A'}): ${question.questiontext}\n${answers}`;
+    return `Cau ${question.slot} (id: ${question.id || 'N/A'}): ${question.questiontext}\n${answers}`;
   }).join('\n\n');
 
-  return `Bạn là trợ lý học tập. Hãy trả lời các câu hỏi trắc nghiệm sau bằng tiếng Việt.\n` +
-    `Chỉ trả về JSON hợp lệ, không markdown, không chữ ngoài JSON.\n` +
-    `Trả lời thật ngắn để JSON không bị cắt. Không dùng dấu phẩy cuối mảng/object.\n` +
-    `Cấu trúc bắt buộc: {"answers":[{"slot":1,"questionId":123,"answerLabel":"A","confidence":0.8,"explanation":"ngắn gọn"}]}\n` +
-    `Không cần trả answerText. Không cần trả answerId. Nếu không chắc, vẫn chọn đáp án hợp lý nhất.\n\n${questionText}`;
+  return `Ban la tro ly hoc tap. Hay tra loi cac cau hoi trac nghiem sau bang tieng Viet.\n` +
+    `Chi tra ve JSON hop le, khong markdown, khong chu ngoai JSON.\n` +
+    `Tra loi that ngan de JSON khong bi cat. Khong dung dau phay cuoi mang/object.\n` +
+    `Cau truc bat buoc: {"answers":[{"slot":1,"questionId":123,"answerLabel":"A","confidence":0.8,"explanation":"ngan gon"}]}\n` +
+    `Giu nguyen slot va questionId dung nhu de bai da gui, khong danh so lai tu 1.\n` +
+    `Khong can tra answerText. Khong can tra answerId. Neu khong chac, van chon dap an hop ly nhat.\n\n${questionText}`;
 }
 
 function normalizeStoredQuestionForCompare(content = '') {
@@ -226,19 +227,24 @@ function extractJsonObject(text = '') {
 
 function normalizeAiAnswers(rawAnswers = [], questions = []) {
   const bySlot = new Map(questions.map(question => [Number(question.slot), question]));
+  const byId = new Map(questions.filter(question => question.id !== null).map(question => [String(question.id), question]));
+
   return rawAnswers.map((answer, index) => {
-    const slot = Number(answer.slot || index + 1);
-    const question = bySlot.get(slot) || questions[index] || {};
+    const answerSlot = Number(answer.slot || 0);
+    const questionById = answer.questionId !== undefined && answer.questionId !== null ? byId.get(String(answer.questionId)) : null;
+    const questionBySlot = answerSlot ? bySlot.get(answerSlot) : null;
+    const question = questionById || questionBySlot || questions[index] || {};
     const matchedAnswer = question.answers?.find(option =>
       String(option.id) === String(answer.answerId || '') ||
       String(option.label).toLowerCase() === String(answer.answerLabel || '').toLowerCase() ||
       option.text === answer.answerText
     );
+
     return {
-      slot,
-      questionId: answer.questionId || question.id || null,
+      slot: question.slot || answerSlot || index + 1,
+      questionId: question.id || answer.questionId || null,
       questionText: question.questiontext || '',
-    questionHtml: question.questionHtml || '',
+      questionHtml: question.questionHtml || '',
       source: 'ai',
       answerLabel: answer.answerLabel || matchedAnswer?.label || '',
       answerId: answer.answerId || matchedAnswer?.id || null,
@@ -348,5 +354,6 @@ export async function solveAttemptQuestions(payload = {}) {
     answers
   };
 }
+
 
 
