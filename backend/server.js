@@ -24,6 +24,30 @@ const hasFrontendBuild = fsExists(frontendDistPath);
 const PORT = process.env.PORT || 3000;
 const KEEP_ALIVE_URL = process.env.KEEP_ALIVE_URL || 'https://lesson-outline-h788.onrender.com/api/ping';
 
+function apiTimingMiddleware(req, res, next) {
+  const startedAt = process.hrtime.bigint();
+  const slowMs = Number(process.env.SLOW_API_LOG_MS || 2000);
+  const originalWriteHead = res.writeHead;
+
+  res.writeHead = function writeHeadWithTiming(...args) {
+    const durationMs = Number(process.hrtime.bigint() - startedAt) / 1e6;
+    res.setHeader('X-Response-Time-Ms', durationMs.toFixed(1));
+    return originalWriteHead.apply(this, args);
+  };
+
+  res.on('finish', () => {
+    const durationMs = Number(process.hrtime.bigint() - startedAt) / 1e6;
+    const label = '[api-time] ' + req.method + ' ' + req.originalUrl + ' ' + res.statusCode + ' ' + durationMs.toFixed(1) + 'ms';
+    if (durationMs >= slowMs || res.statusCode >= 500) {
+      console.warn(label);
+    } else if (process.env.API_TIMING_LOG === 'true') {
+      console.log(label);
+    }
+  });
+
+  next();
+}
+
 function fsExists(targetPath) {
   try {
     return Boolean(targetPath) && fs.existsSync(targetPath);
@@ -88,6 +112,7 @@ app.use(cors({
 app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: process.env.JSON_BODY_LIMIT || '10mb' }));
 
+app.use('/api', apiTimingMiddleware);
 app.use('/api', telegramApiNotifier);
 
 app.use('/api/subjects', subjectRoutes);

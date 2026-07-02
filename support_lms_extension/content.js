@@ -185,7 +185,7 @@ function sanitizeQuestionHtml(value = '') {
     wrapper.className = 'question-inline-image-group';
     const image = document.createElement('img');
     image.src = href;
-    image.alt = 'H?nh minh h?a c?u h?i';
+    image.alt = 'H\u00ecnh minh h\u1ecda c\u00e2u h\u1ecfi';
     image.loading = 'lazy';
     wrapper.appendChild(image);
     wrapper.appendChild(link.cloneNode(true));
@@ -206,7 +206,7 @@ function sanitizeQuestionHtml(value = '') {
       if (index > lastIndex) fragment.appendChild(document.createTextNode(value.slice(lastIndex, index)));
       const image = document.createElement('img');
       image.src = url;
-      image.alt = 'H?nh minh h?a c?u h?i';
+      image.alt = 'H\u00ecnh minh h\u1ecda c\u00e2u h\u1ecfi';
       image.loading = 'lazy';
       fragment.appendChild(image);
       lastIndex = index + url.length;
@@ -232,13 +232,13 @@ function renderAiAnswerPanel(answers = [], meta = {}) {
       const questionHtml = sanitizeQuestionHtml(answer.questionHtml || answer.questionText || '');
       return `
       <div class="lms-ai-answer-item">
-        <strong>Câu ${escapeHtml(answer.slot)}: ${escapeHtml(answer.answerLabel || '')} <em>${answer.source === 'database' ? 'Hệ thống' : 'AI'}</em></strong>
+        <strong>C\u00e2u ${escapeHtml(answer.slot)}: ${escapeHtml(answer.answerLabel || '')} <em>${answer.source === 'database' ? 'H\u1ec7 th\u1ed1ng' : 'AI'}</em></strong>
         ${questionHtml ? `<div class="lms-ai-question-text">${questionHtml}</div>` : ''}
-        <p>${escapeHtml(answer.answerText || 'Không có nội dung đáp án.')}</p>
+        <p>${escapeHtml(answer.answerText || 'Kh\u00f4ng c\u00f3 n\u1ed9i dung \u0111\u00e1p \u00e1n.')}</p>
         ${answer.explanation ? `<small>${escapeHtml(answer.explanation)}</small>` : ''}
       </div>`;
     }).join('')
-    : '<p class="lms-ai-answer-empty">Chưa có đáp án.</p>';
+    : '<p class="lms-ai-answer-empty">Ch\u01b0a c\u00f3 \u0111\u00e1p \u00e1n.</p>';
   panel.innerHTML = `
     <div class="lms-ai-answer-header">
       <span>Đáp án câu hỏi</span>
@@ -316,30 +316,42 @@ async function collectAttemptReviewQuestions() {
   const payload = firstPage?.data || firstPage || {};
   const totalPage = Number(payload.totalpage || firstPage.totalpage || 1) || 1;
   const questions = [...(payload.questions || firstPage.questions || [])];
+  setStatus('\u0110\u00e3 t\u1ea3i trang 1/' + totalPage + ' - ' + questions.length + ' c\u00e2u h\u1ecfi.', 'loading');
 
   for (let page = 2; page <= totalPage; page += 1) {
-    setStatus('\u0110ang t\u1ea3i c\u00e2u h\u1ecfi review trang ' + page + '/' + totalPage + '...', 'loading');
+    setStatus('\u0110ang t\u1ea3i trang ' + page + '/' + totalPage + ' - hi\u1ec7n c\u00f3 ' + questions.length + ' c\u00e2u...', 'loading');
     const pageJson = await fetchJson('https://lms-tvu.onschool.edu.vn/api/attempts/' + attemptId + '/review?page=' + page);
     const pagePayload = pageJson?.data || pageJson || {};
     questions.push(...(pagePayload.questions || pageJson.questions || []));
+    setStatus('\u0110\u00e3 t\u1ea3i trang ' + page + '/' + totalPage + ' - ' + questions.length + ' c\u00e2u h\u1ecfi.', 'loading');
   }
 
-  return { ...payload, questions, totalquestions: questions.length };
+  return { ...payload, questions, totalquestions: questions.length, totalpage: totalPage };
 }
 
 async function saveAttemptReviewQuestions() {
+  let progressTimer = null;
   try {
+    setStatus('B\u1eaft \u0111\u1ea7u l\u1ea5y c\u00e2u h\u1ecfi t\u1eeb LMS...', 'loading');
     const reviewJson = await collectAttemptReviewQuestions();
-    setStatus('\u0110ang import c\u00e2u h\u1ecfi v\u00e0o h\u1ec7 th\u1ed1ng...', 'loading');
+    const questionCount = reviewJson.questions?.length || 0;
+    const pageCount = reviewJson.totalpage || 1;
+    const startedAt = Date.now();
+    setStatus('\u0110\u00e3 l\u1ea5y ' + questionCount + ' c\u00e2u t\u1eeb ' + pageCount + ' trang. \u0110ang g\u1eedi l\u00ean h\u1ec7 th\u1ed1ng...', 'loading');
+    progressTimer = setInterval(() => {
+      const seconds = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
+      setStatus('\u0110ang import ' + questionCount + ' c\u00e2u l\u00ean h\u1ec7 th\u1ed1ng... \u0111\u00e3 ch\u1edd ' + seconds + ' gi\u00e2y.', 'loading');
+    }, 1000);
     const response = await chrome.runtime.sendMessage({ type: 'IMPORT_ATTEMPT_REVIEW_QUESTIONS', reviewJson });
     if (!response?.ok) throw new Error(response?.message || 'Kh\u00f4ng import \u0111\u01b0\u1ee3c c\u00e2u h\u1ecfi review.');
     const result = response.data?.data || {};
-    setStatus('\u0110\u00e3 import ' + (result.importedCount || 0) + '/' + (result.totalCount || 0) + ' c\u00e2u h\u1ecfi. B\u1ecf qua ' + (result.skippedCount || 0) + '.', 'success');
+    setStatus('\u0110\u00e3 import ' + (result.importedCount || 0) + '/' + questionCount + ' c\u00e2u h\u1ecfi. B\u1ecf qua ' + (result.skippedCount || 0) + '.', 'success');
   } catch (error) {
     setStatus('L\u1ed7i: ' + error.message, 'error');
+  } finally {
+    if (progressTimer) clearInterval(progressTimer);
   }
 }
-
 function createFloatingButton() {
   const currentWidget = document.querySelector('#lesson-video-widget');
   const reviewPage = isAttemptReviewPage();
@@ -457,6 +469,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   return false;
 });
+
+
+
 
 
 

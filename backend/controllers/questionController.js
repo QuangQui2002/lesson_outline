@@ -1,4 +1,4 @@
-﻿import { appendQuestions, readDb, writeDb } from '../services/dbService.js';
+﻿import { appendQuestions, readDb, readSubjectImportDb, writeDb } from '../services/dbService.js';
 function stripHtml(html = '') {
   return String(html)
     .replace(/<br\s*\/?>/gi, '\n')
@@ -201,16 +201,16 @@ async function validateImportRequest(req) {
   const sourceQuestions = Array.isArray(directQuestions) ? directQuestions : getQuestionArray(req.body);
 
   if (!subjectId) {
-    return { error: { status: 400, message: 'Vui lòng chọn môn học trước khi import.' } };
+    return { error: { status: 400, message: 'Vui l\u00f2ng ch\u1ecdn m\u00f4n h\u1ecdc tr\u01b0\u1edbc khi import.' } };
   }
   if (!Array.isArray(sourceQuestions) || sourceQuestions.length === 0) {
-    return { error: { status: 400, message: 'File JSON không có mảng questions hợp lệ.' } };
+    return { error: { status: 400, message: 'File JSON kh\u00f4ng c\u00f3 m\u1ea3ng questions h\u1ee3p l\u1ec7.' } };
   }
 
-  const db = await readDb();
+  const db = await readSubjectImportDb(subjectId);
   const subjectExists = db.subjects.some(s => s.id === subjectId);
   if (!subjectExists) {
-    return { error: { status: 400, message: 'Môn học không tồn tại trong hệ thống.' } };
+    return { error: { status: 400, message: 'M\u00f4n h\u1ecdc kh\u00f4ng t\u1ed3n t\u1ea1i trong h\u1ec7 th\u1ed1ng.' } };
   }
 
   return { subjectId, sourceQuestions, quizName, db };

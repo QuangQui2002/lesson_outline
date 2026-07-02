@@ -150,6 +150,30 @@ export async function readDb() {
   return readJsonDb();
 }
 
+export async function readSubjectImportDb(subjectId) {
+  if (isSupabaseEnabled()) {
+    const [subjectResult, questionsResult] = await Promise.all([
+      supabase.from('subjects').select('*').eq('id', subjectId).maybeSingle(),
+      supabase.from('questions').select('*').eq('subjectId', subjectId).order('createdAt', { ascending: true })
+    ]);
+
+    if (subjectResult.error) {
+      throw new Error('Loi doc subject tu Supabase: ' + subjectResult.error.message);
+    }
+    const questions = ensureSupabaseSuccess(questionsResult, 'Loi doc questions theo subject tu Supabase').map(normalizeQuestion);
+    return {
+      subjects: subjectResult.data ? [subjectResult.data] : [],
+      questions
+    };
+  }
+
+  const db = await readJsonDb();
+  return {
+    subjects: (Array.isArray(db.subjects) ? db.subjects : []).filter(subject => subject.id === subjectId),
+    questions: (Array.isArray(db.questions) ? db.questions : []).filter(question => question.subjectId === subjectId)
+  };
+}
+
 
 export async function appendQuestions(questions = []) {
   const newQuestions = Array.isArray(questions) ? questions.map(toSupabaseQuestionPayload) : [];
