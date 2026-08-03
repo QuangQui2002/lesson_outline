@@ -1,4 +1,4 @@
-﻿# Ngân Hàng Đề Cương Câu Hỏi & Đáp Án Thông Minh (OCR Q&A Bank)
+# Ngân Hàng Đề Cương Câu Hỏi & Đáp Án Thông Minh (OCR Q&A Bank)
 
 Hệ thống lưu trữ đề cương câu hỏi nội bộ sử dụng **Vue.js 3 (Vite) + Node.js Express**. Ứng dụng hỗ trợ quản lý môn học, câu hỏi, đáp án, tìm kiếm, import JSON, OCR từ hình ảnh bằng **Tesseract.js**, lưu dữ liệu bằng **Supabase** khi có cấu hình production và fallback về file JSON khi chạy local.
 
@@ -66,13 +66,13 @@ Mặc định frontend chạy tại:
 http://localhost:5173
 ```
 
-Frontend local sẽ gọi backend mặc định tại:
+Frontend local đọc cấu hình từ `frontend/.env.development` và gọi backend tại:
 
 ```text
 http://localhost:3000/api
 ```
 
-Bạn có thể tạo file `frontend/.env.local` nếu muốn cấu hình rõ ràng:
+Muốn đổi riêng trên máy mà không sửa file chung, tạo `frontend/.env.development.local`:
 
 ```env
 VITE_API_BASE_URL=http://localhost:3000/api
@@ -106,7 +106,7 @@ npm start
 
 ## Cấu hình deploy trên Render
 
-Nếu frontend và backend deploy riêng, frontend không được gọi `localhost`. Hãy set biến môi trường cho frontend/static site:
+Build production mặc định đọc `frontend/.env.production`. Nếu frontend và backend deploy riêng, có thể override biến môi trường trên hosting provider:
 
 ```env
 VITE_API_BASE_URL=https://lesson-outline-h788.onrender.com/api

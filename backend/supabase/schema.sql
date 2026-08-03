@@ -21,6 +21,88 @@ alter table public.questions add column if not exists "quizName" text not null d
 create index if not exists questions_subject_id_idx on public.questions("subjectId");
 create index if not exists questions_quiz_name_idx on public.questions("quizName");
 create index if not exists questions_created_at_idx on public.questions("createdAt");
+create index if not exists questions_subject_created_idx
+  on public.questions("subjectId", "createdAt" desc);
+create index if not exists questions_subject_quiz_created_idx
+  on public.questions("subjectId", "quizName", "createdAt" desc);
+
+create extension if not exists pg_trgm;
+create index if not exists questions_content_trgm_idx
+  on public.questions using gin (content gin_trgm_ops);
+create index if not exists questions_answer_trgm_idx
+  on public.questions using gin (answer gin_trgm_ops);
+create index if not exists questions_quiz_name_trgm_idx
+  on public.questions using gin ("quizName" gin_trgm_ops);
+
+create or replace function public.search_questions(
+  p_subject_id text default null,
+  p_quiz_name text default null,
+  p_search text default null
+)
+returns setof public.questions
+language sql
+stable
+as $$
+  select question.*
+  from public.questions as question
+  where (p_subject_id is null or question."subjectId" = p_subject_id)
+    and (p_quiz_name is null or question."quizName" = p_quiz_name)
+    and (
+      p_search is null
+      or question.content ilike '%' || p_search || '%'
+      or question.answer ilike '%' || p_search || '%'
+      or question."quizName" ilike '%' || p_search || '%'
+      or exists (
+        select 1
+        from unnest(question.tags) as tag
+        where tag ilike '%' || p_search || '%'
+      )
+    )
+  order by question."createdAt" desc;
+$$;
+
+create or replace function public.get_subjects_with_question_counts()
+returns table (
+  id text,
+  name text,
+  "createdAt" timestamptz,
+  "questionCount" bigint
+)
+language sql
+stable
+as $$
+  select subject.id, subject.name, subject."createdAt", count(question.id) as "questionCount"
+  from public.subjects as subject
+  left join public.questions as question on question."subjectId" = subject.id
+  group by subject.id, subject.name, subject."createdAt"
+  order by subject."createdAt" asc;
+$$;
+
+create or replace function public.get_question_stats()
+returns jsonb
+language sql
+stable
+as $$
+  with subject_stats as (
+    select
+      question."subjectId" as subject_id,
+      count(*) as question_count,
+      jsonb_agg(distinct coalesce(nullif(trim(question."quizName"), ''), 'Khac')) as quiz_names
+    from public.questions as question
+    group by question."subjectId"
+  )
+  select jsonb_build_object(
+    'total', (select count(*) from public.questions),
+    'countsBySubject', coalesce(
+      (select jsonb_object_agg(subject_id, question_count) from subject_stats),
+      '{}'::jsonb
+    ),
+    'quizNamesBySubject', coalesce(
+      (select jsonb_object_agg(subject_id, quiz_names) from subject_stats),
+      '{}'::jsonb
+    )
+  );
+$$;
 
 alter table public.subjects enable row level security;
 alter table public.questions enable row level security;

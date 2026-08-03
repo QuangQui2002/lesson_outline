@@ -1,4 +1,15 @@
 ﻿import { appendQuestions, readDb, readSubjectImportDb, writeDb } from '../services/dbService.js';
+import {
+  getQuestionById,
+  getQuestionStatsData,
+  getSubjectById,
+  insertQuestion,
+  listQuestionCandidates,
+  listQuestions,
+  removeQuestion,
+  updateQuestionById
+} from '../services/dbService.js';
+
 function stripHtml(html = '') {
   return String(html)
     .replace(/<br\s*\/?>/gi, '\n')
@@ -222,37 +233,18 @@ async function validateImportRequest(req) {
 export async function getQuestions(req, res, next) {
   try {
     const { subjectId, search, quizName } = req.query;
-    const db = await readDb();
-    let result = db.questions;
-
-    // Lọc theo môn học nếu có
-    if (subjectId) {
-      result = result.filter(q => q.subjectId === subjectId);
-    }
-
-    if (quizName && quizName.trim() !== '') {
-      const normalizedQuizName = normalizeQuizName(quizName);
-      result = result.filter(q => normalizeQuizName(q.quizName) === normalizedQuizName);
-    }
-
-    // Tìm kiếm nếu có
-    if (search && search.trim() !== '') {
-      const searchKeyword = search.trim().toLowerCase();
-      result = result.filter(q => {
-        const matchContent = q.content && q.content.toLowerCase().includes(searchKeyword);
-        const matchAnswer = q.answer && q.answer.toLowerCase().includes(searchKeyword);
-        const matchTags = q.tags && q.tags.some(tag => tag.toLowerCase().includes(searchKeyword));
-        const matchQuizName = normalizeQuizName(q.quizName).toLowerCase().includes(searchKeyword);
-        return matchContent || matchAnswer || matchTags || matchQuizName;
-      });
-    }
-
-    // Sắp xếp câu hỏi mới nhất lên đầu
-    result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
+    const limit = Math.min(200, Math.max(0, Number.parseInt(req.query.limit, 10) || 0));
+    const offset = Math.max(0, Number.parseInt(req.query.offset, 10) || 0);
+    const result = await listQuestions({ subjectId, search, quizName, limit, offset });
     res.json({
       success: true,
-      data: result
+      data: limit ? result.items : result,
+      pagination: limit ? {
+        total: result.total,
+        limit,
+        offset,
+        hasMore: offset + result.items.length < result.total
+      } : undefined
     });
   } catch (error) {
     next(error);
@@ -261,32 +253,9 @@ export async function getQuestions(req, res, next) {
 
 export async function getQuestionStats(req, res, next) {
   try {
-    const db = await readDb();
-    const countsBySubject = {};
-    const quizNamesBySubject = {};
-
-    db.questions.forEach(question => {
-      countsBySubject[question.subjectId] = (countsBySubject[question.subjectId] || 0) + 1;
-      if (!quizNamesBySubject[question.subjectId]) {
-        quizNamesBySubject[question.subjectId] = new Set();
-      }
-      quizNamesBySubject[question.subjectId].add(normalizeQuizName(question.quizName));
-    });
-
-    const normalizedQuizNamesBySubject = Object.fromEntries(
-      Object.entries(quizNamesBySubject).map(([subjectId, quizNames]) => [
-        subjectId,
-        Array.from(quizNames).sort((a, b) => a.localeCompare(b, 'vi'))
-      ])
-    );
-
     res.json({
       success: true,
-      data: {
-        total: db.questions.length,
-        countsBySubject,
-        quizNamesBySubject: normalizedQuizNamesBySubject
-      }
+      data: await getQuestionStatsData()
     });
   } catch (error) {
     next(error);
@@ -310,15 +279,11 @@ export async function createQuestion(req, res, next) {
       return res.status(400).json({ success: false, message: 'Đáp án câu hỏi không được để trống' });
     }
 
-    const db = await readDb();
-
-    // Kiểm tra xem môn học có tồn tại không
-    const subjectExists = db.subjects.some(s => s.id === subjectId);
-    if (!subjectExists) {
+    if (!await getSubjectById(subjectId)) {
       return res.status(400).json({ success: false, message: 'Môn học không tồn tại trong hệ thống' });
     }
 
-    const duplicateQuestion = findSimilarQuestion(content, db.questions);
+    const duplicateQuestion = findSimilarQuestion(content, await listQuestionCandidates());
     if (duplicateQuestion) {
       const percent = Math.round(duplicateQuestion.similarity * 100);
       return res.status(409).json({
@@ -346,13 +311,12 @@ export async function createQuestion(req, res, next) {
       createdAt: new Date().toISOString()
     };
 
-    db.questions.push(newQuestion);
-    await writeDb(db);
+    const createdQuestion = await insertQuestion(newQuestion);
 
     res.status(201).json({
       success: true,
       message: 'Thêm câu hỏi thành công',
-      data: newQuestion
+      data: createdQuestion
     });
   } catch (error) {
     next(error);
@@ -367,20 +331,18 @@ export async function updateQuestion(req, res, next) {
     const { id } = req.params;
     const { subjectId, content, answer, tags, quizName } = req.body;
 
-    const db = await readDb();
-    const questionIndex = db.questions.findIndex(q => q.id === id);
-
-    if (questionIndex === -1) {
+    const existingQuestion = await getQuestionById(id);
+    if (!existingQuestion) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy câu hỏi để cập nhật' });
     }
+    const changes = {};
 
     // Nếu thay đổi môn học, kiểm tra tính hợp lệ
     if (subjectId) {
-      const subjectExists = db.subjects.some(s => s.id === subjectId);
-      if (!subjectExists) {
+      if (!await getSubjectById(subjectId)) {
         return res.status(400).json({ success: false, message: 'Môn học mới không tồn tại trong hệ thống' });
       }
-      db.questions[questionIndex].subjectId = subjectId;
+      changes.subjectId = subjectId;
     }
 
     if (content !== undefined) {
@@ -388,7 +350,7 @@ export async function updateQuestion(req, res, next) {
         return res.status(400).json({ success: false, message: 'Nội dung câu hỏi không được để trống' });
       }
 
-      const duplicateQuestion = findSimilarQuestion(content, db.questions, id);
+      const duplicateQuestion = findSimilarQuestion(content, await listQuestionCandidates(id));
       if (duplicateQuestion) {
         const percent = Math.round(duplicateQuestion.similarity * 100);
         return res.status(409).json({
@@ -398,20 +360,20 @@ export async function updateQuestion(req, res, next) {
         });
       }
 
-      db.questions[questionIndex].content = content.trim();
+      changes.content = content.trim();
     }
 
     if (answer !== undefined) {
       if (answer.trim() === '') {
         return res.status(400).json({ success: false, message: 'Đáp án không được để trống' });
       }
-      db.questions[questionIndex].answer = answer.trim();
+      changes.answer = answer.trim();
     }
 
     if (quizName !== undefined) {
-      db.questions[questionIndex].quizName = normalizeQuizName(quizName);
-    } else if (!db.questions[questionIndex].quizName) {
-      db.questions[questionIndex].quizName = DEFAULT_QUIZ_NAME;
+      changes.quizName = normalizeQuizName(quizName);
+    } else if (!existingQuestion.quizName) {
+      changes.quizName = DEFAULT_QUIZ_NAME;
     }
 
     if (tags !== undefined) {
@@ -421,15 +383,15 @@ export async function updateQuestion(req, res, next) {
       } else if (typeof tags === 'string') {
         processedTags = tags.split(',').map(t => t.trim().toLowerCase()).filter(t => t !== '');
       }
-      db.questions[questionIndex].tags = processedTags;
+      changes.tags = processedTags;
     }
 
-    await writeDb(db);
+    const updatedQuestion = await updateQuestionById(id, changes);
 
     res.json({
       success: true,
       message: 'Cập nhật câu hỏi thành công',
-      data: db.questions[questionIndex]
+      data: updatedQuestion
     });
   } catch (error) {
     next(error);
@@ -441,16 +403,9 @@ export async function updateQuestion(req, res, next) {
  */
 export async function deleteQuestion(req, res, next) {
   try {
-    const { id } = req.params;
-    const db = await readDb();
-
-    const questionIndex = db.questions.findIndex(q => q.id === id);
-    if (questionIndex === -1) {
+    if (!await removeQuestion(req.params.id)) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy câu hỏi' });
     }
-
-    db.questions.splice(questionIndex, 1);
-    await writeDb(db);
 
     res.json({
       success: true,

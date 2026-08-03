@@ -1,8 +1,10 @@
 import axios from 'axios';
 
-const apiBaseURL = 'https://lesson-outline-h788.onrender.com/api'
-// const apiBaseURL = 'http://localhost:3000/api'
-// Kết nối tới API của Express Backend chạy ở cổng 3000
+const apiBaseURL = import.meta.env.VITE_API_BASE_URL;
+
+if (apiBaseURL === undefined) {
+  throw new Error('Thiếu biến môi trường VITE_API_BASE_URL.');
+}
 const apiClient = axios.create({
   baseURL: apiBaseURL,
   headers: {
@@ -11,7 +13,7 @@ const apiClient = axios.create({
 });
 
 export default {
-  // --- API Môn học ---
+  // --- API MÃ´n há»c ---
   getSubjects() {
     return apiClient.get('/subjects').then(res => res.data);
   },
@@ -22,13 +24,15 @@ export default {
     return apiClient.delete(`/subjects/${id}`).then(res => res.data);
   },
 
-  // --- API Câu hỏi ---
-  getQuestions(subjectId = null, search = '', quizName = '') {
+  // --- API CÃ¢u há»i ---
+  getQuestions(subjectId = null, search = '', quizName = '', options = {}) {
     const params = {};
     if (subjectId) params.subjectId = subjectId;
     if (search) params.search = search;
     if (quizName) params.quizName = quizName;
-    return apiClient.get('/questions', { params }).then(res => res.data);
+    if (options.limit) params.limit = options.limit;
+    if (options.offset) params.offset = options.offset;
+    return apiClient.get('/questions', { params, signal: options.signal }).then(res => res.data);
   },
   getQuestionStats() {
     return apiClient.get('/questions/stats').then(res => res.data);
@@ -55,7 +59,7 @@ export default {
     }).then(res => res.data);
   },
 
-  // --- API Bài học video ---
+  // --- API BÃ i há»c video ---
   getLessonVideos(subjectId = null) {
     const params = {};
     if (subjectId) params.subjectId = subjectId;

@@ -1,7 +1,7 @@
 ﻿<template>
   <div>
     <div class="questions-header">
-      <h2>Danh sách Câu Hỏi ({{ questions.length }})</h2>
+      <h2>Danh sách Câu Hỏi ({{ questions.length }}/{{ total }})</h2>
     </div>
 
     <!-- Trạng thái trống (Không có câu hỏi nào) -->
@@ -73,11 +73,21 @@
         </div>
       </div>
     </div>
+
+    <div v-if="questions.length > 0 && hasMore" class="questions-load-more">
+      <button class="btn btn-secondary" type="button" :disabled="isLoading" @click="$emit('load-more')">
+        {{ isLoading ? 'Đang tải...' : 'Tải thêm câu hỏi' }}
+      </button>
+    </div>
   </div>
 </template>
 
 <script>
 import { useNotification } from '../composables/useNotification.js';
+
+const ALLOWED_CONTENT_TAGS = new Set(['BR', 'IMG', 'A', 'U', 'B', 'STRONG', 'I', 'EM', 'P', 'DIV', 'SPAN', 'CODE', 'PRE', 'SUP', 'SUB']);
+const sanitizedContentCache = new Map();
+const MAX_SANITIZED_CACHE_SIZE = 1000;
 
 export default {
   name: 'QuestionList',
@@ -89,21 +99,38 @@ export default {
     subjects: {
       type: Array,
       required: true
+    },
+    total: {
+      type: Number,
+      default: 0
+    },
+    hasMore: {
+      type: Boolean,
+      default: false
+    },
+    isLoading: {
+      type: Boolean,
+      default: false
     }
   },
-  emits: ['edit-question', 'delete-question'],
+  emits: ['edit-question', 'delete-question', 'load-more'],
+  computed: {
+    subjectNamesById() {
+      return Object.fromEntries(this.subjects.map(subject => [subject.id, subject.name]));
+    }
+  },
   methods: {
     getSubjectName(subjectId) {
-      const subject = this.subjects.find(s => s.id === subjectId);
-      return subject ? subject.name : 'Môn học khác';
+      return this.subjectNamesById[subjectId] || 'Môn học khác';
     },
     sanitizeQuestionContent(content = '') {
-      if (typeof window === 'undefined') return String(content || '');
+      const rawContent = String(content || '');
+      if (typeof window === 'undefined') return rawContent;
+      if (sanitizedContentCache.has(rawContent)) return sanitizedContentCache.get(rawContent);
       const template = document.createElement('template');
-      template.innerHTML = String(content || '');
-      const allowedTags = new Set(['BR', 'IMG', 'A', 'U', 'B', 'STRONG', 'I', 'EM', 'P', 'DIV', 'SPAN', 'CODE', 'PRE', 'SUP', 'SUB']);
+      template.innerHTML = rawContent;
       template.content.querySelectorAll('*').forEach(element => {
-        if (!allowedTags.has(element.tagName)) {
+        if (!ALLOWED_CONTENT_TAGS.has(element.tagName)) {
           element.replaceWith(document.createTextNode(element.textContent || ''));
           return;
         }
@@ -161,7 +188,10 @@ export default {
         if (lastIndex < value.length) fragment.appendChild(document.createTextNode(value.slice(lastIndex)));
         node.replaceWith(fragment);
       });
-      return template.innerHTML;
+      const sanitizedContent = template.innerHTML;
+      if (sanitizedContentCache.size >= MAX_SANITIZED_CACHE_SIZE) sanitizedContentCache.clear();
+      sanitizedContentCache.set(rawContent, sanitizedContent);
+      return sanitizedContent;
     },
     formatDate(dateString) {
       if (!dateString) return '';

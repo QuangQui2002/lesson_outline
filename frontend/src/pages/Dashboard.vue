@@ -100,15 +100,6 @@
           <span class="extension-download-card__kicker">Extension LMS TVU</span>
           <h3>Tải Extension LMS</h3>
           <p>Phiên bản mới nhất: <strong>{{ extensionInfo.version }}</strong> • {{ extensionInfo.note }}</p>
-          <details class="extension-download-card__details">
-            <summary>Hướng dẫn cài đặt</summary>
-            <ol>
-              <li>Tải file extension mới nhất.</li>
-              <li>Giải nén file vừa tải xuống.</li>
-              <li>Mở <code>chrome://extensions</code> và bật Developer mode.</li>
-              <li>Bấm Load unpacked rồi chọn thư mục <code>support_lms_extension</code>.</li>
-            </ol>
-          </details>
         </div>
         <a class="btn btn-primary extension-download-card__button" :href="extensionInfo.downloadUrl" download>
           Tải extension mới nhất
@@ -177,13 +168,17 @@
 
       <!-- Danh sách câu hỏi lọc theo môn học & tìm kiếm -->
       <section>
-        <HamsterLoading v-if="isLoading" message="Đang tải câu hỏi..." inline />
+        <HamsterLoading v-if="isLoading || (isQuestionLoading && filteredQuestions.length === 0)" message="Đang tải câu hỏi..." inline />
         <QuestionList
           v-else
           :questions="filteredQuestions"
           :subjects="subjects"
+          :total="questionTotal"
+          :is-loading="isQuestionLoading"
+          :has-more="hasMoreQuestions"
           @edit-question="openEditQuestionModal"
           @delete-question="handleDeleteQuestion"
+          @load-more="loadMoreQuestions"
         />
       </section>
 
@@ -240,6 +235,13 @@ export default {
       subjects: [],
       questionStats: { total: 0, countsBySubject: {} },
       filteredQuestions: [], // Danh sách câu hỏi hiển thị sau lọc/search
+      questionTotal: 0,
+      questionPageSize: 40,
+      isQuestionLoading: false,
+      questionRequestId: 0,
+      questionAbortController: null,
+      searchDebounceTimer: null,
+      hasInitialized: false,
       activeSubjectId: null,
       activeQuizName: '',
       searchQuery: '',
@@ -287,25 +289,39 @@ export default {
       });
 
       return counts;
+    },
+    hasMoreQuestions() {
+      return this.filteredQuestions.length < this.questionTotal;
     }
   },
   watch: {
     // Theo dõi ô tìm kiếm để fetch dữ liệu thời gian thực từ API
     searchQuery() {
-      this.loadQuestions();
+      if (!this.hasInitialized) return;
+      clearTimeout(this.searchDebounceTimer);
+      this.searchDebounceTimer = setTimeout(() => this.loadQuestions(), 300);
     },
     // Theo dõi môn học đang chọn để fetch dữ liệu từ API
     activeSubjectId() {
+      clearTimeout(this.searchDebounceTimer);
+      const quizWillReset = Boolean(this.activeQuizName);
       this.activeQuizName = '';
-      this.loadQuestions();
+      if (!this.hasInitialized) return;
+      if (!quizWillReset) this.loadQuestions();
       if (this.activeView === 'videos') this.loadLessonVideos();
     },
     activeQuizName() {
+      if (!this.hasInitialized) return;
+      clearTimeout(this.searchDebounceTimer);
       this.loadQuestions();
     }
   },
   created() {
     this.loadInitialData();
+  },
+  beforeUnmount() {
+    clearTimeout(this.searchDebounceTimer);
+    this.questionAbortController?.abort();
   },
   methods: {
     async loadInitialData() {
@@ -316,6 +332,7 @@ export default {
         if (!this.activeSubjectId && this.subjects.length > 0) {
           this.activeSubjectId = this.subjects[0].id;
         }
+        this.hasInitialized = true;
         await Promise.all([
           this.loadQuestionStats(),
           this.loadQuestions()
@@ -353,19 +370,45 @@ export default {
       }
     },
     // Lấy câu hỏi hiển thị có lọc theo môn học & tìm kiếm
-    async loadQuestions() {
+    async loadQuestions({ append = false } = {}) {
+      if (this.isQuestionLoading && append) return;
+      const requestId = ++this.questionRequestId;
+      this.questionAbortController?.abort();
+      this.questionAbortController = new AbortController();
+      this.isQuestionLoading = true;
       try {
         if (!this.activeSubjectId) {
           this.filteredQuestions = [];
+          this.questionTotal = 0;
           return;
         }
-        const response = await api.getQuestions(this.activeSubjectId, this.searchQuery, this.activeQuizName);
+        const offset = append ? this.filteredQuestions.length : 0;
+        const response = await api.getQuestions(
+          this.activeSubjectId,
+          this.searchQuery,
+          this.activeQuizName,
+          {
+            limit: this.questionPageSize,
+            offset,
+            signal: this.questionAbortController.signal
+          }
+        );
+        if (requestId !== this.questionRequestId) return;
         if (response.success) {
-          this.filteredQuestions = response.data;
+          this.filteredQuestions = append
+            ? [...this.filteredQuestions, ...response.data]
+            : response.data;
+          this.questionTotal = response.pagination?.total ?? this.filteredQuestions.length;
         }
       } catch (error) {
+        if (error.code === 'ERR_CANCELED') return;
         console.error('Lỗi tải câu hỏi:', error);
+      } finally {
+        if (requestId === this.questionRequestId) this.isQuestionLoading = false;
       }
+    },
+    loadMoreQuestions() {
+      if (this.hasMoreQuestions) this.loadQuestions({ append: true });
     },
     selectSubject(subjectId) {
       this.activeSubjectId = subjectId;
@@ -391,9 +434,24 @@ export default {
         this.isLessonVideoLoading = false;
       }
     },
-    exportQuestionsJson() {
+    async exportQuestionsJson() {
       const { toast } = useNotification();
-      if (this.filteredQuestions.length === 0) {
+      let questionsToExport = this.filteredQuestions;
+      if (this.questionTotal > this.filteredQuestions.length) {
+        this.isActionLoading = true;
+        this.loadingMessage = 'Đang chuẩn bị file JSON...';
+        try {
+          const response = await api.getQuestions(this.activeSubjectId, this.searchQuery, this.activeQuizName);
+          if (response.success) questionsToExport = response.data;
+        } catch (error) {
+          toast(error.response?.data?.message || 'Không thể tải dữ liệu để xuất JSON.', 'error');
+          return;
+        } finally {
+          this.isActionLoading = false;
+          this.loadingMessage = '';
+        }
+      }
+      if (questionsToExport.length === 0) {
         toast('Không có câu hỏi để xuất JSON.', 'warning');
         return;
       }
@@ -403,8 +461,8 @@ export default {
         exportedAt: new Date().toISOString(),
         subject: activeSubject || null,
         search: this.searchQuery.trim(),
-        total: this.filteredQuestions.length,
-        questions: this.filteredQuestions
+        total: questionsToExport.length,
+        questions: questionsToExport
       };
       const json = JSON.stringify(exportData, null, 2);
       const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
@@ -424,7 +482,7 @@ export default {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      toast(`Đã xuất ${this.filteredQuestions.length} câu hỏi ra JSON.`, 'success');
+      toast(`Đã xuất ${questionsToExport.length} câu hỏi ra JSON.`, 'success');
     },
     async handleAddSubject(name) {
       const { toast } = useNotification();
