@@ -1,6 +1,5 @@
 ﻿<template>
   <DefaultLayout 
-    @open-ocr="openOcrModal"
     @open-add="openAddQuestionModal"
     @import-json="triggerJsonImport"
     @export-json="exportQuestionsJson"
@@ -194,16 +193,6 @@
         @save="handleSaveQuestion"
       />
 
-      <!-- Modal quét ảnh OCR -->
-      <OcrModal
-        :is-open="isOcrModalOpen"
-        :subjects="subjects"
-        :default-subject-id="activeSubjectId"
-        @close="closeOcrModal"
-        @save="handleSaveQuestion"
-        @refresh="handleOcrRefresh"
-      />
-
     </div>
   </DefaultLayout>
 </template>
@@ -213,7 +202,6 @@ import DefaultLayout from '../layouts/DefaultLayout.vue';
 import SubjectList from '../components/SubjectList.vue';
 import QuestionList from '../components/QuestionList.vue';
 import QuestionModal from '../components/QuestionModal.vue';
-import OcrModal from '../components/OcrModal.vue';
 import HamsterLoading from '../components/HamsterLoading.vue';
 import LessonVideoList from '../components/LessonVideoList.vue';
 import api from '../services/api.js';
@@ -226,7 +214,6 @@ export default {
     SubjectList,
     QuestionList,
     QuestionModal,
-    OcrModal,
     HamsterLoading,
     LessonVideoList
   },
@@ -249,7 +236,6 @@ export default {
       isActionLoading: false,
       loadingMessage: '',
       isQuestionModalOpen: false,
-      isOcrModalOpen: false,
       isJsonImportModalOpen: false,
       isImportingJson: false,
       jsonImportText: '',
@@ -271,9 +257,6 @@ export default {
     },
     totalQuestions() {
       return this.questionStats.total;
-    },
-    ocrQuestionsCount() {
-      return 0;
     },
     // Tính toán số lượng câu hỏi trên mỗi môn học
     activeQuizNames() {
@@ -631,7 +614,6 @@ export default {
         if (response.success) {
           toast(questionData.id ? 'Cập nhật câu hỏi thành công!' : 'Thêm câu hỏi mới thành công!', 'success');
           this.closeQuestionModal();
-          this.closeOcrModal();
           // Reload data
           await Promise.all([
             this.loadQuestionStats(),
@@ -677,18 +659,6 @@ export default {
       this.isQuestionModalOpen = false;
       this.editingQuestion = null;
     },
-    openOcrModal() {
-      this.isOcrModalOpen = true;
-    },
-    closeOcrModal() {
-      this.isOcrModalOpen = false;
-    },
-    async handleOcrRefresh() {
-      await Promise.all([
-        this.loadQuestionStats(),
-        this.loadQuestions()
-      ]);
-    }
   }
 };
 </script>

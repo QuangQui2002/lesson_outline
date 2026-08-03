@@ -65,15 +65,4 @@ export default {
     if (subjectId) params.subjectId = subjectId;
     return apiClient.get('/lesson-videos', { params }).then(res => res.data);
   },
-
-  // --- API OCR ---
-  uploadOcrImage(file) {
-    const formData = new FormData();
-    formData.append('image', file);
-    return apiClient.post('/ocr', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    }).then(res => res.data);
-  }
 };

@@ -8,7 +8,7 @@
     <div v-if="questions.length === 0" class="empty-state">
       <div class="empty-icon">📂</div>
       <h3>Không tìm thấy câu hỏi nào</h3>
-      <p>Nhấp vào nút "Thêm Câu Hỏi" hoặc "Quét Ảnh OCR" để tạo câu hỏi mới.</p>
+      <p>Nhấp vào nút "Thêm Câu Hỏi" để tạo câu hỏi mới.</p>
     </div>
 
     <!-- Danh sách câu hỏi dạng grid -->
