@@ -74,9 +74,9 @@
       </div>
     </div>
 
-    <div v-if="questions.length > 0 && hasMore" class="questions-load-more">
-      <button class="btn btn-secondary" type="button" :disabled="isLoading" @click="$emit('load-more')">
-        {{ isLoading ? 'Đang tải...' : 'Tải thêm câu hỏi' }}
+    <div v-if="questions.length > 0 && hasMore" ref="loadMoreTrigger" class="questions-load-more" aria-live="polite">
+      <button class="btn btn-secondary" type="button" :disabled="isLoading" @click="requestMoreQuestions">
+        {{ isLoading ? 'Đang tải thêm...' : 'Cuộn xuống để tải thêm' }}
       </button>
     </div>
   </div>
@@ -91,6 +91,12 @@ const MAX_SANITIZED_CACHE_SIZE = 1000;
 
 export default {
   name: 'QuestionList',
+  data() {
+    return {
+      loadMoreObserver: null,
+      loadMorePending: false
+    };
+  },
   props: {
     questions: {
       type: Array,
@@ -114,12 +120,40 @@ export default {
     }
   },
   emits: ['edit-question', 'delete-question', 'load-more'],
+  watch: {
+    isLoading(isLoading) {
+      if (!isLoading) this.loadMorePending = false;
+    },
+    hasMore(hasMore) {
+      if (hasMore) this.$nextTick(this.observeLoadMoreTrigger);
+    }
+  },
+  mounted() {
+    if (typeof IntersectionObserver === 'undefined') return;
+    this.loadMoreObserver = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) this.requestMoreQuestions();
+    }, { rootMargin: '300px 0px' });
+    this.observeLoadMoreTrigger();
+  },
+  beforeUnmount() {
+    this.loadMoreObserver?.disconnect();
+  },
   computed: {
     subjectNamesById() {
       return Object.fromEntries(this.subjects.map(subject => [subject.id, subject.name]));
     }
   },
   methods: {
+    observeLoadMoreTrigger() {
+      if (!this.loadMoreObserver || !this.$refs.loadMoreTrigger) return;
+      this.loadMoreObserver.disconnect();
+      this.loadMoreObserver.observe(this.$refs.loadMoreTrigger);
+    },
+    requestMoreQuestions() {
+      if (!this.hasMore || this.isLoading || this.loadMorePending) return;
+      this.loadMorePending = true;
+      this.$emit('load-more');
+    },
     getSubjectName(subjectId) {
       return this.subjectNamesById[subjectId] || 'Môn học khác';
     },
