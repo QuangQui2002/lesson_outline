@@ -355,8 +355,6 @@ export default {
     // Lấy câu hỏi hiển thị có lọc theo môn học & tìm kiếm
     async loadQuestions({ append = false } = {}) {
       if (this.isQuestionLoading && append) return;
-      const isSearching = Boolean(this.searchQuery.trim());
-      if (isSearching) append = false;
       const requestId = ++this.questionRequestId;
       this.questionAbortController?.abort();
       this.questionAbortController = new AbortController();
@@ -372,9 +370,7 @@ export default {
           this.activeSubjectId,
           this.searchQuery,
           this.activeQuizName,
-          isSearching ? {
-            signal: this.questionAbortController.signal
-          } : {
+          {
             limit: this.questionPageSize,
             offset,
             signal: this.questionAbortController.signal
@@ -385,9 +381,7 @@ export default {
           this.filteredQuestions = append
             ? [...this.filteredQuestions, ...response.data]
             : response.data;
-          this.questionTotal = isSearching
-            ? response.data.length
-            : response.pagination?.total ?? this.filteredQuestions.length;
+          this.questionTotal = response.pagination?.total ?? this.filteredQuestions.length;
         }
       } catch (error) {
         if (error.code === 'ERR_CANCELED') return;
@@ -397,7 +391,7 @@ export default {
       }
     },
     loadMoreQuestions() {
-      if (!this.searchQuery.trim() && this.hasMoreQuestions) this.loadQuestions({ append: true });
+      if (this.hasMoreQuestions) this.loadQuestions({ append: true });
     },
     selectSubject(subjectId) {
       this.activeSubjectId = subjectId;
