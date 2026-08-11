@@ -13,7 +13,7 @@ const apiClient = axios.create({
 });
 
 export default {
-  // --- API MÃ´n há»c ---
+  // --- API Môn học ---
   getSubjects() {
     return apiClient.get('/subjects').then(res => res.data);
   },
@@ -24,7 +24,7 @@ export default {
     return apiClient.delete(`/subjects/${id}`).then(res => res.data);
   },
 
-  // --- API CÃ¢u há»i ---
+  // --- API Câu hỏi ---
   getQuestions(subjectId = null, search = '', quizName = '', options = {}) {
     const params = {};
     if (subjectId) params.subjectId = subjectId;
@@ -59,7 +59,7 @@ export default {
     }).then(res => res.data);
   },
 
-  // --- API BÃ i há»c video ---
+  // --- API Bài học video ---
   getLessonVideos(subjectId = null) {
     const params = {};
     if (subjectId) params.subjectId = subjectId;

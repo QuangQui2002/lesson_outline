@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div>
     <div class="questions-header">
       <h2>Danh sách Câu Hỏi ({{ questions.length }}/{{ total }})</h2>
@@ -191,7 +191,7 @@ export default {
         wrapper.className = 'question-inline-image-group';
         const image = document.createElement('img');
         image.src = href;
-        image.alt = 'H?nh minh h?a c?u h?i';
+    image.alt = 'Hình minh họa câu hỏi';
         image.loading = 'lazy';
         wrapper.appendChild(image);
         wrapper.appendChild(link.cloneNode(true));
@@ -212,7 +212,7 @@ export default {
           if (index > lastIndex) fragment.appendChild(document.createTextNode(value.slice(lastIndex, index)));
           const image = document.createElement('img');
           image.src = url;
-          image.alt = 'H?nh minh h?a c?u h?i';
+    image.alt = 'Hình minh họa câu hỏi';
           image.loading = 'lazy';
           fragment.appendChild(image);
           lastIndex = index + url.length;

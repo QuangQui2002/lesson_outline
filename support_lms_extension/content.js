@@ -1,4 +1,4 @@
-﻿function getCourseIdFromUrl() {
+function getCourseIdFromUrl() {
   const match = location.pathname.match(/\/course\/(\d+)/);
   return match ? match[1] : '';
 }
@@ -345,7 +345,9 @@ async function saveAttemptReviewQuestions() {
     const response = await chrome.runtime.sendMessage({ type: 'IMPORT_ATTEMPT_REVIEW_QUESTIONS', reviewJson });
     if (!response?.ok) throw new Error(response?.message || 'Kh\u00f4ng import \u0111\u01b0\u1ee3c c\u00e2u h\u1ecfi review.');
     const result = response.data?.data || {};
-    setStatus('\u0110\u00e3 import ' + (result.importedCount || 0) + '/' + questionCount + ' c\u00e2u h\u1ecfi. B\u1ecf qua ' + (result.skippedCount || 0) + '.', 'success');
+    const imageWarningCount = result.imageWarnings?.length || 0;
+    const imageWarningText = imageWarningCount > 0 ? ' C\u00f3 ' + imageWarningCount + ' \u1ea3nh ch\u01b0a l\u01b0u \u0111\u01b0\u1ee3c.' : '';
+    setStatus('\u0110\u00e3 import ' + (result.importedCount || 0) + '/' + questionCount + ' c\u00e2u h\u1ecfi. B\u1ecf qua ' + (result.skippedCount || 0) + '.' + imageWarningText, imageWarningCount > 0 ? 'error' : 'success');
   } catch (error) {
     setStatus('L\u1ed7i: ' + error.message, 'error');
   } finally {

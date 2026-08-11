@@ -1,8 +1,9 @@
-﻿<template>
+<template>
   <DefaultLayout 
     @open-add="openAddQuestionModal"
     @import-json="triggerJsonImport"
     @export-json="exportQuestionsJson"
+    @export-word="openWordExportModal"
   >
     <!-- Slot danh sách môn học cho Sidebar -->
     <template #sidebar>
@@ -92,6 +93,16 @@
           </div>
         </div>
       </div>
+
+      <WordExportModal
+        :is-open="isWordExportModalOpen"
+        :subjects="subjects"
+        :quiz-names-by-subject="questionStats.quizNamesBySubject"
+        :default-subject-id="activeSubjectId || ''"
+        :is-exporting="isExportingWord"
+        @close="closeWordExportModal"
+        @export="exportQuestionsWord"
+      />
 
 
       <section class="extension-download-card extension-download-card--compact">
@@ -204,7 +215,9 @@ import QuestionList from '../components/QuestionList.vue';
 import QuestionModal from '../components/QuestionModal.vue';
 import HamsterLoading from '../components/HamsterLoading.vue';
 import LessonVideoList from '../components/LessonVideoList.vue';
+import WordExportModal from '../components/WordExportModal.vue';
 import api from '../services/api.js';
+import { createQuestionsWordBlob } from '../services/wordExport.js';
 import { useNotification } from '../composables/useNotification.js';
 
 export default {
@@ -215,7 +228,8 @@ export default {
     QuestionList,
     QuestionModal,
     HamsterLoading,
-    LessonVideoList
+    LessonVideoList,
+    WordExportModal
   },
   data() {
     return {
@@ -238,6 +252,8 @@ export default {
       isQuestionModalOpen: false,
       isJsonImportModalOpen: false,
       isImportingJson: false,
+      isWordExportModalOpen: false,
+      isExportingWord: false,
       jsonImportText: '',
       jsonImportPreview: null,
       activeView: 'questions',
@@ -253,7 +269,7 @@ export default {
   },
   computed: {
     showGlobalLoading() {
-      return this.isActionLoading || this.isImportingJson;
+      return this.isActionLoading || this.isImportingJson || this.isExportingWord;
     },
     totalQuestions() {
       return this.questionStats.total;
@@ -466,6 +482,78 @@ export default {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
       toast(`Đã xuất ${questionsToExport.length} câu hỏi ra JSON.`, 'success');
+    },
+    openWordExportModal() {
+      this.isWordExportModalOpen = true;
+    },
+    closeWordExportModal() {
+      if (this.isExportingWord) return;
+      this.isWordExportModalOpen = false;
+    },
+    async fetchQuestionsForWordExport(subjectId, quizName) {
+      const questions = [];
+      const limit = 200;
+      let offset = 0;
+      let hasMore = true;
+
+      while (hasMore) {
+        const response = await api.getQuestions(subjectId || null, '', quizName || '', { limit, offset });
+        if (!response.success) throw new Error('Không tải được dữ liệu câu hỏi.');
+        questions.push(...response.data);
+        offset += response.data.length;
+        hasMore = Boolean(response.pagination?.hasMore) && response.data.length > 0;
+      }
+
+      return questions;
+    },
+    toSafeFilename(value, fallback = 'questions') {
+      return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9_-]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .toLowerCase() || fallback;
+    },
+    async exportQuestionsWord({ subjectId, quizName }) {
+      const { toast } = useNotification();
+      const subject = this.subjects.find(item => item.id === subjectId);
+      const subjectLabel = subject?.name || 'Tất cả môn học';
+      const quizLabel = quizName || 'Tất cả dạng bài tập';
+
+      this.isExportingWord = true;
+      this.loadingMessage = 'Đang tải dữ liệu và tạo file Word...';
+      try {
+        const questions = await this.fetchQuestionsForWordExport(subjectId, quizName);
+        if (questions.length === 0) {
+          toast('Không có câu hỏi phù hợp để xuất Word.', 'warning');
+          return;
+        }
+
+        const subjectNames = Object.fromEntries(this.subjects.map(item => [item.id, item.name]));
+        const blob = await createQuestionsWordBlob({
+          questions,
+          subjectNames,
+          subjectLabel,
+          quizLabel
+        });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const subjectPart = this.toSafeFilename(subjectLabel, 'tat-ca-mon');
+        const quizPart = this.toSafeFilename(quizLabel, 'tat-ca-bai-tap');
+        link.href = url;
+        link.download = subjectPart + '-' + quizPart + '-' + new Date().toISOString().slice(0, 10) + '.docx';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        this.isWordExportModalOpen = false;
+        toast('Đã xuất ' + questions.length + ' câu hỏi ra file Word.', 'success');
+      } catch (error) {
+        toast(error.response?.data?.message || error.message || 'Không thể xuất file Word.', 'error');
+      } finally {
+        this.isExportingWord = false;
+        this.loadingMessage = '';
+      }
     },
     async handleAddSubject(name) {
       const { toast } = useNotification();

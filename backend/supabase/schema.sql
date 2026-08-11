@@ -18,6 +18,13 @@ create table if not exists public.questions (
 
 alter table public.questions add column if not exists "quizName" text not null default 'Khác';
 
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('question-images', 'question-images', true, 8388608, array['image/*'])
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
 create index if not exists questions_subject_id_idx on public.questions("subjectId");
 create index if not exists questions_quiz_name_idx on public.questions("quizName");
 create index if not exists questions_created_at_idx on public.questions("createdAt");
@@ -107,11 +114,13 @@ $$;
 alter table public.subjects enable row level security;
 alter table public.questions enable row level security;
 
+drop policy if exists "Public read subjects" on public.subjects;
 create policy "Public read subjects"
   on public.subjects
   for select
   using (true);
 
+drop policy if exists "Public read questions" on public.questions;
 create policy "Public read questions"
   on public.questions
   for select
@@ -155,6 +164,7 @@ create index if not exists lesson_videos_week_name_idx on public.lesson_videos(w
 
 alter table public.lesson_videos enable row level security;
 
+drop policy if exists "Public read lesson videos" on public.lesson_videos;
 create policy "Public read lesson videos"
   on public.lesson_videos
   for select

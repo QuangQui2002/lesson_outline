@@ -20,6 +20,7 @@ dist/
 *.local
 .env
 .env.*
+!backend/.env.example
 !frontend/.env.development
 !frontend/.env.production
 !frontend/.env.example

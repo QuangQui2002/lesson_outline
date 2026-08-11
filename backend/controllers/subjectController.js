@@ -1,4 +1,5 @@
 import { getSubjectByName, insertSubject, listSubjectsWithCounts, removeSubject } from '../services/dbService.js';
+import { deleteSubjectImageFolder } from '../services/questionImageService.js';
 
 export async function getSubjects(req, res, next) {
   try {
@@ -31,12 +32,21 @@ export async function createSubject(req, res, next) {
 
 export async function deleteSubject(req, res, next) {
   try {
-    if (!await removeSubject(req.params.id)) {
+    const subjectId = req.params.id;
+    if (!await removeSubject(subjectId)) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy môn học' });
+    }
+    const cleanupResult = await deleteSubjectImageFolder(subjectId);
+    if (cleanupResult.error) {
+      console.error('[question-images] Failed to remove subject images:', cleanupResult.error.message);
     }
     res.json({
       success: true,
-      message: 'Xóa môn học và toàn bộ câu hỏi thuộc môn học thành công!'
+      message: 'Xóa môn học và toàn bộ câu hỏi thuộc môn học thành công!',
+      imageCleanup: {
+        deletedCount: cleanupResult.deletedCount,
+        success: !cleanupResult.error
+      }
     });
   } catch (error) {
     next(error);

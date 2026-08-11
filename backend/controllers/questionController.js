@@ -1,4 +1,4 @@
-﻿import { appendQuestions, readDb, readSubjectImportDb, writeDb } from '../services/dbService.js';
+import { appendQuestions, readDb, readSubjectImportDb, writeDb } from '../services/dbService.js';
 import {
   getQuestionById,
   getQuestionStatsData,
@@ -9,6 +9,12 @@ import {
   removeQuestion,
   updateQuestionById
 } from '../services/dbService.js';
+import {
+  cleanupReplacedQuestionImages,
+  deleteManagedImages,
+  deleteQuestionImageFolder,
+  syncQuestionImages
+} from '../services/questionImageService.js';
 
 function stripHtml(html = '') {
   return String(html)
@@ -118,6 +124,20 @@ function stripQuestionNumberPrefix(content = '') {
     .trim();
 }
 
+function stripHtmlPreservingImages(html = '') {
+  const images = [];
+  const textWithTokens = String(html || '').replace(/<img\b[^>]*>/gi, image => {
+    const token = `QUESTIONIMAGETOKEN${images.length}END`;
+    images.push(image);
+    return '\n' + token + '\n';
+  });
+  let text = stripHtml(textWithTokens);
+  images.forEach((image, index) => {
+    text = text.replace(`QUESTIONIMAGETOKEN${index}END`, image);
+  });
+  return text.trim();
+}
+
 function removeAnswerOptionLinesFromQuestionHtml(content = '') {
   const parts = String(content || '')
     .replace(/<br\s*\/?\s*>/gi, '\n')
@@ -135,19 +155,19 @@ function normalizeImportedQuestion(sourceQuestion, quizName = DEFAULT_QUIZ_NAME)
 
   const correctAnswers = answers
     .filter(answer => answer.iscorrect === true || Number(answer.fraction) > 0)
-    .map(answer => stripHtml(answer.answer || answer.text || ''))
+    .map(answer => stripHtmlPreservingImages(answer.answer || answer.text || ''))
     .filter(Boolean);
 
-  const generalFeedback = stripHtml(sourceQuestion.generalfeedback || sourceQuestion.generalFeedback || sourceQuestion.answer || '');
-  const rightAnswer = stripHtml(sourceQuestion.rightanswer || sourceQuestion.rightAnswer || '');
+  const generalFeedback = stripHtmlPreservingImages(sourceQuestion.generalfeedback || sourceQuestion.generalFeedback || sourceQuestion.answer || '');
+  const rightAnswer = stripHtmlPreservingImages(sourceQuestion.rightanswer || sourceQuestion.rightAnswer || '');
   const answerParts = [];
 
   if (generalFeedback) {
     answerParts.push(generalFeedback);
   } else if (rightAnswer) {
-    answerParts.push(`??p ?n ??ng l?: ${rightAnswer}`);
+    answerParts.push(`Đáp án đúng là: ${rightAnswer}`);
   } else if (correctAnswers.length > 0) {
-    answerParts.push(`??p ?n ??ng l?: ${correctAnswers.join('; ')}`);
+    answerParts.push(`Đáp án đúng là: ${correctAnswers.join('; ')}`);
   }
 
   return {
@@ -311,12 +331,20 @@ export async function createQuestion(req, res, next) {
       createdAt: new Date().toISOString()
     };
 
-    const createdQuestion = await insertQuestion(newQuestion);
+    const imageSync = await syncQuestionImages(newQuestion);
+    let createdQuestion;
+    try {
+      createdQuestion = await insertQuestion(imageSync.question);
+    } catch (error) {
+      await deleteManagedImages(imageSync.uploadedPaths);
+      throw error;
+    }
 
     res.status(201).json({
       success: true,
       message: 'Thêm câu hỏi thành công',
-      data: createdQuestion
+      data: createdQuestion,
+      imageWarnings: imageSync.failures
     });
   } catch (error) {
     next(error);
@@ -386,12 +414,34 @@ export async function updateQuestion(req, res, next) {
       changes.tags = processedTags;
     }
 
-    const updatedQuestion = await updateQuestionById(id, changes);
+    const imageSync = await syncQuestionImages({
+      ...existingQuestion,
+      ...changes,
+      id,
+      subjectId: changes.subjectId || existingQuestion.subjectId,
+      content: changes.content ?? existingQuestion.content,
+      answer: changes.answer ?? existingQuestion.answer
+    });
+    changes.content = imageSync.question.content;
+    changes.answer = imageSync.question.answer;
+
+    let updatedQuestion;
+    try {
+      updatedQuestion = await updateQuestionById(id, changes);
+    } catch (error) {
+      await deleteManagedImages(imageSync.uploadedPaths);
+      throw error;
+    }
+    const cleanupResult = await cleanupReplacedQuestionImages(existingQuestion, updatedQuestion);
+    if (cleanupResult.error) {
+      console.error('[question-images] Failed to remove replaced images:', cleanupResult.error.message);
+    }
 
     res.json({
       success: true,
       message: 'Cập nhật câu hỏi thành công',
-      data: updatedQuestion
+      data: updatedQuestion,
+      imageWarnings: imageSync.failures
     });
   } catch (error) {
     next(error);
@@ -403,13 +453,25 @@ export async function updateQuestion(req, res, next) {
  */
 export async function deleteQuestion(req, res, next) {
   try {
+    const existingQuestion = await getQuestionById(req.params.id);
+    if (!existingQuestion) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy câu hỏi' });
+    }
     if (!await removeQuestion(req.params.id)) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy câu hỏi' });
+    }
+    const cleanupResult = await deleteQuestionImageFolder(existingQuestion);
+    if (cleanupResult.error) {
+      console.error('[question-images] Failed to remove deleted question images:', cleanupResult.error.message);
     }
 
     res.json({
       success: true,
-      message: 'Xóa câu hỏi thành công!'
+      message: 'Xóa câu hỏi thành công!',
+      imageCleanup: {
+        deletedCount: cleanupResult.deletedCount,
+        success: !cleanupResult.error
+      }
     });
   } catch (error) {
     next(error);
@@ -471,7 +533,22 @@ export async function importQuestions(req, res, next) {
       });
     }
 
-    await appendQuestions(importedQuestions);
+    const syncedQuestions = [];
+    const uploadedPaths = [];
+    const imageWarnings = [];
+    for (const question of importedQuestions) {
+      const imageSync = await syncQuestionImages(question);
+      syncedQuestions.push(imageSync.question);
+      uploadedPaths.push(...imageSync.uploadedPaths);
+      imageWarnings.push(...imageSync.failures.map(failure => ({ questionId: question.id, ...failure })));
+    }
+
+    try {
+      await appendQuestions(syncedQuestions);
+    } catch (error) {
+      await deleteManagedImages(uploadedPaths);
+      throw error;
+    }
 
     res.status(201).json({
       success: true,
@@ -480,7 +557,8 @@ export async function importQuestions(req, res, next) {
         importedCount: importedQuestions.length,
         skippedCount: skipped.length,
         skipped,
-        questions: importedQuestions
+        questions: syncedQuestions,
+        imageWarnings
       }
     });
   } catch (error) {

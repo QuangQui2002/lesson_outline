@@ -171,6 +171,27 @@ npm run seed:supabase
 
 Khi có `SUPABASE_URL` và `SUPABASE_SERVICE_ROLE_KEY`, backend tự đọc/ghi Supabase. Nếu thiếu env, backend fallback về `backend/data/db.json` cho local dev.
 
+### 4. Lưu ảnh câu hỏi bằng Supabase Storage
+
+Backend tự tạo bucket public `question-images`. Ảnh trong câu hỏi và đáp án được tải về Storage theo đường dẫn:
+
+```text
+subjects/{subjectId}/questions/{questionId}/{sha256}.{ext}
+```
+
+Biến môi trường tùy chọn nằm trong `backend/.env.example`. Có thể giới hạn host ảnh bằng `QUESTION_IMAGE_ALLOWED_HOSTS`.
+
+Khi cập nhật câu hỏi, ảnh không còn sử dụng được xóa. Khi xóa câu hỏi hoặc môn học, toàn bộ thư mục ảnh tương ứng cũng được xóa khỏi Storage. Khi chuyển câu hỏi sang môn khác, ảnh được chuyển sang thư mục môn mới.
+
+Chuyển ảnh của dữ liệu đã tồn tại sang Storage:
+
+```powershell
+cd backend
+npm run migrate:images
+```
+
+Extension LMS tải ảnh cần cookie ngay trong phiên đăng nhập rồi gửi ảnh về backend. Giới hạn mặc định: 4 MB mỗi ảnh, 6 MB tổng ảnh mỗi lần import.
+
 ---
 
 ## Import JSON câu hỏi
