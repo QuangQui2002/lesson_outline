@@ -42,6 +42,9 @@ function normalizeQuizName(quizName = '') {
 
 function normalizeQuestionForCompare(content = '') {
   return String(content)
+    .replace(/<img\b[^>]*>/gi, ' ')
+    .replace(/data:image\/[a-zA-Z0-9.+-]+;base64,[a-zA-Z0-9+/=\r\n]+/gi, ' ')
+    .replace(/https:\/\/[^\s<>'"]+?\.(?:png|jpe?g|gif|webp|svg|bmp)(?:\?[^\s<>'"]*)?/gi, ' ')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/đ/g, 'd')
@@ -58,8 +61,8 @@ function levenshteinDistance(a, b) {
   if (!a.length) return b.length;
   if (!b.length) return a.length;
 
-  const previousRow = Array.from({ length: b.length + 1 }, (_, index) => index);
-  const currentRow = new Array(b.length + 1);
+  let previousRow = Array.from({ length: b.length + 1 }, (_, index) => index);
+  let currentRow = new Array(b.length + 1);
 
   for (let i = 1; i <= a.length; i++) {
     currentRow[0] = i;
@@ -69,15 +72,48 @@ function levenshteinDistance(a, b) {
       const replaceCost = previousRow[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1);
       currentRow[j] = Math.min(insertCost, deleteCost, replaceCost);
     }
-    previousRow.splice(0, previousRow.length, ...currentRow);
+    const completedRow = previousRow;
+    previousRow = currentRow;
+    currentRow = completedRow;
   }
 
   return previousRow[b.length];
 }
 
-function calculateQuestionSimilarity(contentA, contentB) {
-  const normalizedA = normalizeQuestionForCompare(contentA);
-  const normalizedB = normalizeQuestionForCompare(contentB);
+function createTrigrams(value) {
+  const trigrams = new Set();
+  for (let index = 0; index <= value.length - 3; index += 1) {
+    trigrams.add(value.slice(index, index + 3));
+  }
+  return trigrams;
+}
+
+function prepareQuestionCandidate(question = {}) {
+  const normalizedContent = question.normalizedContent || normalizeQuestionForCompare(question.content || '');
+  return {
+    ...question,
+    normalizedContent,
+    trigrams: question.trigrams || createTrigrams(normalizedContent)
+  };
+}
+
+function hasPotentialSimilarity(first, second) {
+  if (!first || !second) return false;
+  const maxLength = Math.max(first.normalizedContent.length, second.normalizedContent.length);
+  const minLength = Math.min(first.normalizedContent.length, second.normalizedContent.length);
+  if (minLength / maxLength < DUPLICATE_SIMILARITY_THRESHOLD) return false;
+  if (first.trigrams.size === 0 || second.trigrams.size === 0) return true;
+
+  let overlap = 0;
+  const smallerSet = first.trigrams.size <= second.trigrams.size ? first.trigrams : second.trigrams;
+  const largerSet = smallerSet === first.trigrams ? second.trigrams : first.trigrams;
+  for (const trigram of smallerSet) {
+    if (largerSet.has(trigram)) overlap += 1;
+  }
+  return (2 * overlap) / (first.trigrams.size + second.trigrams.size) >= 0.5;
+}
+
+function calculateQuestionSimilarity(normalizedA, normalizedB) {
   if (!normalizedA || !normalizedB) return 0;
   if (normalizedA === normalizedB) return 1;
 
@@ -86,12 +122,19 @@ function calculateQuestionSimilarity(contentA, contentB) {
   return 1 - distance / maxLength;
 }
 
-function findSimilarQuestion(content, questions, excludeId = null) {
-  let bestMatch = null;
+function yieldToEventLoop() {
+  return new Promise(resolve => setImmediate(resolve));
+}
 
-  for (const question of questions) {
+async function findSimilarQuestion(content, questions, excludeId = null) {
+  let bestMatch = null;
+  const target = prepareQuestionCandidate({ content });
+
+  for (let index = 0; index < questions.length; index += 1) {
+    const question = prepareQuestionCandidate(questions[index]);
     if (excludeId && question.id === excludeId) continue;
-    const similarity = calculateQuestionSimilarity(content, question.content || '');
+    if (!hasPotentialSimilarity(target, question)) continue;
+    const similarity = calculateQuestionSimilarity(target.normalizedContent, question.normalizedContent);
     if (similarity >= DUPLICATE_SIMILARITY_THRESHOLD && (!bestMatch || similarity > bestMatch.similarity)) {
       bestMatch = {
         id: question.id,
@@ -99,6 +142,7 @@ function findSimilarQuestion(content, questions, excludeId = null) {
         similarity
       };
     }
+    if (index > 0 && index % 200 === 0) await yieldToEventLoop();
   }
 
   return bestMatch;
@@ -115,6 +159,40 @@ function getQuestionArray(importPayload, subjectId = '', subjectName = '') {
   if (Array.isArray(importPayload?.questions)) return importPayload.questions;
   if (Array.isArray(importPayload?.data?.questions)) return importPayload.data.questions;
   return [];
+}
+
+function replaceImportedImageTokens(value, images) {
+  if (typeof value !== 'string') return value;
+  return value.replace(/__QUESTION_IMAGE_\d+__/g, token => images[token] || token);
+}
+
+function hydrateImportedQuestionImages(question, images) {
+  if (!question || typeof question !== 'object') return question;
+  return {
+    ...question,
+    questiontext: replaceImportedImageTokens(question.questiontext, images),
+    questionText: replaceImportedImageTokens(question.questionText, images),
+    content: replaceImportedImageTokens(question.content, images),
+    generalfeedback: replaceImportedImageTokens(question.generalfeedback, images),
+    generalFeedback: replaceImportedImageTokens(question.generalFeedback, images),
+    answer: replaceImportedImageTokens(question.answer, images),
+    rightanswer: replaceImportedImageTokens(question.rightanswer, images),
+    rightAnswer: replaceImportedImageTokens(question.rightAnswer, images),
+    answertext: Array.isArray(question.answertext) ? question.answertext.map(answer => ({
+      ...answer,
+      answer: replaceImportedImageTokens(answer.answer, images),
+      text: replaceImportedImageTokens(answer.text, images)
+    })) : question.answertext
+  };
+}
+
+function getImportedImageMap(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value).filter(([token, source]) => (
+    /^__QUESTION_IMAGE_\d+__$/.test(token)
+    && typeof source === 'string'
+    && source.startsWith('data:image/')
+  )));
 }
 
 function stripQuestionNumberPrefix(content = '') {
@@ -178,18 +256,20 @@ function normalizeImportedQuestion(sourceQuestion, quizName = DEFAULT_QUIZ_NAME)
   };
 }
 
-function buildImportAnalysis(sourceQuestions, existingQuestions, subjectId, quizName = DEFAULT_QUIZ_NAME, now = Date.now()) {
+async function buildImportAnalysis(sourceQuestions, existingQuestions, subjectId, quizName = DEFAULT_QUIZ_NAME, now = Date.now()) {
   const importableQuestions = [];
   const skipped = [];
+  const candidates = existingQuestions.map(prepareQuestionCandidate);
 
-  sourceQuestions.forEach((sourceQuestion, index) => {
+  for (let index = 0; index < sourceQuestions.length; index += 1) {
+    const sourceQuestion = sourceQuestions[index];
     const normalized = normalizeImportedQuestion(sourceQuestion, quizName);
     if (!normalized.content || !normalized.answer) {
       skipped.push({ index, slot: sourceQuestion.slot, reason: 'Thiếu nội dung câu hỏi hoặc đáp án.', type: 'missing_required' });
-      return;
+      continue;
     }
 
-    const duplicateQuestion = findSimilarQuestion(normalized.content, [...existingQuestions, ...importableQuestions]);
+    const duplicateQuestion = await findSimilarQuestion(normalized.content, candidates);
     if (duplicateQuestion) {
       skipped.push({
         index,
@@ -199,10 +279,10 @@ function buildImportAnalysis(sourceQuestions, existingQuestions, subjectId, quiz
         similarity: Number(duplicateQuestion.similarity.toFixed(2)),
         duplicateId: duplicateQuestion.id
       });
-      return;
+      continue;
     }
 
-    importableQuestions.push({
+    const importableQuestion = {
       id: `q_${now}_${index}`,
       subjectId,
       content: normalized.content,
@@ -212,8 +292,11 @@ function buildImportAnalysis(sourceQuestions, existingQuestions, subjectId, quiz
       createdAt: new Date(now + index).toISOString(),
       sourceId: sourceQuestion.id || null,
       sourceSlot: sourceQuestion.slot || null
-    });
-  });
+    };
+    importableQuestions.push(importableQuestion);
+    candidates.push(prepareQuestionCandidate(importableQuestion));
+    if (index > 0 && index % 10 === 0) await yieldToEventLoop();
+  }
 
   return {
     totalCount: sourceQuestions.length,
@@ -226,10 +309,42 @@ function buildImportAnalysis(sourceQuestions, existingQuestions, subjectId, quiz
   };
 }
 
+async function syncImportedQuestionImages(questions, importedImages, concurrency = 3) {
+  const syncedQuestions = [];
+  const uploadedPaths = [];
+  const imageWarnings = [];
+
+  for (let index = 0; index < questions.length; index += concurrency) {
+    const batch = questions.slice(index, index + concurrency);
+    const hydratedBatch = batch.map(question => hydrateImportedQuestionImages(question, importedImages));
+    const results = await Promise.allSettled(hydratedBatch.map(question => syncQuestionImages(question)));
+    const batchUploadedPaths = results.flatMap(result => result.status === 'fulfilled' ? result.value.uploadedPaths : []);
+    const rejectedResult = results.find(result => result.status === 'rejected');
+    if (rejectedResult) {
+      await deleteManagedImages([...uploadedPaths, ...batchUploadedPaths]);
+      throw rejectedResult.reason;
+    }
+
+    for (let resultIndex = 0; resultIndex < results.length; resultIndex += 1) {
+      const result = results[resultIndex];
+      const question = batch[resultIndex];
+      syncedQuestions.push(result.value.question);
+      uploadedPaths.push(...result.value.uploadedPaths);
+      imageWarnings.push(...result.value.failures.map(failure => ({ questionId: question.id, ...failure })));
+    }
+
+    await yieldToEventLoop();
+  }
+
+  return { syncedQuestions, uploadedPaths, imageWarnings };
+}
+
 async function validateImportRequest(req) {
   const { subjectId, questions: directQuestions } = req.body;
   const quizName = normalizeQuizName(req.body?.quizName || req.body?.quiz?.name);
-  const sourceQuestions = Array.isArray(directQuestions) ? directQuestions : getQuestionArray(req.body);
+  const rawSourceQuestions = Array.isArray(directQuestions) ? directQuestions : getQuestionArray(req.body);
+  const importedImages = getImportedImageMap(req.body?.images);
+  const sourceQuestions = rawSourceQuestions;
 
   if (!subjectId) {
     return { error: { status: 400, message: 'Vui l\u00f2ng ch\u1ecdn m\u00f4n h\u1ecdc tr\u01b0\u1edbc khi import.' } };
@@ -244,7 +359,7 @@ async function validateImportRequest(req) {
     return { error: { status: 400, message: 'M\u00f4n h\u1ecdc kh\u00f4ng t\u1ed3n t\u1ea1i trong h\u1ec7 th\u1ed1ng.' } };
   }
 
-  return { subjectId, sourceQuestions, quizName, db };
+  return { subjectId, sourceQuestions, importedImages, quizName, db };
 }
 
 /**
@@ -303,7 +418,7 @@ export async function createQuestion(req, res, next) {
       return res.status(400).json({ success: false, message: 'Môn học không tồn tại trong hệ thống' });
     }
 
-    const duplicateQuestion = findSimilarQuestion(content, await listQuestionCandidates());
+    const duplicateQuestion = await findSimilarQuestion(content, await listQuestionCandidates());
     if (duplicateQuestion) {
       const percent = Math.round(duplicateQuestion.similarity * 100);
       return res.status(409).json({
@@ -378,7 +493,7 @@ export async function updateQuestion(req, res, next) {
         return res.status(400).json({ success: false, message: 'Nội dung câu hỏi không được để trống' });
       }
 
-      const duplicateQuestion = findSimilarQuestion(content, await listQuestionCandidates(id));
+      const duplicateQuestion = await findSimilarQuestion(content, await listQuestionCandidates(id));
       if (duplicateQuestion) {
         const percent = Math.round(duplicateQuestion.similarity * 100);
         return res.status(409).json({
@@ -488,7 +603,7 @@ export async function previewImportQuestions(req, res, next) {
       return res.status(validation.error.status).json({ success: false, message: validation.error.message });
     }
 
-    const analysis = buildImportAnalysis(validation.sourceQuestions, validation.db.questions, validation.subjectId, validation.quizName);
+    const analysis = await buildImportAnalysis(validation.sourceQuestions, validation.db.questions, validation.subjectId, validation.quizName);
 
     res.json({
       success: true,
@@ -518,7 +633,7 @@ export async function importQuestions(req, res, next) {
       return res.status(validation.error.status).json({ success: false, message: validation.error.message });
     }
 
-    const analysis = buildImportAnalysis(validation.sourceQuestions, validation.db.questions, validation.subjectId, validation.quizName);
+    const analysis = await buildImportAnalysis(validation.sourceQuestions, validation.db.questions, validation.subjectId, validation.quizName);
     const importedQuestions = analysis.importableQuestions.map(question => ({
       ...question,
       quizName: normalizeQuizName(question.quizName || validation.quizName || req.body?.quiz?.name)
@@ -533,15 +648,10 @@ export async function importQuestions(req, res, next) {
       });
     }
 
-    const syncedQuestions = [];
-    const uploadedPaths = [];
-    const imageWarnings = [];
-    for (const question of importedQuestions) {
-      const imageSync = await syncQuestionImages(question);
-      syncedQuestions.push(imageSync.question);
-      uploadedPaths.push(...imageSync.uploadedPaths);
-      imageWarnings.push(...imageSync.failures.map(failure => ({ questionId: question.id, ...failure })));
-    }
+    const { syncedQuestions, uploadedPaths, imageWarnings } = await syncImportedQuestionImages(
+      importedQuestions,
+      validation.importedImages
+    );
 
     try {
       await appendQuestions(syncedQuestions);

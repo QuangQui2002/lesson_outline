@@ -260,9 +260,9 @@ export default {
       lessonVideos: [],
       isLessonVideoLoading: false,
       extensionInfo: {
-        version: '1.0.0',
+        version: '1.0.1',
         downloadUrl: '/downloads/support_lms_extension.zip',
-        note: 'Hỗ trợ lưu video, lấy câu hỏi và AI đáp án trên LMS.'
+        note: 'Tối ưu import ảnh, giảm treo backend và timeout rõ ràng.'
       },
       editingQuestion: null
     };

@@ -3,6 +3,7 @@ const SERVER_BACKEND_URL = 'https://lesson-outline-h788.onrender.com/api';
 const LMS_ORIGIN = 'https://lms-tvu.onschool.edu.vn';
 const REVIEW_IMAGE_MAX_BYTES = 4 * 1024 * 1024;
 const REVIEW_IMAGES_TOTAL_MAX_BYTES = 6 * 1024 * 1024;
+const REVIEW_IMPORT_BODY_MAX_BYTES = 9 * 1024 * 1024;
 
 function normalizeBackendUrl(url = '') {
   return String(url || SERVER_BACKEND_URL).trim().replace(/\/+$/, '');
@@ -19,7 +20,10 @@ async function requestJson(url, options = {}, timeoutMs = 15000) {
   try {
     response = await fetch(url, { ...options, signal: controller.signal });
   } catch (error) {
-    throw new Error('Không kết nối được ' + url + ': ' + (error.message || 'Quá thời gian chờ server'));
+    const message = error.name === 'AbortError'
+      ? 'Quá thời gian chờ server sau ' + Math.round(timeoutMs / 1000) + ' giây.'
+      : error.message || 'Không kết nối được server.';
+    throw new Error('Không kết nối được ' + url + ': ' + message);
   } finally {
     clearTimeout(timeoutId);
   }
@@ -140,10 +144,12 @@ function arrayBufferToBase64(buffer) {
   return btoa(binary);
 }
 
-async function fetchReviewImageDataUrl(source, state) {
+async function fetchReviewImageToken(source, state) {
   const imageUrl = new URL(source, LMS_ORIGIN).toString();
   if (!imageUrl.startsWith('https://')) throw new Error('Chỉ hỗ trợ ảnh HTTPS.');
   if (!state.cache.has(imageUrl)) {
+    const token = '__QUESTION_IMAGE_' + state.nextImageId + '__';
+    state.nextImageId += 1;
     state.cache.set(imageUrl, (async () => {
       const response = await fetch(imageUrl, { credentials: 'include', cache: 'force-cache' });
       if (!response.ok) throw new Error('HTTP ' + response.status);
@@ -157,7 +163,8 @@ async function fetchReviewImageDataUrl(source, state) {
         throw new Error('Tổng ảnh vượt giới hạn 6 MB.');
       }
       state.totalBytes += buffer.byteLength;
-      return 'data:' + contentType + ';base64,' + arrayBufferToBase64(buffer);
+      state.images[token] = 'data:' + contentType + ';base64,' + arrayBufferToBase64(buffer);
+      return token;
     })());
   }
   return state.cache.get(imageUrl);
@@ -168,18 +175,18 @@ async function hydrateHtmlImages(value, state) {
   const sources = extractHtmlImageSources(hydrated);
   const results = await Promise.all(sources.map(async source => {
     try {
-      return { source, dataUrl: await fetchReviewImageDataUrl(source, state) };
+      return { source, replacement: await fetchReviewImageToken(source, state) };
     } catch (error) {
       state.warnings.push({ source, message: error.message });
-      return { source, dataUrl: source };
+      return { source, replacement: source };
     }
   }));
-  for (const result of results) hydrated = hydrated.split(result.source).join(result.dataUrl);
+  for (const result of results) hydrated = hydrated.split(result.source).join(result.replacement);
   return hydrated;
 }
 
 async function hydrateReviewPayloadImages(payload) {
-  const state = { cache: new Map(), totalBytes: 0, warnings: [] };
+  const state = { cache: new Map(), totalBytes: 0, warnings: [], images: {}, nextImageId: 0 };
   const questions = [];
   for (const question of payload.questions || []) {
     questions.push({
@@ -192,7 +199,7 @@ async function hydrateReviewPayloadImages(payload) {
       })))
     });
   }
-  return { ...payload, questions, imageHydrationWarnings: state.warnings };
+  return { ...payload, questions, images: state.images, imageHydrationWarnings: state.warnings };
 }
 
 async function importAttemptQuestions(reviewJson) {
@@ -201,11 +208,15 @@ async function importAttemptQuestions(reviewJson) {
   const quiz = payload.quiz || {};
   const courseName = course.name || course.fullname || ('Môn học ' + (course.id || '')).trim();
   const { subject, backendUrl } = await findOrCreateSubject(courseName || 'Môn học LMS');
+  const requestBody = JSON.stringify({ ...payload, subjectId: subject.id, quizName: quiz.name || payload.quizName || 'Khác' });
+  if (new TextEncoder().encode(requestBody).byteLength > REVIEW_IMPORT_BODY_MAX_BYTES) {
+    throw new Error('Dữ liệu import vượt 9 MB. Hãy import ít câu hỏi hoặc ảnh nhỏ hơn.');
+  }
   const response = await requestJson(normalizeBackendUrl(backendUrl) + '/questions/import', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...payload, subjectId: subject.id, quizName: quiz.name || payload.quizName || 'Khác' })
-  }, 120000);
+    body: requestBody
+  }, 180000);
   if (payload.imageHydrationWarnings.length > 0 && response.data) {
     response.data.imageWarnings = [
       ...(response.data.imageWarnings || []),
