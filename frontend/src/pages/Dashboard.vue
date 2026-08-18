@@ -123,7 +123,7 @@
           <input 
             v-model="searchQuery"
             type="text" 
-            placeholder="Tìm kiếm nhanh theo nội dung câu hỏi, đáp án hoặc từ khóa (tags)..." 
+            placeholder="Tìm theo nội dung câu hỏi hoặc đáp án (hỗ trợ không dấu)..."
             class="search-input"
           />
         </div>
@@ -227,9 +227,9 @@ export default {
       jsonImportText: '',
       jsonImportPreview: null,
       extensionInfo: {
-        version: '1.0.2',
+        version: '1.0.3',
         downloadUrl: '/downloads/support_lms_extension.zip',
-        note: 'Chỉ import câu hỏi review và hỗ trợ AI đáp án.'
+        note: 'Đã gỡ toàn bộ chức năng bài học video; chỉ còn câu hỏi và AI đáp án.'
       },
       editingQuestion: null
     };

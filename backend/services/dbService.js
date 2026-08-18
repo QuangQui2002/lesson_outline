@@ -53,6 +53,46 @@ function normalizeQuestion(question) {
   return { ...question, quizName: normalizeQuizName(question.quizName) };
 }
 
+export function normalizeQuestionSearchText(value = '') {
+  return String(value || '')
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&(nbsp|amp|lt|gt|quot|#39);/gi, entity => ({
+      '&nbsp;': ' ',
+      '&amp;': '&',
+      '&lt;': '<',
+      '&gt;': '>',
+      '&quot;': '"',
+      '&#39;': "'"
+    })[entity.toLowerCase()] || ' ')
+    .replace(/&#(x[0-9a-f]+|\d+);/gi, (_, code) => {
+      const numericCode = code[0].toLowerCase() === 'x'
+        ? Number.parseInt(code.slice(1), 16)
+        : Number.parseInt(code, 10);
+      return Number.isInteger(numericCode) && numericCode >= 0 && numericCode <= 0x10ffff
+        ? String.fromCodePoint(numericCode)
+        : ' ';
+    })
+    .normalize('NFD')
+    .replace(/\p{M}+/gu, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export function questionMatchesSearch(question = {}, search = '') {
+  const tokens = normalizeQuestionSearchText(search).split(' ').filter(Boolean);
+  if (tokens.length === 0) return true;
+  const searchableText = normalizeQuestionSearchText([
+    question.content,
+    question.answer
+  ].filter(Boolean).join(' '));
+  return tokens.every(token => searchableText.includes(token));
+}
+
 function toQuestionPayload(question) {
   return {
     id: question.id,
@@ -185,15 +225,10 @@ export async function listQuestions({ subjectId = '', quizName = '', search = ''
 
   if (!isSupabaseEnabled()) {
     const db = await readJsonDb();
-    const keyword = search.trim().toLowerCase();
     const questions = db.questions
       .filter(question => !subjectId || question.subjectId === subjectId)
       .filter(question => !quizName || normalizeQuizName(question.quizName) === normalizeQuizName(quizName))
-      .filter(question => !keyword
-        || question.content?.toLowerCase().includes(keyword)
-        || question.answer?.toLowerCase().includes(keyword)
-        || question.tags?.some(tag => tag.toLowerCase().includes(keyword))
-        || normalizeQuizName(question.quizName).toLowerCase().includes(keyword))
+      .filter(question => questionMatchesSearch(question, search))
       .sort((first, second) => new Date(second.createdAt) - new Date(first.createdAt));
 
     if (!pageLimit) return questions;
@@ -203,7 +238,7 @@ export async function listQuestions({ subjectId = '', quizName = '', search = ''
     };
   }
 
-  let rpcQuery = supabase.rpc('search_questions', {
+  let rpcQuery = supabase.rpc('search_questions_v2', {
     p_subject_id: subjectId || null,
     p_quiz_name: quizName ? normalizeQuizName(quizName) : null,
     p_search: search.trim() || null
@@ -215,13 +250,38 @@ export async function listQuestions({ subjectId = '', quizName = '', search = ''
     return pageLimit ? { items, total: rpcResult.count ?? items.length } : items;
   }
 
-  let query = supabase.from('questions').select(QUESTION_COLUMNS, pageLimit ? { count: 'exact' } : undefined);
+  if (search.trim()) {
+    const rows = [];
+    const batchSize = 1000;
+    let batchOffset = 0;
+    while (true) {
+      let batchQuery = supabase.from('questions').select(QUESTION_COLUMNS);
+      if (subjectId) batchQuery = batchQuery.eq('subjectId', subjectId);
+      if (quizName) batchQuery = batchQuery.eq('quizName', normalizeQuizName(quizName));
+      batchQuery = batchQuery
+        .order('createdAt', { ascending: false })
+        .range(batchOffset, batchOffset + batchSize - 1);
+      const batch = ensureSupabaseSuccess(await batchQuery, 'Loi doc questions de tim kiem tu Supabase')
+        .map(normalizeQuestion);
+      rows.push(...batch);
+      if (batch.length < batchSize) break;
+      batchOffset += batch.length;
+    }
+    const matchedRows = rows
+      .filter(question => questionMatchesSearch(question, search));
+    if (!pageLimit) return matchedRows;
+    return {
+      items: matchedRows.slice(pageOffset, pageOffset + pageLimit),
+      total: matchedRows.length
+    };
+  }
+
+  let query = supabase.from('questions').select(
+    QUESTION_COLUMNS,
+    pageLimit ? { count: 'exact' } : undefined
+  );
   if (subjectId) query = query.eq('subjectId', subjectId);
   if (quizName) query = query.eq('quizName', normalizeQuizName(quizName));
-  if (search.trim()) {
-    const pattern = `%${search.trim().replaceAll(',', ' ')}%`;
-    query = query.or(`content.ilike.${pattern},answer.ilike.${pattern},quizName.ilike.${pattern}`);
-  }
   query = query.order('createdAt', { ascending: false });
   if (pageLimit) query = query.range(pageOffset, pageOffset + pageLimit - 1);
   const result = await query;

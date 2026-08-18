@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "LMS TVU Question Helper",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Lưu câu hỏi LMS TVU và hỗ trợ AI đáp án.",
   "permissions": [
     "storage",

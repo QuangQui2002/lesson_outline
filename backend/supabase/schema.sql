@@ -34,6 +34,7 @@ create index if not exists questions_subject_quiz_created_idx
   on public.questions("subjectId", "quizName", "createdAt" desc);
 
 create extension if not exists pg_trgm;
+create extension if not exists unaccent;
 create index if not exists questions_content_trgm_idx
   on public.questions using gin (content gin_trgm_ops);
 create index if not exists questions_answer_trgm_idx
@@ -41,7 +42,42 @@ create index if not exists questions_answer_trgm_idx
 create index if not exists questions_quiz_name_trgm_idx
   on public.questions using gin ("quizName" gin_trgm_ops);
 
-create or replace function public.search_questions(
+create or replace function public.normalize_question_search_text(value text)
+returns text
+language sql
+immutable
+parallel safe
+set search_path = public, extensions
+as $$
+  select trim(regexp_replace(
+    unaccent(lower(regexp_replace(
+      replace(
+        replace(
+          replace(
+            replace(
+              replace(
+                replace(coalesce(value, ''), '&nbsp;', ' '),
+                '&amp;', '&'
+              ),
+              '&lt;', '<'
+            ),
+            '&gt;', '>'
+          ),
+          '&quot;', '"'
+        ),
+        '&#39;', ''''
+      ),
+      '<[^>]+>', ' ', 'g'
+    ))),
+    '[^[:alnum:]]+', ' ', 'g'
+  ));
+$$;
+
+create index if not exists questions_content_search_trgm_idx
+  on public.questions using gin (public.normalize_question_search_text(content) gin_trgm_ops);
+create index if not exists questions_answer_search_trgm_idx
+  on public.questions using gin (public.normalize_question_search_text(answer) gin_trgm_ops);
+create or replace function public.search_questions_v2(
   p_subject_id text default null,
   p_quiz_name text default null,
   p_search text default null
@@ -55,14 +91,14 @@ as $$
   where (p_subject_id is null or question."subjectId" = p_subject_id)
     and (p_quiz_name is null or question."quizName" = p_quiz_name)
     and (
-      p_search is null
-      or question.content ilike '%' || p_search || '%'
-      or question.answer ilike '%' || p_search || '%'
-      or question."quizName" ilike '%' || p_search || '%'
-      or exists (
+      p_search is null or not exists (
         select 1
-        from unnest(question.tags) as tag
-        where tag ilike '%' || p_search || '%'
+        from regexp_split_to_table(public.normalize_question_search_text(p_search), ' +') as token
+        where token <> ''
+          and not (
+            public.normalize_question_search_text(question.content) like '%' || token || '%'
+            or public.normalize_question_search_text(question.answer) like '%' || token || '%'
+          )
       )
     )
   order by question."createdAt" desc;

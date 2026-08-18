@@ -18,31 +18,10 @@
       </form>
     </div>
     
-    <!-- Thanh tìm kiếm môn học nhỏ -->
-    <div class="search-subject-container" style="margin-bottom: 0.75rem; position: relative;">
-      <input 
-        v-model="searchSubjectQuery"
-        type="text" 
-        placeholder="Tìm môn học..." 
-        class="search-subject-input"
-        style="width: 100%; padding: 0.4rem 2rem 0.4rem 0.75rem; font-size: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main);"
-      />
-      <span style="position: absolute; right: 0.6rem; top: 50%; transform: translateY(-50%); font-size: 0.8rem; color: var(--text-muted); cursor: default; pointer-events: none;">🔍</span>
-      <!-- Nút xóa nhanh từ khóa tìm kiếm môn học -->
-      <button 
-        v-if="searchSubjectQuery" 
-        type="button" 
-        @click="searchSubjectQuery = ''"
-        style="position: absolute; right: 1.8rem; top: 50%; transform: translateY(-50%); background: transparent; border: none; color: var(--text-muted); font-size: 0.8rem; cursor: pointer; pointer-events: auto; padding: 0;"
-      >
-        &times;
-      </button>
-    </div>
-
     <div class="subject-nav" style="max-height: 45vh; overflow-y: auto; padding-right: 2px;">
-      <!-- Từng môn học cụ thể sau khi lọc tìm kiếm -->
+      <!-- Từng môn học cụ thể -->
       <div 
-        v-for="subject in filteredSubjects" 
+        v-for="subject in sortedSubjects"
         :key="subject.id"
         class="subject-item"
         :class="{ active: activeSubjectId === subject.id }"
@@ -88,19 +67,11 @@ export default {
   emits: ['select-subject', 'add-subject', 'delete-subject'],
   data() {
     return {
-      newSubjectName: '',
-      searchSubjectQuery: ''
+      newSubjectName: ''
     };
   },
   computed: {
-    filteredSubjects() {
-      // 1. Lọc theo từ khóa tìm kiếm trước
-      let result = [...this.subjects];
-      if (this.searchSubjectQuery.trim()) {
-        const query = this.searchSubjectQuery.trim().toLowerCase();
-        result = result.filter(s => s.name.toLowerCase().includes(query));
-      }
-
+    sortedSubjects() {
       // Helper bóc tách timestamp từ id để sắp xếp chính xác
       const getSubjectTimestamp = (id) => {
         if (!id) return 0;
@@ -113,8 +84,7 @@ export default {
         return 0;
       };
 
-      // 2. Sắp xếp môn học mới nhất lên đầu
-      return result.sort((a, b) => getSubjectTimestamp(b.id) - getSubjectTimestamp(a.id));
+      return [...this.subjects].sort((a, b) => getSubjectTimestamp(b.id) - getSubjectTimestamp(a.id));
     }
   },
   methods: {
