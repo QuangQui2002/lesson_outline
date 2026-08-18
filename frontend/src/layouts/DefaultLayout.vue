@@ -16,6 +16,21 @@
           <h2 style="font-size: 1.15rem; font-weight: 800; line-height: 1.1;">Ngân Hàng Đề Cương</h2>
           <span style="font-size: 0.65rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.08em;">CÂU HỎI & ĐÁP ÁN</span>
         </div>
+        <button
+          type="button"
+          class="mobile-theme-toggle"
+          :title="isDark ? 'Chuyển sang chế độ sáng' : 'Chuyển sang chế độ tối'"
+          :aria-label="isDark ? 'Chuyển sang chế độ sáng' : 'Chuyển sang chế độ tối'"
+          @click="toggleDarkMode"
+        >
+          <svg v-if="isDark" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"></circle>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"></path>
+          </svg>
+          <svg v-else viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"></path>
+          </svg>
+        </button>
       </div>
 
       <!-- Danh sách môn học -->
@@ -40,15 +55,15 @@
         </div>
         
         <div class="action-buttons">
-          <button class="btn btn-secondary" @click="$emit('export-json')">
+          <button class="btn btn-secondary desktop-file-action" @click="$emit('export-json')">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 0.25rem;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
             Xuất JSON
           </button>
-          <button class="btn btn-secondary" @click="$emit('import-json')">
+          <button class="btn btn-secondary desktop-file-action" @click="$emit('import-json')">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 0.25rem;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><polyline points="9 15 12 18 15 15"></polyline></svg>
             Import JSON
           </button>
-          <button class="btn btn-secondary" @click="$emit('export-word')">
+          <button class="btn btn-secondary desktop-file-action" @click="$emit('export-word')">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 0.25rem;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="M8 13l1.5 5 2.5-4 2.5 4 1.5-5"></path></svg>
             Xuất Word
           </button>

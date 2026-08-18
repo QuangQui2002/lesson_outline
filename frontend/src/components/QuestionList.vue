@@ -83,11 +83,56 @@
 </template>
 
 <script>
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
 import { useNotification } from '../composables/useNotification.js';
 
-const ALLOWED_CONTENT_TAGS = new Set(['BR', 'IMG', 'A', 'U', 'B', 'STRONG', 'I', 'EM', 'P', 'DIV', 'SPAN', 'CODE', 'PRE', 'SUP', 'SUB']);
+const ALLOWED_CONTENT_TAGS = new Set([
+  'BR', 'IMG', 'A', 'U', 'B', 'STRONG', 'I', 'EM', 'P', 'DIV', 'SPAN', 'CODE', 'PRE', 'SUP', 'SUB',
+  'UL', 'OL', 'LI', 'BLOCKQUOTE', 'HR', 'TABLE', 'THEAD', 'TBODY', 'TFOOT', 'TR', 'TH', 'TD',
+  'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'MARK', 'S', 'DEL'
+]);
 const sanitizedContentCache = new Map();
 const MAX_SANITIZED_CACHE_SIZE = 1000;
+
+function renderLatexTextNodes(root) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const textNodes = [];
+  while (walker.nextNode()) textNodes.push(walker.currentNode);
+
+  textNodes.forEach(node => {
+    if (node.parentElement?.closest('code, pre, .katex')) return;
+    const value = node.nodeValue || '';
+    const latexPattern = /\\\((.+?)\\\)|\\\[(.+?)\\\]/gs;
+    if (!latexPattern.test(value)) return;
+    latexPattern.lastIndex = 0;
+
+    const fragment = document.createDocumentFragment();
+    let lastIndex = 0;
+    value.replace(latexPattern, (match, inlineExpression, displayExpression, offset) => {
+      if (offset > lastIndex) fragment.appendChild(document.createTextNode(value.slice(lastIndex, offset)));
+      const expression = String(inlineExpression ?? displayExpression ?? '').trim();
+      if (!expression) {
+        fragment.appendChild(document.createTextNode(match));
+      } else {
+        const math = document.createElement('span');
+        math.className = displayExpression === undefined ? 'question-math' : 'question-math question-math--block';
+        math.innerHTML = katex.renderToString(expression, {
+          displayMode: displayExpression !== undefined,
+          throwOnError: false,
+          strict: 'ignore',
+          trust: false,
+          output: 'htmlAndMathml'
+        });
+        fragment.appendChild(math);
+      }
+      lastIndex = offset + match.length;
+      return match;
+    });
+    if (lastIndex < value.length) fragment.appendChild(document.createTextNode(value.slice(lastIndex)));
+    node.replaceWith(fragment);
+  });
+}
 
 export default {
   name: 'QuestionList',
@@ -172,8 +217,10 @@ export default {
           const name = attribute.name.toLowerCase();
           const attrValue = attribute.value || '';
           if (element.tagName === 'IMG' && name === 'src' && /^(data:image\/|https:\/\/)/i.test(attrValue)) return;
+          if (element.tagName === 'IMG' && ['alt', 'title'].includes(name)) return;
           if (element.tagName === 'A' && name === 'href' && /^https:\/\//i.test(attrValue)) return;
-          if (element.tagName === 'A' && ['target', 'rel'].includes(name)) return;
+          if (element.tagName === 'A' && ['target', 'rel', 'title'].includes(name)) return;
+          if (['TH', 'TD'].includes(element.tagName) && ['colspan', 'rowspan'].includes(name) && /^\d+$/.test(attrValue)) return;
           if (element.tagName === 'SPAN' && name === 'class' && /^(automslc-omml|math|math-inline|katex|katex-html|katex-mathml)$/i.test(attrValue)) return;
           element.removeAttribute(attribute.name);
         });
@@ -222,6 +269,7 @@ export default {
         if (lastIndex < value.length) fragment.appendChild(document.createTextNode(value.slice(lastIndex)));
         node.replaceWith(fragment);
       });
+      renderLatexTextNodes(template.content);
       const sanitizedContent = template.innerHTML;
       if (sanitizedContentCache.size >= MAX_SANITIZED_CACHE_SIZE) sanitizedContentCache.clear();
       sanitizedContentCache.set(rawContent, sanitizedContent);

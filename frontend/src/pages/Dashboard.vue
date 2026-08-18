@@ -105,7 +105,7 @@
       />
 
 
-      <section class="extension-download-card extension-download-card--compact">
+      <section class="extension-download-card extension-download-card--compact mobile-hidden">
         <div class="extension-download-card__content">
           <span class="extension-download-card__kicker">Extension LMS TVU</span>
           <h3>Tải Extension LMS</h3>
