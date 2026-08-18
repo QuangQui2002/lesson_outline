@@ -81,18 +81,6 @@ async function findOrCreateSubject(courseName) {
   throw lastError || new Error('Không kết nối được server backend.');
 }
 
-async function importCourseLessons(courseJson) {
-  const course = courseJson?.data || courseJson || {};
-  const courseName = course.fullname || course.name || ('Môn học ' + (course.id || '')).trim();
-  const { subject, backendUrl } = await findOrCreateSubject(courseName);
-  return requestBackendJson('/lesson-videos/import-course', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ subjectId: subject.id, ...courseJson })
-  }, backendUrl);
-}
-
-
 async function solveAttemptQuestions(attemptJson) {
   const payload = attemptJson?.data || attemptJson || {};
   return requestServerBackendJson('/attempt-answers/solve', {
@@ -227,14 +215,6 @@ async function importAttemptQuestions(reviewJson) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message?.type === 'IMPORT_COURSE_LESSON_VIDEOS') {
-    importCourseLessons(message.courseJson)
-      .then(data => sendResponse({ ok: true, data }))
-      .catch(error => sendResponse({ ok: false, message: error.message }));
-    return true;
-  }
-
-
   if (message?.type === 'SOLVE_ATTEMPT_QUESTIONS') {
     solveAttemptQuestions(message.attemptJson)
       .then(data => sendResponse({ ok: true, data }))

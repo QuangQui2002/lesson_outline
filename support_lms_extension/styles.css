@@ -1,4 +1,4 @@
-﻿#lesson-video-widget {
+﻿#lms-helper-widget {
   position: fixed;
   right: 18px;
   bottom: 18px;
@@ -13,7 +13,7 @@
   backdrop-filter: blur(16px);
 }
 
-.lesson-video-button {
+.lms-helper-button {
   display: grid;
   gap: 4px;
   width: 100%;
@@ -29,7 +29,7 @@
   overflow: hidden;
 }
 
-.lesson-video-button::after {
+.lms-helper-button::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -37,24 +37,20 @@
   pointer-events: none;
 }
 
-.lesson-video-button:hover {
+.lms-helper-button:hover {
   transform: translateY(-2px);
   filter: brightness(1.04);
 }
 
-.lesson-video-button:active {
+.lms-helper-button:active {
   transform: translateY(0);
 }
 
-.lesson-video-button--video {
-  background: linear-gradient(135deg, #4f46e5, #2563eb);
-}
-
-.lesson-video-button--question {
+.lms-helper-button--question {
   background: linear-gradient(135deg, #0f766e, #14b8a6);
 }
 
-.lesson-video-button span {
+.lms-helper-button span {
   font-size: 15px;
   font-weight: 900;
   letter-spacing: -0.01em;
@@ -62,7 +58,7 @@
   z-index: 1;
 }
 
-.lesson-video-button small {
+.lms-helper-button small {
   color: rgba(255, 255, 255, 0.84);
   font-size: 12px;
   font-weight: 650;
@@ -70,7 +66,7 @@
   z-index: 1;
 }
 
-#lesson-video-status {
+#lms-helper-status {
   position: relative;
   margin-top: 10px;
   padding: 10px 11px 10px 30px;
@@ -82,7 +78,7 @@
   border: 1px solid #e2e8f0;
 }
 
-#lesson-video-status::before {
+#lms-helper-status::before {
   content: "";
   position: absolute;
   left: 12px;
@@ -94,41 +90,41 @@
   box-shadow: 0 0 0 4px rgba(100, 116, 139, 0.12);
 }
 
-#lesson-video-status[data-type="success"] {
+#lms-helper-status[data-type="success"] {
   background: #ecfdf5;
   border-color: #bbf7d0;
   color: #15803d;
 }
 
-#lesson-video-status[data-type="success"]::before {
+#lms-helper-status[data-type="success"]::before {
   background: #22c55e;
   box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.14);
 }
 
-#lesson-video-status[data-type="error"] {
+#lms-helper-status[data-type="error"] {
   background: #fef2f2;
   border-color: #fecaca;
   color: #dc2626;
 }
 
-#lesson-video-status[data-type="error"]::before {
+#lms-helper-status[data-type="error"]::before {
   background: #ef4444;
   box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.14);
 }
 
-#lesson-video-status[data-type="loading"] {
+#lms-helper-status[data-type="loading"] {
   background: #fffbeb;
   border-color: #fde68a;
   color: #b45309;
 }
 
-#lesson-video-status[data-type="loading"]::before {
+#lms-helper-status[data-type="loading"]::before {
   background: #f59e0b;
   box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.16);
-  animation: lesson-video-pulse 1s ease-in-out infinite;
+  animation: lms-helper-pulse 1s ease-in-out infinite;
 }
 
-@keyframes lesson-video-pulse {
+@keyframes lms-helper-pulse {
   0%, 100% { transform: scale(1); opacity: 1; }
   50% { transform: scale(1.25); opacity: 0.65; }
 }
@@ -287,10 +283,6 @@
   font-weight: 900;
 }
 
-.popup-feature--video .popup-feature-icon {
-  background: linear-gradient(135deg, #4f46e5, #2563eb);
-}
-
 .popup-feature--question .popup-feature-icon {
   background: linear-gradient(135deg, #0f766e, #14b8a6);
 }
@@ -343,34 +335,6 @@
 .popup-status[data-type="success"] .popup-status-dot {
   background: #22c55e;
   box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.13);
-}
-
-#lesson-video-widget.lesson-video-widget--compact {
-  top: 84px;
-  right: 14px;
-  bottom: auto;
-  width: 190px;
-  padding: 8px;
-  border-radius: 16px;
-  opacity: 0.76;
-}
-
-#lesson-video-widget.lesson-video-widget--compact:hover {
-  opacity: 1;
-}
-
-#lesson-video-widget.lesson-video-widget--compact .lesson-video-button {
-  border-radius: 12px;
-  padding: 9px 10px;
-}
-
-#lesson-video-widget.lesson-video-widget--compact .lesson-video-button span {
-  font-size: 12px;
-}
-
-#lesson-video-widget.lesson-video-widget--compact .lesson-video-button small,
-#lesson-video-widget.lesson-video-widget--compact #lesson-video-status {
-  display: none;
 }
 
 .popup-body--compact {
@@ -472,10 +436,6 @@
   font-size: 12px;
 }
 
-.popup-action-btn--video span {
-  background: linear-gradient(135deg, #4f46e5, #2563eb);
-}
-
 .popup-action-btn--question span {
   background: linear-gradient(135deg, #0f766e, #14b8a6);
 }
@@ -513,7 +473,7 @@
   box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.13);
 }
 
-#lesson-video-widget.lesson-video-widget--mini {
+#lms-helper-widget.lms-helper-widget--mini {
   right: 14px;
   bottom: 14px;
   width: auto;
@@ -525,11 +485,11 @@
   box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
 }
 
-#lesson-video-widget.lesson-video-widget--mini:hover {
+#lms-helper-widget.lms-helper-widget--mini:hover {
   opacity: 1;
 }
 
-#lesson-video-widget.lesson-video-widget--mini .lesson-video-button {
+#lms-helper-widget.lms-helper-widget--mini .lms-helper-button {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -541,16 +501,16 @@
   white-space: nowrap;
 }
 
-#lesson-video-widget.lesson-video-widget--mini .lesson-video-button span {
+#lms-helper-widget.lms-helper-widget--mini .lms-helper-button span {
   font-size: 12px;
   line-height: 1;
 }
 
-#lesson-video-widget.lesson-video-widget--mini .lesson-video-button small {
+#lms-helper-widget.lms-helper-widget--mini .lms-helper-button small {
   display: none;
 }
 
-#lesson-video-widget.lesson-video-widget--mini #lesson-video-status {
+#lms-helper-widget.lms-helper-widget--mini #lms-helper-status {
   margin-top: 6px;
   padding: 6px 8px 6px 22px;
   border-radius: 10px;
@@ -558,26 +518,14 @@
   line-height: 1.25;
 }
 
-#lesson-video-widget.lesson-video-widget--mini #lesson-video-status::before {
+#lms-helper-widget.lms-helper-widget--mini #lms-helper-status::before {
   left: 8px;
   top: 10px;
   width: 6px;
   height: 6px;
 }
 
-#lesson-video-widget.lesson-video-widget--mini.lesson-video-widget--compact {
-  top: 76px;
-  right: 12px;
-  bottom: auto;
-  min-width: 104px;
-  max-width: 128px;
-}
-
-#lesson-video-widget.lesson-video-widget--mini.lesson-video-widget--compact #lesson-video-status {
-  display: none;
-}
-
-.lesson-video-button--answer {
+.lms-helper-button--answer {
   background: linear-gradient(135deg, #7c3aed, #db2777);
 }
 

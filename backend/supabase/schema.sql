@@ -138,36 +138,3 @@ create table if not exists public.api_daily_stats (
 
 alter table public.api_daily_stats enable row level security;
 
-create table if not exists public.lesson_videos (
-  id uuid primary key default gen_random_uuid(),
-  subject_id text not null references public.subjects(id) on delete cascade,
-  course_id bigint,
-  course_name text,
-  week_name text,
-  lesson_name text not null,
-  module_id bigint not null,
-  cmid bigint,
-  module_type text not null default 'L',
-  page_url text,
-  video_url text,
-  external_urls jsonb not null default '[]',
-  sort_order integer not null default 0,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  unique(subject_id, module_id)
-);
-
-create index if not exists lesson_videos_subject_id_idx on public.lesson_videos(subject_id);
-create index if not exists lesson_videos_module_id_idx on public.lesson_videos(module_id);
-create index if not exists lesson_videos_week_name_idx on public.lesson_videos(week_name);
-
-
-alter table public.lesson_videos enable row level security;
-
-drop policy if exists "Public read lesson videos" on public.lesson_videos;
-create policy "Public read lesson videos"
-  on public.lesson_videos
-  for select
-  using (true);
-
-

@@ -59,11 +59,4 @@ export default {
       ...importData
     }).then(res => res.data);
   },
-
-  // --- API Bài học video ---
-  getLessonVideos(subjectId = null) {
-    const params = {};
-    if (subjectId) params.subjectId = subjectId;
-    return apiClient.get('/lesson-videos', { params }).then(res => res.data);
-  },
 };
