@@ -47,12 +47,12 @@ function setupPageActions(tab) {
   importQuestions.disabled = pageType !== 'review';
   solveAttempt.disabled = pageType !== 'attempt';
 
-  if (pageType === 'review') currentPageType.textContent = 'Trang review: có thể lấy câu hỏi.';
+  if (pageType === 'review') currentPageType.textContent = 'Trang review: extension đang tự động import câu hỏi.';
   else if (pageType === 'attempt') currentPageType.textContent = 'Trang attempt: có thể nhờ AI trả lời.';
   else if (pageType === 'lms') currentPageType.textContent = 'Trang LMS: chưa đúng trang chức năng.';
   else currentPageType.textContent = 'Không phải trang LMS TVU.';
 
-  importQuestions.addEventListener('click', () => sendActionToActiveTab('RUN_IMPORT_REVIEW_QUESTIONS', 'Đã gửi lệnh lấy câu hỏi sang trang LMS.'));
+  importQuestions.addEventListener('click', () => sendActionToActiveTab('RUN_IMPORT_REVIEW_QUESTIONS', 'Đã gửi lệnh import lại câu hỏi sang trang LMS.'));
   solveAttempt.addEventListener('click', () => sendActionToActiveTab('RUN_SOLVE_ATTEMPT_QUESTIONS', 'Đã gửi lệnh nhờ AI trả lời attempt.'));
 }
 

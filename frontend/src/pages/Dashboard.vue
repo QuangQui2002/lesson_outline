@@ -227,9 +227,9 @@ export default {
       jsonImportText: '',
       jsonImportPreview: null,
       extensionInfo: {
-        version: '1.0.3',
+        version: '1.0.4',
         downloadUrl: '/downloads/support_lms_extension.zip',
-        note: 'Đã gỡ toàn bộ chức năng bài học video; chỉ còn câu hỏi và AI đáp án.'
+        note: 'Tự động import khi mở trang review, hiển thị số câu đã thêm và vị trí câu trùng.'
       },
       editingQuestion: null
     };

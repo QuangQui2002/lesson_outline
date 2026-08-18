@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "LMS TVU Question Helper",
-  "version": "1.0.3",
-  "description": "Lưu câu hỏi LMS TVU và hỗ trợ AI đáp án.",
+  "version": "1.0.4",
+  "description": "Tự động lưu câu hỏi review LMS TVU và hỗ trợ AI đáp án.",
   "permissions": [
     "storage",
     "tabs"

@@ -16,6 +16,10 @@ function isLiveAttemptPage() {
   return Boolean(getLiveAttemptIdFromUrl());
 }
 
+let reviewImportPromise = null;
+let autoImportedAttemptId = '';
+let importNotificationTimer = null;
+
 function setStatus(text, type = 'info') {
   const status = document.querySelector('#lms-helper-status');
   if (!status) return;
@@ -104,6 +108,68 @@ function sanitizeQuestionHtml(value = '') {
     node.replaceWith(fragment);
   });
   return template.innerHTML;
+}
+
+function getSkippedQuestionNumber(item = {}) {
+  return item.slot || Number(item.index) + 1 || '?';
+}
+
+function showImportNotification(result = {}, questionCount = 0) {
+  document.querySelector('#lms-import-notification')?.remove();
+  if (importNotificationTimer) clearTimeout(importNotificationTimer);
+
+  const skipped = Array.isArray(result.skipped) ? result.skipped : [];
+  const duplicates = skipped.filter(item => item.type === 'duplicate');
+  const otherSkipped = skipped.filter(item => item.type !== 'duplicate');
+  const importedCount = Number(result.importedCount) || 0;
+  const imageWarningCount = result.imageWarnings?.length || 0;
+  const type = imageWarningCount > 0
+    ? 'warning'
+    : importedCount > 0
+      ? 'success'
+      : duplicates.length > 0
+        ? 'warning'
+        : 'error';
+  const duplicateItems = duplicates.slice(0, 15).map(item => {
+    const similarity = item.similarity ? ' - giống ' + Math.round(item.similarity * 100) + '%' : '';
+    return '<li>Câu ' + escapeHtml(getSkippedQuestionNumber(item)) + escapeHtml(similarity) + '</li>';
+  }).join('');
+  const remainingDuplicates = duplicates.length > 15
+    ? '<li>Và ' + (duplicates.length - 15) + ' câu trùng khác.</li>'
+    : '';
+  const otherSkippedText = otherSkipped.length > 0
+    ? '<p>Bỏ qua khác: ' + otherSkipped.map(item => 'câu ' + escapeHtml(getSkippedQuestionNumber(item))).join(', ') + '.</p>'
+    : '';
+
+  const notification = document.createElement('section');
+  notification.id = 'lms-import-notification';
+  notification.dataset.type = type;
+  notification.innerHTML = '<div class="lms-import-notification__header"><strong>Kết quả import câu hỏi</strong><button type="button" aria-label="Đóng">&times;</button></div>'
+    + '<div class="lms-import-notification__body">'
+    + '<p>Đã import <strong>' + importedCount + '/' + questionCount + '</strong> câu hỏi.</p>'
+    + (duplicates.length > 0
+      ? '<p>Phát hiện <strong>' + duplicates.length + '</strong> câu trùng:</p><ul>' + duplicateItems + remainingDuplicates + '</ul>'
+      : '<p>Không phát hiện câu hỏi trùng.</p>')
+    + otherSkippedText
+    + (imageWarningCount > 0 ? '<p>Có ' + imageWarningCount + ' ảnh chưa lưu được.</p>' : '')
+    + '</div>';
+  document.body.appendChild(notification);
+
+  const closeNotification = () => {
+    notification.remove();
+    if (importNotificationTimer) clearTimeout(importNotificationTimer);
+    importNotificationTimer = null;
+  };
+  notification.querySelector('button').addEventListener('click', closeNotification);
+  importNotificationTimer = setTimeout(closeNotification, 30000);
+}
+
+function showImportErrorNotification(message) {
+  showImportNotification({ importedCount: 0, skipped: [], imageWarnings: [] }, 0);
+  const notification = document.querySelector('#lms-import-notification');
+  if (!notification) return;
+  notification.dataset.type = 'error';
+  notification.querySelector('.lms-import-notification__body').innerHTML = '<p>Lỗi: ' + escapeHtml(message) + '</p>';
 }
 
 function renderAiAnswerPanel(answers = [], meta = {}) {
@@ -216,7 +282,7 @@ async function collectAttemptReviewQuestions() {
   return { ...payload, questions, totalquestions: questions.length, totalpage: totalPage };
 }
 
-async function saveAttemptReviewQuestions() {
+async function performAttemptReviewImport() {
   let progressTimer = null;
   try {
     setStatus('B\u1eaft \u0111\u1ea7u l\u1ea5y c\u00e2u h\u1ecfi t\u1eeb LMS...', 'loading');
@@ -234,14 +300,44 @@ async function saveAttemptReviewQuestions() {
     const result = response.data?.data || {};
     const imageWarningCount = result.imageWarnings?.length || 0;
     const imageWarningText = imageWarningCount > 0 ? ' C\u00f3 ' + imageWarningCount + ' \u1ea3nh ch\u01b0a l\u01b0u \u0111\u01b0\u1ee3c.' : '';
-    setStatus('\u0110\u00e3 import ' + (result.importedCount || 0) + '/' + questionCount + ' c\u00e2u h\u1ecfi. B\u1ecf qua ' + (result.skippedCount || 0) + '.' + imageWarningText, imageWarningCount > 0 ? 'error' : 'success');
+    const duplicateCount = (result.skipped || []).filter(item => item.type === 'duplicate').length;
+    setStatus('\u0110\u00e3 import ' + (result.importedCount || 0) + '/' + questionCount + ' c\u00e2u h\u1ecfi. Tr\u00f9ng ' + duplicateCount + '.' + imageWarningText, imageWarningCount > 0 ? 'error' : 'success');
+    showImportNotification(result, questionCount);
   } catch (error) {
     setStatus('L\u1ed7i: ' + error.message, 'error');
+    showImportErrorNotification(error.message);
   } finally {
     if (progressTimer) clearInterval(progressTimer);
   }
 }
+
+async function saveAttemptReviewQuestions() {
+  if (reviewImportPromise) return reviewImportPromise;
+  reviewImportPromise = performAttemptReviewImport();
+  try {
+    return await reviewImportPromise;
+  } finally {
+    reviewImportPromise = null;
+  }
+}
+
+function autoImportReviewQuestions() {
+  if (window.top !== window) return;
+  const attemptId = getAttemptIdFromUrl();
+  if (!attemptId) {
+    autoImportedAttemptId = '';
+    return;
+  }
+  if (autoImportedAttemptId === attemptId) return;
+  autoImportedAttemptId = attemptId;
+  setStatus('Đã nhận diện trang review. Chuẩn bị tự động import...', 'loading');
+  setTimeout(() => {
+    if (getAttemptIdFromUrl() === attemptId) saveAttemptReviewQuestions();
+  }, 600);
+}
+
 function createFloatingButton() {
+  if (window.top !== window) return;
   const currentWidget = document.querySelector('#lms-helper-widget');
   const reviewPage = isAttemptReviewPage();
   const liveAttemptPage = isLiveAttemptPage();
@@ -269,13 +365,17 @@ function createFloatingButton() {
   document.querySelector('#lms-helper-button').addEventListener('click', handler);
 }
 createFloatingButton();
+autoImportReviewQuestions();
 
 function watchLmsNavigation() {
   let lastUrl = location.href;
   const refreshWidget = () => {
     if (lastUrl === location.href) return;
     lastUrl = location.href;
-    setTimeout(createFloatingButton, 250);
+    setTimeout(() => {
+      createFloatingButton();
+      autoImportReviewQuestions();
+    }, 250);
   };
 
   ['pushState', 'replaceState'].forEach(methodName => {

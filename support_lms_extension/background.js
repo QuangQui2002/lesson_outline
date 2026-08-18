@@ -34,7 +34,12 @@ async function requestJson(url, options = {}, timeoutMs = 15000) {
   } catch (error) {
     throw new Error('Phản hồi không phải JSON từ ' + url);
   }
-  if (!response.ok || data?.success === false) throw new Error(data?.message || 'Request lỗi ' + response.status);
+  if (!response.ok || data?.success === false) {
+    const requestError = new Error(data?.message || 'Request lỗi ' + response.status);
+    requestError.status = response.status;
+    requestError.responseData = data;
+    throw requestError;
+  }
   return data;
 }
 
@@ -200,11 +205,27 @@ async function importAttemptQuestions(reviewJson) {
   if (new TextEncoder().encode(requestBody).byteLength > REVIEW_IMPORT_BODY_MAX_BYTES) {
     throw new Error('Dữ liệu import vượt 9 MB. Hãy import ít câu hỏi hoặc ảnh nhỏ hơn.');
   }
-  const response = await requestJson(normalizeBackendUrl(backendUrl) + '/questions/import', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: requestBody
-  }, 180000);
+  let response;
+  try {
+    response = await requestJson(normalizeBackendUrl(backendUrl) + '/questions/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: requestBody
+    }, 180000);
+  } catch (error) {
+    const skipped = error.responseData?.skipped;
+    if (error.status !== 400 || !Array.isArray(skipped)) throw error;
+    response = {
+      success: true,
+      data: {
+        importedCount: 0,
+        skippedCount: skipped.length,
+        skipped,
+        questions: [],
+        imageWarnings: []
+      }
+    };
+  }
   if (payload.imageHydrationWarnings.length > 0 && response.data) {
     response.data.imageWarnings = [
       ...(response.data.imageWarnings || []),
