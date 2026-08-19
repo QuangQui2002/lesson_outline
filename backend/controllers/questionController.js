@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { appendQuestions, readDb, readSubjectImportDb, writeDb } from '../services/dbService.js';
 import {
   getQuestionById,
@@ -93,12 +94,19 @@ function prepareQuestionCandidate(question = {}) {
   return {
     ...question,
     normalizedContent,
+    imageKeys: question.imageKeys || extractQuestionImageKeys(question.content || ''),
     trigrams: question.trigrams || createTrigrams(normalizedContent)
   };
 }
 
+function hasSameQuestionImages(first, second) {
+  if (first.imageKeys.length !== second.imageKeys.length) return false;
+  return first.imageKeys.every((key, index) => key === second.imageKeys[index]);
+}
+
 function hasPotentialSimilarity(first, second) {
   if (!first || !second) return false;
+  if (!hasSameQuestionImages(first, second)) return false;
   const maxLength = Math.max(first.normalizedContent.length, second.normalizedContent.length);
   const minLength = Math.min(first.normalizedContent.length, second.normalizedContent.length);
   if (minLength / maxLength < DUPLICATE_SIMILARITY_THRESHOLD) return false;
@@ -201,6 +209,51 @@ function stripQuestionNumberPrefix(content = '') {
     .replace(/^\s*c(?:a|\u00e2)u\s*\d+\s*[:.\-)\u2013\u2014]?\s*/i, '')
     .replace(/^\s*\d+\s*\/\s*\d+\s*(?:\u0111i\u1ec3m|diem|point|points)\s*/i, '')
     .trim();
+}
+
+function decodeImageAttribute(value = '') {
+  const decodedEntities = String(value || '')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'");
+  try {
+    return decodeURIComponent(decodedEntities);
+  } catch (error) {
+    return decodedEntities;
+  }
+}
+
+function getImageTagAttribute(tag, attributeName) {
+  const pattern = new RegExp("\\s" + attributeName + "=[\"']([^\"']*)[\"']", 'i');
+  const match = String(tag || '').match(pattern);
+  return match ? decodeImageAttribute(match[1]).trim() : '';
+}
+
+function normalizeImageKey(value = '') {
+  const normalized = String(value || '').trim();
+  if (!normalized) return '';
+  if (normalized.startsWith('data:image/')) {
+    const base64 = normalized.slice(normalized.indexOf(',') + 1).replace(/\s+/g, '');
+    return 'sha256:' + createHash('sha256').update(Buffer.from(base64, 'base64')).digest('hex').slice(0, 24);
+  }
+  try {
+    const fileName = new URL(normalized).pathname.split('/').pop() || '';
+    const hashMatch = fileName.match(/^([a-f0-9]{24})\.[a-z0-9]+$/i);
+    if (hashMatch) return 'sha256:' + hashMatch[1].toLowerCase();
+  } catch (error) {
+  }
+  return normalized;
+}
+
+function extractQuestionImageKeys(content = '') {
+  const keys = [];
+  String(content || '').replace(/<img\b[^>]*>/gi, tag => {
+    const key = getImageTagAttribute(tag, 'data-image-key') || getImageTagAttribute(tag, 'src');
+    const normalizedKey = normalizeImageKey(key);
+    if (normalizedKey) keys.push(normalizedKey);
+    return tag;
+  });
+  return keys;
 }
 
 function stripHtmlPreservingImages(html = '') {
@@ -379,7 +432,7 @@ async function validateImportRequest(req) {
   const quizName = normalizeQuizName(req.body?.quizName || req.body?.quiz?.name);
   const rawSourceQuestions = Array.isArray(directQuestions) ? directQuestions : getQuestionArray(req.body);
   const importedImages = getImportedImageMap(req.body?.images);
-  const sourceQuestions = rawSourceQuestions;
+  const sourceQuestions = rawSourceQuestions.map(question => hydrateImportedQuestionImages(question, importedImages));
 
   if (!subjectId) {
     return { error: { status: 400, message: 'Vui l\u00f2ng ch\u1ecdn m\u00f4n h\u1ecdc tr\u01b0\u1edbc khi import.' } };

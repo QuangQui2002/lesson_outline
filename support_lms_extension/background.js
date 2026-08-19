@@ -168,6 +168,19 @@ async function fetchReviewImageToken(source, state) {
   return state.cache.get(imageUrl);
 }
 
+function replaceHtmlImageSource(value, source, replacement) {
+  const imageKey = encodeURIComponent(new URL(source, LMS_ORIGIN).toString());
+  return String(value || '').replace(/<img\b[^>]*>/gi, tag => {
+    const sourceMatch = tag.match(/\ssrc=["']([^"']*)["']/i);
+    if (!sourceMatch || sourceMatch[1] !== source) return tag;
+    let updatedTag = tag;
+    if (!/\sdata-image-key=["'][^"']*["']/i.test(updatedTag)) {
+      updatedTag = updatedTag.replace(/^<img\b/i, '<img data-image-key="' + imageKey + '"');
+    }
+    return updatedTag.replace(source, replacement);
+  });
+}
+
 async function hydrateHtmlImages(value, state) {
   let hydrated = String(value || '');
   const sources = extractHtmlImageSources(hydrated);
@@ -179,7 +192,7 @@ async function hydrateHtmlImages(value, state) {
       return { source, replacement: source };
     }
   }));
-  for (const result of results) hydrated = hydrated.split(result.source).join(result.replacement);
+  for (const result of results) hydrated = replaceHtmlImageSource(hydrated, result.source, result.replacement);
   return hydrated;
 }
 

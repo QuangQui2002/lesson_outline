@@ -117,6 +117,24 @@ function extractImageSources(value = '') {
   return [...new Set(sources.filter(Boolean))];
 }
 
+function getImageSourceKey(source = '') {
+  if (source.startsWith('data:image/')) {
+    const image = parseDataImage(source);
+    return 'sha256:' + createHash('sha256').update(image.data).digest('hex').slice(0, 24);
+  }
+  return source;
+}
+
+function annotateImageSource(value = '', source = '') {
+  const encodedKey = encodeURIComponent(getImageSourceKey(source));
+  return String(value || '').replace(/<img\b[^>]*>/gi, tag => {
+    if (/\sdata-image-key=["'][^"']*["']/i.test(tag)) return tag;
+    const sourceMatch = tag.match(/\ssrc=["']([^"']*)["']/i);
+    if (!sourceMatch || sourceMatch[1] !== source) return tag;
+    return tag.replace(/^<img\b/i, '<img data-image-key="' + encodedKey + '"');
+  });
+}
+
 export function getManagedImagePaths(value = '') {
   const paths = [];
   const urlPattern = /https:\/\/[^\s<>'"]+/gi;
@@ -212,6 +230,8 @@ export async function syncQuestionImages(question = {}) {
 
   for (const source of sources) {
     try {
+      content = annotateImageSource(content, source);
+      answer = annotateImageSource(answer, source);
       const uploaded = await uploadImageSource(source, question);
       content = content.split(source).join(uploaded.publicUrl);
       answer = answer.split(source).join(uploaded.publicUrl);
