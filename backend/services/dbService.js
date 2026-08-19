@@ -84,13 +84,11 @@ export function normalizeQuestionSearchText(value = '') {
 }
 
 export function questionMatchesSearch(question = {}, search = '') {
-  const tokens = normalizeQuestionSearchText(search).split(' ').filter(Boolean);
-  if (tokens.length === 0) return true;
-  const searchableText = normalizeQuestionSearchText([
-    question.content,
-    question.answer
-  ].filter(Boolean).join(' '));
-  return tokens.every(token => searchableText.includes(token));
+  const normalizedSearch = normalizeQuestionSearchText(search);
+  if (!normalizedSearch) return true;
+  const normalizedContent = normalizeQuestionSearchText(question.content);
+  const normalizedAnswer = normalizeQuestionSearchText(question.answer);
+  return normalizedContent.includes(normalizedSearch) || normalizedAnswer.includes(normalizedSearch);
 }
 
 function toQuestionPayload(question) {

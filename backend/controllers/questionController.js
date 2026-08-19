@@ -180,6 +180,7 @@ function hydrateImportedQuestionImages(question, images) {
     rightAnswer: replaceImportedImageTokens(question.rightAnswer, images),
     answertext: Array.isArray(question.answertext) ? question.answertext.map(answer => ({
       ...answer,
+      question: replaceImportedImageTokens(answer.question, images),
       answer: replaceImportedImageTokens(answer.answer, images),
       text: replaceImportedImageTokens(answer.text, images)
     })) : question.answertext
@@ -226,10 +227,42 @@ function removeAnswerOptionLinesFromQuestionHtml(content = '') {
   return parts.join('<br>').trim();
 }
 
+function getCompositeQuestionParts(answers = []) {
+  return answers
+    .map(answer => String(answer?.question || '').trim())
+    .filter(Boolean);
+}
+
+function buildCompositeQuestionContent(questionText, parts) {
+  const sections = parts.map(part => `<div><hr>${part}</div>`);
+  return [questionText, ...sections].filter(Boolean).join('\n').trim();
+}
+
+function buildCompositeQuestionAnswer(sourceQuestion, answers) {
+  const generalFeedback = String(sourceQuestion.generalfeedback || sourceQuestion.generalFeedback || '').trim();
+  if (generalFeedback) return generalFeedback;
+
+  const rightAnswer = String(sourceQuestion.rightanswer || sourceQuestion.rightAnswer || '').trim();
+  if (rightAnswer) return rightAnswer;
+
+  const answerItems = answers
+    .map((answer, index) => {
+      const value = stripHtmlPreservingImages(answer.answer || answer.text || '');
+      return value ? `${index + 1}. ${value}` : '';
+    })
+    .filter(Boolean);
+  return answerItems.join('<br>').trim();
+}
+
 function normalizeImportedQuestion(sourceQuestion, quizName = DEFAULT_QUIZ_NAME) {
   const rawQuestionContent = String(sourceQuestion.questiontext || sourceQuestion.questionText || sourceQuestion.content || '').trim();
-  const questionText = removeAnswerOptionLinesFromQuestionHtml(stripQuestionNumberPrefix(rawQuestionContent));
   const answers = Array.isArray(sourceQuestion.answertext) ? sourceQuestion.answertext : [];
+  const compositeParts = getCompositeQuestionParts(answers);
+  const isCompositeQuestion = compositeParts.length > 0;
+  const baseQuestionText = stripQuestionNumberPrefix(rawQuestionContent);
+  const questionText = isCompositeQuestion
+    ? buildCompositeQuestionContent(baseQuestionText, compositeParts)
+    : removeAnswerOptionLinesFromQuestionHtml(baseQuestionText);
 
   const correctAnswers = answers
     .filter(answer => answer.iscorrect === true || Number(answer.fraction) > 0)
@@ -240,7 +273,9 @@ function normalizeImportedQuestion(sourceQuestion, quizName = DEFAULT_QUIZ_NAME)
   const rightAnswer = stripHtmlPreservingImages(sourceQuestion.rightanswer || sourceQuestion.rightAnswer || '');
   const answerParts = [];
 
-  if (generalFeedback) {
+  if (isCompositeQuestion) {
+    answerParts.push(buildCompositeQuestionAnswer(sourceQuestion, answers));
+  } else if (generalFeedback) {
     answerParts.push(generalFeedback);
   } else if (rightAnswer) {
     answerParts.push(`Đáp án đúng là: ${rightAnswer}`);
@@ -250,7 +285,7 @@ function normalizeImportedQuestion(sourceQuestion, quizName = DEFAULT_QUIZ_NAME)
 
   return {
     content: questionText.trim(),
-    answer: answerParts.join('\n\n').trim(),
+    answer: answerParts.filter(Boolean).join('\n\n').trim(),
     quizName: normalizeQuizName(sourceQuestion.quizName || sourceQuestion.quiz?.name || quizName),
     tags: ['json', 'import', sourceQuestion.type || 'question'].filter(Boolean)
   };

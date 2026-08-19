@@ -91,15 +91,11 @@ as $$
   where (p_subject_id is null or question."subjectId" = p_subject_id)
     and (p_quiz_name is null or question."quizName" = p_quiz_name)
     and (
-      p_search is null or not exists (
-        select 1
-        from regexp_split_to_table(public.normalize_question_search_text(p_search), ' +') as token
-        where token <> ''
-          and not (
-            public.normalize_question_search_text(question.content) like '%' || token || '%'
-            or public.normalize_question_search_text(question.answer) like '%' || token || '%'
-          )
-      )
+      p_search is null
+      or public.normalize_question_search_text(question.content)
+        like '%' || public.normalize_question_search_text(p_search) || '%'
+      or public.normalize_question_search_text(question.answer)
+        like '%' || public.normalize_question_search_text(p_search) || '%'
     )
   order by question."createdAt" desc;
 $$;

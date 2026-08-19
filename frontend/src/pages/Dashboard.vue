@@ -227,9 +227,9 @@ export default {
       jsonImportText: '',
       jsonImportPreview: null,
       extensionInfo: {
-        version: '1.0.4',
+        version: '1.0.5',
         downloadUrl: '/downloads/support_lms_extension.zip',
-        note: 'Tự động import khi mở trang review, hiển thị số câu đã thêm và vị trí câu trùng.'
+        note: 'Import đủ mọi trang review, hỗ trợ câu hỏi select và bài đọc hiểu nhiều câu nhỏ.'
       },
       editingQuestion: null
     };

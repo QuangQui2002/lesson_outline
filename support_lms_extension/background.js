@@ -101,11 +101,16 @@ function compactReviewPayload(reviewJson = {}) {
     slot: question.slot || null,
     type: question.type || '',
     questiontext: question.questiontext || '',
+    rightanswer: question.rightanswer || '',
     answertext: Array.isArray(question.answertext) ? question.answertext.map(answer => ({
       id: answer.id || null,
+      question: answer.question || '',
       answer: answer.answer || answer.text || '',
+      text: answer.text || '',
       fraction: answer.fraction ?? null,
-      iscorrect: Boolean(answer.iscorrect)
+      iscorrect: Boolean(answer.iscorrect),
+      userselected: Boolean(answer.userselected),
+      type: answer.type || ''
     })) : [],
     generalfeedback: question.generalfeedback || ''
   })) : [];
@@ -188,7 +193,9 @@ async function hydrateReviewPayloadImages(payload) {
       generalfeedback: await hydrateHtmlImages(question.generalfeedback, state),
       answertext: await Promise.all((question.answertext || []).map(async answer => ({
         ...answer,
-        answer: await hydrateHtmlImages(answer.answer, state)
+        question: await hydrateHtmlImages(answer.question, state),
+        answer: await hydrateHtmlImages(answer.answer, state),
+        text: await hydrateHtmlImages(answer.text, state)
       })))
     });
   }
