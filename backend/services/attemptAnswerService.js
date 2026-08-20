@@ -1,5 +1,7 @@
 ﻿import { readDb } from './dbService.js';
 
+const STORED_QUESTION_SIMILARITY_THRESHOLD = 0.5;
+
 function decodeEntities(value = '') {
   return String(value || '')
     .replace(/&nbsp;/g, ' ')
@@ -32,32 +34,44 @@ function htmlToLines(value = '') {
 
 function normalizeQuestion(question = {}, index = 0) {
   const answers = Array.isArray(question.answertext) ? question.answertext : [];
+  const normalizedAnswers = answers.map((answer, answerIndex) => ({
+    id: answer.id || null,
+    label: String.fromCharCode(65 + answerIndex),
+    text: stripHtml(answer.answer || answer.text || ''),
+    questionText: stripHtml(answer.question || '')
+  })).filter(answer => answer.text || answer.questionText);
   return {
     id: question.id || null,
     slot: question.slot || index + 1,
     type: question.type || '',
     questionHtml: String(question.questiontext || question.content || '').trim(),
     questiontext: stripHtml(question.questiontext || question.content || ''),
-    answers: answers.map((answer, answerIndex) => ({
-      id: answer.id || null,
-      label: String.fromCharCode(65 + answerIndex),
-      text: stripHtml(answer.answer || answer.text || '')
-    })).filter(answer => answer.text)
+    answers: normalizedAnswers,
+    isComposite: normalizedAnswers.some(answer => answer.questionText)
   };
 }
 
 function buildPrompt(questions = []) {
   const questionText = questions.map(question => {
+    if (question.isComposite) {
+      const parts = question.answers
+        .filter(answer => answer.questionText)
+        .map(answer => answer.questionText)
+        .join('\n');
+      return `Cau ${question.slot} (id: ${question.id || 'N/A'}) - cau nhieu phan:\n${question.questiontext}\nCac cau con va lua chon:\n${parts}`;
+    }
     const answers = question.answers.map(answer => `${answer.label}. ${answer.text}`).join('\n');
     return `Cau ${question.slot} (id: ${question.id || 'N/A'}): ${question.questiontext}\n${answers}`;
   }).join('\n\n');
 
   return `Ban la tro ly hoc tap. Hay tra loi cac cau hoi trac nghiem sau bang tieng Viet.\n` +
     `Chi tra ve JSON hop le, khong markdown, khong chu ngoai JSON.\n` +
-    `Tra loi that ngan de JSON khong bi cat. Khong dung dau phay cuoi mang/object.\n` +
-    `Cau truc bat buoc: {"answers":[{"slot":1,"questionId":123,"answerLabel":"A","confidence":0.8,"explanation":"ngan gon"}]}\n` +
+    `Khong dung dau phay cuoi mang/object.\n` +
+    `Cau truc bat buoc: {"answers":[{"slot":1,"questionId":123,"answerLabel":"A","answerText":"noi dung dap an","confidence":0.8,"explanation":"giai thich"}]}\n` +
     `Giu nguyen slot va questionId dung nhu de bai da gui, khong danh so lai tu 1.\n` +
-    `Khong can tra answerText. Khong can tra answerId. Neu khong chac, van chon dap an hop ly nhat.\n\n${questionText}`;
+    `Voi cau thong thuong: tra answerLabel va answerText cua mot dap an dung.\n` +
+    `Voi cau nhieu phan: answerText phai liet ke day du dap an tung cau con theo dang "1. ...\\n2. ..."; explanation giai thich ngan gon tung cau con.\n` +
+    `Khong can tra answerId. Neu khong chac, van chon dap an hop ly nhat.\n\n${questionText}`;
 }
 
 function normalizeStoredQuestionForCompare(content = '') {
@@ -106,7 +120,8 @@ function getQuestionCompareText(question = {}) {
 }
 
 function extractStoredQuestionText(content = '') {
-  const lines = htmlToLines(content || '');
+  const baseContent = String(content || '').split(/<div>\s*<hr\b[^>]*>/i)[0];
+  const lines = htmlToLines(baseContent);
   const questionLines = [];
   for (const line of lines) {
     if (/^[A-Z]\s*[\.)]\s+/i.test(line)) break;
@@ -126,6 +141,10 @@ function extractStoredCorrectAnswer(answerText = '') {
   return (match?.[1] || cleanAnswer.split('\n')[0] || '').trim();
 }
 
+function formatStoredAnswer(answerText = '') {
+  return htmlToLines(answerText).join('\n') || stripHtml(answerText);
+}
+
 function findMatchingOption(question = {}, correctAnswerText = '') {
   const cleanCorrect = stripHtml(correctAnswerText || '').trim();
   if (!cleanCorrect) return null;
@@ -142,12 +161,23 @@ function findMatchingOption(question = {}, correctAnswerText = '') {
 
 function findStoredAnswer(question = {}, storedQuestions = []) {
   const questionCompareText = getQuestionCompareText(question);
-  let bestMatch = null;
-  for (const storedQuestion of storedQuestions) {
-    const storedQuestionText = extractStoredQuestionText(storedQuestion.content || '');
-    const similarity = calculateSimilarity(questionCompareText, storedQuestionText);
-    if (similarity >= 0.86 && (!bestMatch || similarity > bestMatch.similarity)) {
-      bestMatch = { storedQuestion, similarity, storedQuestionText };
+  const sourceMatches = question.id === null || question.id === undefined
+    ? []
+    : storedQuestions
+      .filter(storedQuestion => storedQuestion.sourceId !== null && storedQuestion.sourceId !== undefined &&
+        String(storedQuestion.sourceId) === String(question.id))
+      .sort((first, second) => new Date(second.createdAt || 0) - new Date(first.createdAt || 0));
+  let bestMatch = sourceMatches.length > 0
+    ? { storedQuestion: sourceMatches[0], similarity: 1 }
+    : null;
+
+  if (!bestMatch) {
+    for (const storedQuestion of storedQuestions) {
+      const storedQuestionText = extractStoredQuestionText(storedQuestion.content || '');
+      const similarity = calculateSimilarity(questionCompareText, storedQuestionText);
+      if (similarity >= STORED_QUESTION_SIMILARITY_THRESHOLD && (!bestMatch || similarity > bestMatch.similarity)) {
+        bestMatch = { storedQuestion, similarity };
+      }
     }
   }
   if (!bestMatch) return null;
@@ -163,6 +193,8 @@ function findStoredAnswer(question = {}, storedQuestions = []) {
     answerLabel: matchedOption?.label || '',
     answerId: matchedOption?.id || null,
     answerText: matchedOption?.text || correctAnswerText,
+    fullAnswerHtml: String(bestMatch.storedQuestion.answer || ''),
+    fullAnswerText: formatStoredAnswer(bestMatch.storedQuestion.answer || ''),
     confidence: Number(bestMatch.similarity.toFixed(2)),
     explanation: 'Tìm thấy câu hỏi trùng trong ngân hàng câu hỏi theo nội dung câu hỏi.'
   };

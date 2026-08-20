@@ -4,6 +4,7 @@ const LMS_ORIGIN = 'https://lms-tvu.onschool.edu.vn';
 const REVIEW_IMAGE_MAX_BYTES = 4 * 1024 * 1024;
 const REVIEW_IMAGES_TOTAL_MAX_BYTES = 6 * 1024 * 1024;
 const REVIEW_IMPORT_BODY_MAX_BYTES = 9 * 1024 * 1024;
+const fullAnswerCache = new Map();
 
 function normalizeBackendUrl(url = '') {
   return String(url || SERVER_BACKEND_URL).trim().replace(/\/+$/, '');
@@ -61,6 +62,162 @@ async function requestBackendJson(path, options = {}, backendUrl = '') {
   throw lastError || new Error('Không kết nối được server backend.');
 }
 
+function decodeHtmlEntities(value = '') {
+  return String(value || '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&#(x[0-9a-f]+|\d+);/gi, (match, code) => {
+      const number = code[0].toLowerCase() === 'x'
+        ? Number.parseInt(code.slice(1), 16)
+        : Number.parseInt(code, 10);
+      return Number.isInteger(number) && number >= 0 && number <= 0x10ffff
+        ? String.fromCodePoint(number)
+        : ' ';
+    });
+}
+
+function stripHtml(value = '') {
+  return decodeHtmlEntities(value)
+    .replace(/<br\s*\/?\s*>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function storedAnswerToText(value = '') {
+  return decodeHtmlEntities(String(value || '')
+    .replace(/<br\s*\/?\s*>/gi, '\n')
+    .replace(/<\/(p|div|li|tr|h[1-6])\s*>/gi, '\n')
+    .replace(/<[^>]+>/g, ' '))
+    .replace(/[^\S\r\n]+/g, ' ')
+    .replace(/ *\r?\n */g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function normalizeQuestionText(value = '') {
+  return stripHtml(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\u0111/g, 'd')
+    .replace(/\u0110/g, 'D')
+    .toLowerCase()
+    .replace(/^\s*cau\s*\d+\s*[:.\-) ]*/i, '')
+    .replace(/[^a-z0-9]+/g, '')
+    .trim();
+}
+
+function extractStoredQuestionText(content = '') {
+  const lines = decodeHtmlEntities(content)
+    .replace(/<br\s*\/?\s*>/gi, '\n')
+    .replace(/<\/p\s*>/gi, '\n')
+    .replace(/<\/div\s*>/gi, '\n')
+    .replace(/<\/li\s*>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .split(/\r?\n/)
+    .map(line => line.replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+  const questionLines = [];
+  for (const line of lines) {
+    if (/^[A-Z]\s*[.)]\s+/i.test(line)) break;
+    if (/^(\u0110\u00e1p \u00e1n \u0111\u00fang l\u00e0|Dap an dung la|V\u00ec|Vi|Tham kh\u1ea3o|Tham khao)\s*:/i.test(line)) break;
+    questionLines.push(line);
+  }
+  return (questionLines.join(' ') || stripHtml(content)).trim();
+}
+
+function createSearchQueries(questionText = '') {
+  const text = stripHtml(questionText)
+    .replace(/^\s*C(?:\u00e2|a)u\s*\d+\s*[:.\-) ]*/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const lengths = [220, 140, 80];
+  return [...new Set(lengths.map(length => {
+    if (text.length <= length) return text;
+    const chunk = text.slice(0, length + 1);
+    return chunk.slice(0, chunk.lastIndexOf(' ')).trim();
+  }).filter(query => query.length >= 12))];
+}
+
+function scoreStoredQuestion(answer = {}, question = {}) {
+  if (answer.questionId !== null && answer.questionId !== undefined &&
+      question.sourceId !== null && question.sourceId !== undefined &&
+      String(answer.questionId) === String(question.sourceId)) return 3;
+
+  const target = normalizeQuestionText(answer.questionText || answer.questionHtml || '');
+  const candidate = normalizeQuestionText(extractStoredQuestionText(question.content || ''));
+  if (!target || !candidate) return 0;
+  if (target === candidate) return 2;
+  if (target.includes(candidate) || candidate.includes(target)) {
+    return 1 + Math.min(target.length, candidate.length) / Math.max(target.length, candidate.length);
+  }
+
+  let matchingPrefixLength = 0;
+  const maxPrefixLength = Math.min(target.length, candidate.length);
+  while (matchingPrefixLength < maxPrefixLength && target[matchingPrefixLength] === candidate[matchingPrefixLength]) {
+    matchingPrefixLength += 1;
+  }
+  return matchingPrefixLength / Math.max(target.length, candidate.length);
+}
+
+async function fetchFullStoredAnswer(answer = {}) {
+  const normalizedQuestion = normalizeQuestionText(answer.questionText || answer.questionHtml || '');
+  const cacheKey = String(answer.questionId || '') + ':' + normalizedQuestion;
+  if (!normalizedQuestion) return null;
+  if (fullAnswerCache.has(cacheKey)) return fullAnswerCache.get(cacheKey);
+
+  const lookupPromise = (async () => {
+    for (const query of createSearchQueries(answer.questionText || answer.questionHtml || '')) {
+      const response = await requestServerBackendJson('/questions?search=' + encodeURIComponent(query) + '&limit=20', {}, 30000);
+      const questions = Array.isArray(response?.data) ? response.data : [];
+      const bestMatch = questions
+        .map(question => ({ question, score: scoreStoredQuestion(answer, question) }))
+        .sort((first, second) => second.score - first.score)[0];
+      if (bestMatch?.score >= 0.75 && bestMatch.question.answer) {
+        return {
+          html: String(bestMatch.question.answer),
+          text: storedAnswerToText(bestMatch.question.answer)
+        };
+      }
+    }
+    return null;
+  })().catch(() => null);
+
+  fullAnswerCache.set(cacheKey, lookupPromise);
+  return lookupPromise;
+}
+
+async function enrichStoredAnswers(response = {}) {
+  const result = response?.data;
+  if (!result || !Array.isArray(result.answers)) return response;
+  const answers = await Promise.all(result.answers.map(async answer => {
+    if (answer.source === 'database' && answer.fullAnswerHtml) return answer;
+    const storedAnswer = await fetchFullStoredAnswer(answer);
+    if (!storedAnswer) return answer;
+    return {
+      ...answer,
+      source: 'database',
+      fullAnswerHtml: storedAnswer.html,
+      fullAnswerText: storedAnswer.text,
+      confidence: answer.source === 'database' ? answer.confidence : 1,
+      explanation: 'T\u00ecm th\u1ea5y c\u00e2u h\u1ecfi trong ng\u00e2n h\u00e0ng c\u00e2u h\u1ecfi theo m\u00e3 ho\u1eb7c n\u1ed9i dung.'
+    };
+  }));
+  return {
+    ...response,
+    data: {
+      ...result,
+      databaseCount: answers.filter(answer => answer.source === 'database').length,
+      aiCount: answers.filter(answer => answer.source !== 'database').length,
+      answers
+    }
+  };
+}
+
 async function findOrCreateSubject(courseName) {
   const normalizedName = String(courseName || 'Môn học LMS').trim();
 
@@ -88,11 +245,12 @@ async function findOrCreateSubject(courseName) {
 
 async function solveAttemptQuestions(attemptJson) {
   const payload = attemptJson?.data || attemptJson || {};
-  return requestServerBackendJson('/attempt-answers/solve', {
+  const response = await requestServerBackendJson('/attempt-answers/solve', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   });
+  return enrichStoredAnswers(response);
 }
 function compactReviewPayload(reviewJson = {}) {
   const payload = reviewJson?.data || reviewJson || {};

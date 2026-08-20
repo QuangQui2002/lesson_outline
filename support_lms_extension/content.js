@@ -42,12 +42,141 @@ function escapeHtml(value = '') {
     .replace(/'/g, '&#39;');
 }
 
+function formatSimpleLatex(value = '') {
+  return String(value || '')
+    .replace(/\\left|\\right/g, '')
+    .replace(/\\times/g, '\u00d7')
+    .replace(/\\cdot/g, '\u00b7')
+    .replace(/\\leq?/g, '\u2264')
+    .replace(/\\geq?/g, '\u2265')
+    .replace(/\\neq/g, '\u2260')
+    .replace(/\\infty/g, '\u221e')
+    .replace(/\\pm/g, '\u00b1')
+    .replace(/\\([a-zA-Z]+)/g, '$1')
+    .replace(/[{}]/g, '')
+    .trim();
+}
+
+function getMatrixDelimiters(expression = '', environment = '') {
+  const delimiters = [];
+  if (/\\left\s*\[/.test(expression)) delimiters.push(['[', ']']);
+  else if (/\\left\s*\\\{/.test(expression)) delimiters.push(['{', '}']);
+  else if (/\\left\s*\|/.test(expression)) delimiters.push(['|', '|']);
+
+  const environmentDelimiters = {
+    pmatrix: ['(', ')'],
+    bmatrix: ['[', ']'],
+    Bmatrix: ['{', '}'],
+    vmatrix: ['|', '|'],
+    Vmatrix: ['\u2016', '\u2016']
+  };
+  if (environmentDelimiters[environment]) delimiters.push(environmentDelimiters[environment]);
+  return delimiters;
+}
+
+function createMatrixElement(expression = '', isBlock = false) {
+  const matrixMatch = String(expression).match(/\\begin\{(matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix)\}([\s\S]*?)\\end\{\1\}/);
+  if (!matrixMatch) return null;
+
+  const rows = matrixMatch[2]
+    .split(/\\\\/)
+    .map(row => row.split('&').map(cell => formatSimpleLatex(cell)))
+    .filter(row => row.some(Boolean));
+  if (rows.length === 0) return null;
+
+  const math = document.createElement('span');
+  math.className = isBlock ? 'lms-math lms-math--block' : 'lms-math';
+  const matrix = document.createElement('span');
+  matrix.className = 'lms-math-matrix';
+  const delimiters = getMatrixDelimiters(expression, matrixMatch[1]);
+
+  delimiters.forEach(([open]) => {
+    const delimiter = document.createElement('span');
+    delimiter.className = 'lms-math-delimiter';
+    delimiter.textContent = open;
+    matrix.appendChild(delimiter);
+  });
+
+  const table = document.createElement('table');
+  table.setAttribute('role', 'presentation');
+  rows.forEach(row => {
+    const tableRow = document.createElement('tr');
+    row.forEach(cell => {
+      const tableCell = document.createElement('td');
+      tableCell.textContent = cell;
+      tableRow.appendChild(tableCell);
+    });
+    table.appendChild(tableRow);
+  });
+  matrix.appendChild(table);
+
+  [...delimiters].reverse().forEach(([, close]) => {
+    const delimiter = document.createElement('span');
+    delimiter.className = 'lms-math-delimiter';
+    delimiter.textContent = close;
+    matrix.appendChild(delimiter);
+  });
+  math.appendChild(matrix);
+  return math;
+}
+
+function renderLatexTextNodes(root) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const textNodes = [];
+  while (walker.nextNode()) textNodes.push(walker.currentNode);
+
+  textNodes.forEach(node => {
+    if (node.parentElement?.closest('code, pre, .lms-math')) return;
+    const value = node.nodeValue || '';
+    const latexPattern = /\\\(([\s\S]+?)\\\)|\\\[([\s\S]+?)\\\]/g;
+    if (!latexPattern.test(value)) return;
+    latexPattern.lastIndex = 0;
+
+    const fragment = document.createDocumentFragment();
+    let lastIndex = 0;
+    value.replace(latexPattern, (match, inlineExpression, displayExpression, offset) => {
+      if (offset > lastIndex) fragment.appendChild(document.createTextNode(value.slice(lastIndex, offset)));
+      const expression = String(inlineExpression ?? displayExpression ?? '').trim();
+      const isBlock = displayExpression !== undefined;
+      let math = null;
+      if (globalThis.katex?.renderToString) {
+        math = document.createElement('span');
+        math.className = isBlock ? 'lms-math lms-math--block' : 'lms-math';
+        math.innerHTML = globalThis.katex.renderToString(expression, {
+          displayMode: isBlock,
+          throwOnError: false,
+          strict: 'ignore',
+          trust: false,
+          output: 'htmlAndMathml'
+        });
+      } else {
+        math = createMatrixElement(expression, isBlock);
+      }
+      if (math) fragment.appendChild(math);
+      else {
+        const fallback = document.createElement('span');
+        fallback.className = isBlock ? 'lms-math lms-math--block' : 'lms-math';
+        fallback.textContent = formatSimpleLatex(expression);
+        fragment.appendChild(fallback);
+      }
+      lastIndex = offset + match.length;
+      return match;
+    });
+    if (lastIndex < value.length) fragment.appendChild(document.createTextNode(value.slice(lastIndex)));
+    node.replaceWith(fragment);
+  });
+}
+
 function sanitizeQuestionHtml(value = '') {
   const raw = String(value || '').trim();
   if (!raw) return '';
   const template = document.createElement('template');
   template.innerHTML = raw;
-  const allowedTags = new Set(['BR', 'IMG', 'A', 'U', 'B', 'STRONG', 'I', 'EM', 'P', 'DIV', 'SPAN', 'CODE', 'PRE', 'SUP', 'SUB']);
+  const allowedTags = new Set([
+    'BR', 'IMG', 'A', 'U', 'B', 'STRONG', 'I', 'EM', 'P', 'DIV', 'SPAN', 'CODE', 'PRE', 'SUP', 'SUB',
+    'UL', 'OL', 'LI', 'BLOCKQUOTE', 'HR', 'TABLE', 'THEAD', 'TBODY', 'TFOOT', 'TR', 'TH', 'TD',
+    'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'MARK', 'S', 'DEL'
+  ]);
   template.content.querySelectorAll('*').forEach(element => {
     if (!allowedTags.has(element.tagName)) {
       element.replaceWith(document.createTextNode(element.textContent || ''));
@@ -107,6 +236,7 @@ function sanitizeQuestionHtml(value = '') {
     if (lastIndex < value.length) fragment.appendChild(document.createTextNode(value.slice(lastIndex)));
     node.replaceWith(fragment);
   });
+  renderLatexTextNodes(template.content);
   return template.innerHTML;
 }
 
@@ -183,12 +313,30 @@ function renderAiAnswerPanel(answers = [], meta = {}) {
   const answerItems = answers.length > 0
     ? answers.map(answer => {
       const questionHtml = sanitizeQuestionHtml(answer.questionHtml || answer.questionText || '');
+      const isDatabaseAnswer = answer.source === 'database';
+      if (!isDatabaseAnswer) {
+        return `
+        <div class="lms-ai-answer-item">
+          <strong>C\u00e2u ${escapeHtml(answer.slot)}: ${escapeHtml(answer.answerLabel || '')} <em>AI</em></strong>
+          ${questionHtml ? `<div class="lms-ai-question-text">${questionHtml}</div>` : ''}
+          <p>${escapeHtml(answer.answerText || 'Kh\u00f4ng c\u00f3 n\u1ed9i dung \u0111\u00e1p \u00e1n.')}</p>
+          ${answer.explanation ? `<small>${escapeHtml(answer.explanation)}</small>` : ''}
+        </div>`;
+      }
+
+      const answerValue = answer.fullAnswerText || answer.answerText || answer.answerLabel || 'Kh\u00f4ng c\u00f3 n\u1ed9i dung \u0111\u00e1p \u00e1n.';
+      const answerHtml = answer.fullAnswerHtml
+        ? sanitizeQuestionHtml(answer.fullAnswerHtml)
+        : sanitizeQuestionHtml(escapeHtml(answerValue));
       return `
       <div class="lms-ai-answer-item">
-        <strong>C\u00e2u ${escapeHtml(answer.slot)}: ${escapeHtml(answer.answerLabel || '')} <em>${answer.source === 'database' ? 'H\u1ec7 th\u1ed1ng' : 'AI'}</em></strong>
+        <strong>C\u00e2u ${escapeHtml(answer.slot)} <em>H\u1ec7 th\u1ed1ng</em></strong>
         ${questionHtml ? `<div class="lms-ai-question-text">${questionHtml}</div>` : ''}
-        <p>${escapeHtml(answer.answerText || 'Kh\u00f4ng c\u00f3 n\u1ed9i dung \u0111\u00e1p \u00e1n.')}</p>
-        ${answer.explanation ? `<small>${escapeHtml(answer.explanation)}</small>` : ''}
+        <div class="lms-ai-answer-result">
+          <span>\u0110\u00e1p \u00e1n \u0111\u00fang</span>
+          <div class="lms-ai-answer-content">${answerHtml}</div>
+        </div>
+        ${answer.explanation ? `<div class="lms-ai-answer-hint"><span>G\u1ee3i \u00fd \u0111\u00e1p \u00e1n</span><small>${escapeHtml(answer.explanation)}</small></div>` : ''}
       </div>`;
     }).join('')
     : '<p class="lms-ai-answer-empty">Ch\u01b0a c\u00f3 \u0111\u00e1p \u00e1n.</p>';

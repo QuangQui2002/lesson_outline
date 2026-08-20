@@ -746,19 +746,166 @@
   color: #2563eb;
   text-decoration: underline;
 }
-.lms-ai-answer-item p {
+
+.lms-ai-answer-item > p {
   margin: 0;
   color: #0f172a;
   font-size: 13px;
   line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
-.lms-ai-answer-item small {
+.lms-ai-answer-item > small {
   display: block;
   margin-top: 6px;
   color: #64748b;
   font-size: 12px;
   line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.lms-ai-answer-result {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+}
+
+.lms-ai-answer-result > span,
+.lms-ai-answer-hint > span {
+  display: block;
+  margin-bottom: 4px;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.lms-ai-answer-content {
+  margin: 0;
+  color: #047857;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.lms-ai-answer-content p {
+  margin: 0.35rem 0;
+}
+
+.lms-ai-answer-content ul,
+.lms-ai-answer-content ol {
+  margin: 0.4rem 0;
+  padding-left: 1.35rem;
+}
+
+.lms-ai-answer-content img {
+  display: block;
+  width: auto;
+  max-width: min(260px, 100%);
+  max-height: 180px;
+  height: auto;
+  object-fit: contain;
+  margin: 7px 0;
+  border-radius: 8px;
+  border: 1px solid #a7f3d0;
+  background: #fff;
+}
+
+.lms-ai-answer-content table:not([role="presentation"]) {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+
+.lms-ai-answer-content table:not([role="presentation"]) th,
+.lms-ai-answer-content table:not([role="presentation"]) td {
+  padding: 4px 6px;
+  border: 1px solid #6ee7b7;
+}
+
+.lms-math {
+  display: inline-flex;
+  max-width: 100%;
+  margin: 0 0.15em;
+  overflow-x: auto;
+  color: inherit;
+  font-family: "Times New Roman", serif;
+  font-weight: 500;
+  vertical-align: middle;
+}
+
+.lms-math--block {
+  display: flex;
+  margin: 0.5rem 0;
+  justify-content: center;
+}
+
+.lms-math .katex {
+  color: inherit;
+  font-size: 1.08em;
+}
+
+.lms-math-matrix {
+  display: inline-flex;
+  align-items: stretch;
+  width: max-content;
+}
+
+.lms-math-matrix table {
+  display: table;
+  width: auto;
+  margin: 0;
+  overflow: visible;
+  border: 0;
+  border-collapse: separate;
+  border-spacing: 9px 3px;
+  white-space: nowrap;
+}
+
+.lms-math-matrix td {
+  min-width: 12px;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  font-size: 14px;
+  line-height: 1.15;
+  text-align: center;
+}
+
+.lms-math-delimiter {
+  display: flex;
+  align-items: center;
+  color: inherit;
+  font-size: 34px;
+  font-weight: 400;
+  line-height: 1;
+  transform: scaleY(1.18);
+}
+
+.lms-ai-answer-hint {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.lms-ai-answer-hint small {
+  display: block;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .lms-ai-answer-empty {
