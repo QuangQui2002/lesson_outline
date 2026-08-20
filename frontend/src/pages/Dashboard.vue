@@ -3,7 +3,7 @@
     @open-add="openAddQuestionModal"
     @import-json="triggerJsonImport"
     @export-json="exportQuestionsJson"
-    @export-word="openWordExportModal"
+    @export-pdf="openPdfExportModal"
   >
     <!-- Slot danh sách môn học cho Sidebar -->
     <template #sidebar>
@@ -94,14 +94,14 @@
         </div>
       </div>
 
-      <WordExportModal
-        :is-open="isWordExportModalOpen"
+      <PdfExportModal
+        :is-open="isPdfExportModalOpen"
         :subjects="subjects"
         :quiz-names-by-subject="questionStats.quizNamesBySubject"
         :default-subject-id="activeSubjectId || ''"
-        :is-exporting="isExportingWord"
-        @close="closeWordExportModal"
-        @export="exportQuestionsWord"
+        :is-exporting="isExportingPdf"
+        @close="closePdfExportModal"
+        @export="exportQuestionsPdf"
       />
 
 
@@ -186,9 +186,9 @@ import SubjectList from '../components/SubjectList.vue';
 import QuestionList from '../components/QuestionList.vue';
 import QuestionModal from '../components/QuestionModal.vue';
 import HamsterLoading from '../components/HamsterLoading.vue';
-import WordExportModal from '../components/WordExportModal.vue';
+import PdfExportModal from '../components/PdfExportModal.vue';
 import api from '../services/api.js';
-import { createQuestionsWordBlob } from '../services/wordExport.js';
+import { createQuestionsPdfBlob } from '../services/pdfExport.js';
 import { useNotification } from '../composables/useNotification.js';
 
 export default {
@@ -199,7 +199,7 @@ export default {
     QuestionList,
     QuestionModal,
     HamsterLoading,
-    WordExportModal
+    PdfExportModal
   },
   data() {
     return {
@@ -222,12 +222,12 @@ export default {
       isQuestionModalOpen: false,
       isJsonImportModalOpen: false,
       isImportingJson: false,
-      isWordExportModalOpen: false,
-      isExportingWord: false,
+      isPdfExportModalOpen: false,
+      isExportingPdf: false,
       jsonImportText: '',
       jsonImportPreview: null,
       extensionInfo: {
-        version: '1.0.6',
+        version: '1.0.12',
         downloadUrl: '/downloads/support_lms_extension.zip',
         note: 'Hỗ trợ select, bài đọc hiểu nhiều câu nhỏ và kiểm tra trùng theo cả hình ảnh.'
       },
@@ -236,7 +236,7 @@ export default {
   },
   computed: {
     showGlobalLoading() {
-      return this.isActionLoading || this.isImportingJson || this.isExportingWord;
+      return this.isActionLoading || this.isImportingJson || this.isExportingPdf;
     },
     totalQuestions() {
       return this.questionStats.total;
@@ -428,14 +428,14 @@ export default {
       URL.revokeObjectURL(url);
       toast(`Đã xuất ${questionsToExport.length} câu hỏi ra JSON.`, 'success');
     },
-    openWordExportModal() {
-      this.isWordExportModalOpen = true;
+    openPdfExportModal() {
+      this.isPdfExportModalOpen = true;
     },
-    closeWordExportModal() {
-      if (this.isExportingWord) return;
-      this.isWordExportModalOpen = false;
+    closePdfExportModal() {
+      if (this.isExportingPdf) return;
+      this.isPdfExportModalOpen = false;
     },
-    async fetchQuestionsForWordExport(subjectId, quizName) {
+    async fetchQuestionsForPdfExport(subjectId, quizName) {
       const questions = [];
       const limit = 200;
       let offset = 0;
@@ -459,23 +459,23 @@ export default {
         .replace(/^-+|-+$/g, '')
         .toLowerCase() || fallback;
     },
-    async exportQuestionsWord({ subjectId, quizName }) {
+    async exportQuestionsPdf({ subjectId, quizName }) {
       const { toast } = useNotification();
       const subject = this.subjects.find(item => item.id === subjectId);
       const subjectLabel = subject?.name || 'Tất cả môn học';
       const quizLabel = quizName || 'Tất cả dạng bài tập';
 
-      this.isExportingWord = true;
-      this.loadingMessage = 'Đang tải dữ liệu và tạo file Word...';
+      this.isExportingPdf = true;
+      this.loadingMessage = 'Đang tải dữ liệu và tạo file PDF...';
       try {
-        const questions = await this.fetchQuestionsForWordExport(subjectId, quizName);
+        const questions = await this.fetchQuestionsForPdfExport(subjectId, quizName);
         if (questions.length === 0) {
-          toast('Không có câu hỏi phù hợp để xuất Word.', 'warning');
+          toast('Không có câu hỏi phù hợp để xuất PDF.', 'warning');
           return;
         }
 
         const subjectNames = Object.fromEntries(this.subjects.map(item => [item.id, item.name]));
-        const blob = await createQuestionsWordBlob({
+        const blob = await createQuestionsPdfBlob({
           questions,
           subjectNames,
           subjectLabel,
@@ -486,17 +486,17 @@ export default {
         const subjectPart = this.toSafeFilename(subjectLabel, 'tat-ca-mon');
         const quizPart = this.toSafeFilename(quizLabel, 'tat-ca-bai-tap');
         link.href = url;
-        link.download = subjectPart + '-' + quizPart + '-' + new Date().toISOString().slice(0, 10) + '.docx';
+        link.download = subjectPart + '-' + quizPart + '-' + new Date().toISOString().slice(0, 10) + '.pdf';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
-        this.isWordExportModalOpen = false;
-        toast('Đã xuất ' + questions.length + ' câu hỏi ra file Word.', 'success');
+        this.isPdfExportModalOpen = false;
+        toast('Đã xuất ' + questions.length + ' câu hỏi ra file PDF.', 'success');
       } catch (error) {
-        toast(error.response?.data?.message || error.message || 'Không thể xuất file Word.', 'error');
+        toast(error.response?.data?.message || error.message || 'Không thể xuất file PDF.', 'error');
       } finally {
-        this.isExportingWord = false;
+        this.isExportingPdf = false;
         this.loadingMessage = '';
       }
     },
