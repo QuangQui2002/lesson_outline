@@ -227,9 +227,9 @@ export default {
       jsonImportText: '',
       jsonImportPreview: null,
       extensionInfo: {
-        version: '1.0.12',
+        version: '1.0.15',
         downloadUrl: '/downloads/support_lms_extension.zip',
-        note: 'Hỗ trợ select, bài đọc hiểu nhiều câu nhỏ và kiểm tra trùng theo cả hình ảnh.'
+        note: 'Khớp chặt bài nghe theo nội dung và URL; câu MP3 chưa có dữ liệu sẽ không hiển thị đáp án.'
       },
       editingQuestion: null
     };

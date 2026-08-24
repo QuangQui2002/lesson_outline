@@ -701,6 +701,13 @@
   overflow-wrap: anywhere;
 }
 
+.lms-ai-question-text audio,
+.lms-ai-answer-content audio {
+  display: block;
+  width: min(100%, 440px);
+  margin: 8px 0;
+}
+
 .lms-ai-question-text img {
   display: block;
   width: auto;
@@ -950,3 +957,12 @@
 }
 
 
+
+.lms-ai-answer-item--unavailable {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+
+.lms-ai-answer-item--unavailable > strong em {
+  color: #b45309;
+}

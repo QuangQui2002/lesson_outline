@@ -173,7 +173,7 @@ function sanitizeQuestionHtml(value = '') {
   const template = document.createElement('template');
   template.innerHTML = raw;
   const allowedTags = new Set([
-    'BR', 'IMG', 'A', 'U', 'B', 'STRONG', 'I', 'EM', 'P', 'DIV', 'SPAN', 'CODE', 'PRE', 'SUP', 'SUB',
+    'BR', 'IMG', 'A', 'AUDIO', 'SOURCE', 'U', 'B', 'STRONG', 'I', 'EM', 'P', 'DIV', 'SPAN', 'CODE', 'PRE', 'SUP', 'SUB',
     'UL', 'OL', 'LI', 'BLOCKQUOTE', 'HR', 'TABLE', 'THEAD', 'TBODY', 'TFOOT', 'TR', 'TH', 'TD',
     'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'MARK', 'S', 'DEL'
   ]);
@@ -186,6 +186,11 @@ function sanitizeQuestionHtml(value = '') {
       const name = attribute.name.toLowerCase();
       const attrValue = attribute.value || '';
       if (element.tagName === 'IMG' && name === 'src' && /^(data:image\/|https:\/\/)/i.test(attrValue)) return;
+      if (element.tagName === 'AUDIO' && name === 'src' && /^https:\/\//i.test(attrValue)) return;
+      if (element.tagName === 'AUDIO' && name === 'controls') return;
+      if (element.tagName === 'AUDIO' && name === 'preload' && /^(none|metadata)$/i.test(attrValue)) return;
+      if (element.tagName === 'SOURCE' && name === 'src' && /^https:\/\//i.test(attrValue)) return;
+      if (element.tagName === 'SOURCE' && name === 'type' && /^audio\//i.test(attrValue)) return;
       if (element.tagName === 'A' && name === 'href' && /^https:\/\//i.test(attrValue)) return;
       if (element.tagName === 'A' && ['target', 'rel'].includes(name)) return;
       if (element.tagName === 'SPAN' && name === 'class' && /^(automslc-omml|math|math-inline|katex|katex-html|katex-mathml)$/i.test(attrValue)) return;
@@ -197,8 +202,19 @@ function sanitizeQuestionHtml(value = '') {
     }
   });
   const imageUrlPattern = /https:\/\/[^\s<>'"]+?\.(?:png|jpe?g|gif|webp)(?:\?[^\s<>'"]*)?/gi;
+  const audioUrlPattern = /https:\/\/[^\s<>'"]+?\.(?:mp3|m4a|aac|ogg|oga|wav|webm)(?:\?[^\s<>'"]*)?/gi;
   template.content.querySelectorAll('a[href]').forEach(link => {
     const href = link.getAttribute('href') || '';
+    if (audioUrlPattern.test(href)) {
+      audioUrlPattern.lastIndex = 0;
+      const audio = document.createElement('audio');
+      audio.src = href;
+      audio.controls = true;
+      audio.preload = 'metadata';
+      link.replaceWith(audio);
+      return;
+    }
+    audioUrlPattern.lastIndex = 0;
     if (!imageUrlPattern.test(href)) return;
     imageUrlPattern.lastIndex = 0;
     const wrapper = document.createElement('div');
@@ -211,7 +227,30 @@ function sanitizeQuestionHtml(value = '') {
     wrapper.appendChild(link.cloneNode(true));
     link.replaceWith(wrapper);
   });
-  const walker = document.createTreeWalker(template.content, NodeFilter.SHOW_TEXT);
+  const audioWalker = document.createTreeWalker(template.content, NodeFilter.SHOW_TEXT);
+  const audioTextNodes = [];
+  while (audioWalker.nextNode()) audioTextNodes.push(audioWalker.currentNode);
+  audioTextNodes.forEach(node => {
+    if (node.parentElement?.closest('audio, a')) return;
+    const value = node.nodeValue || '';
+    if (!audioUrlPattern.test(value)) return;
+    audioUrlPattern.lastIndex = 0;
+    const fragment = document.createDocumentFragment();
+    let lastIndex = 0;
+    value.replace(audioUrlPattern, (url, index) => {
+      if (index > lastIndex) fragment.appendChild(document.createTextNode(value.slice(lastIndex, index)));
+      const audio = document.createElement('audio');
+      audio.src = url;
+      audio.controls = true;
+      audio.preload = 'metadata';
+      fragment.appendChild(audio);
+      lastIndex = index + url.length;
+      return url;
+    });
+    if (lastIndex < value.length) fragment.appendChild(document.createTextNode(value.slice(lastIndex)));
+    node.replaceWith(fragment);
+  });
+    const walker = document.createTreeWalker(template.content, NodeFilter.SHOW_TEXT);
   const textNodes = [];
   while (walker.nextNode()) textNodes.push(walker.currentNode);
   textNodes.forEach(node => {
@@ -253,7 +292,8 @@ function showImportNotification(result = {}, questionCount = 0) {
   const otherSkipped = skipped.filter(item => item.type !== 'duplicate');
   const importedCount = Number(result.importedCount) || 0;
   const imageWarningCount = result.imageWarnings?.length || 0;
-  const type = imageWarningCount > 0
+  const audioWarningCount = result.audioWarnings?.length || 0;
+  const type = imageWarningCount > 0 || audioWarningCount > 0
     ? 'warning'
     : importedCount > 0
       ? 'success'
@@ -282,6 +322,7 @@ function showImportNotification(result = {}, questionCount = 0) {
       : '<p>Không phát hiện câu hỏi trùng.</p>')
     + otherSkippedText
     + (imageWarningCount > 0 ? '<p>Có ' + imageWarningCount + ' ảnh chưa lưu được.</p>' : '')
+    + (audioWarningCount > 0 ? '<p>Có ' + audioWarningCount + ' file âm thanh chưa lưu được; hệ thống vẫn giữ link LMS.</p>' : '')
     + '</div>';
   document.body.appendChild(notification);
 
@@ -314,6 +355,15 @@ function renderAiAnswerPanel(answers = [], meta = {}) {
     ? answers.map(answer => {
       const questionHtml = sanitizeQuestionHtml(answer.questionHtml || answer.questionText || '');
       const isDatabaseAnswer = answer.source === 'database';
+      const isUnavailable = answer.source === 'unavailable';
+      if (isUnavailable) {
+        return `
+        <div class="lms-ai-answer-item lms-ai-answer-item--unavailable">
+          <strong>C\u00e2u ${escapeHtml(answer.slot)} <em>Chưa có thông tin</em></strong>
+          ${questionHtml ? `<div class="lms-ai-question-text">${questionHtml}</div>` : ''}
+          <div class="lms-ai-answer-warning">Chưa tìm thấy câu hỏi có cùng nội dung và URL âm thanh trong Lesson Outline.</div>
+        </div>`;
+      }
       if (!isDatabaseAnswer) {
         return `
         <div class="lms-ai-answer-item">
@@ -400,7 +450,7 @@ async function solveLiveAttemptQuestions() {
     const response = await chrome.runtime.sendMessage({ type: 'SOLVE_ATTEMPT_QUESTIONS', attemptJson });
     if (!response?.ok) throw new Error(response?.message || 'Không lấy được đáp án AI.');
     const result = response.data?.data || {};
-    const answers = result.answers || [];
+    const answers = (result.answers || []).filter(answer => answer.source !== 'unavailable');
     renderAiAnswerPanel(answers, result);
     setStatus('Đã nhận ' + answers.length + ' đáp án (' + (result.databaseCount || 0) + ' từ hệ thống, ' + (result.aiCount || 0) + ' từ AI).', 'success');
   } catch (error) {
@@ -447,9 +497,12 @@ async function performAttemptReviewImport() {
     if (!response?.ok) throw new Error(response?.message || 'Kh\u00f4ng import \u0111\u01b0\u1ee3c c\u00e2u h\u1ecfi review.');
     const result = response.data?.data || {};
     const imageWarningCount = result.imageWarnings?.length || 0;
+    const audioWarningCount = result.audioWarnings?.length || 0;
     const imageWarningText = imageWarningCount > 0 ? ' C\u00f3 ' + imageWarningCount + ' \u1ea3nh ch\u01b0a l\u01b0u \u0111\u01b0\u1ee3c.' : '';
+    const audioWarningText = audioWarningCount > 0 ? ' C\u00f3 ' + audioWarningCount + ' \u00e2m thanh ch\u01b0a l\u01b0u \u0111\u01b0\u1ee3c.' : '';
     const duplicateCount = (result.skipped || []).filter(item => item.type === 'duplicate').length;
-    setStatus('\u0110\u00e3 import ' + (result.importedCount || 0) + '/' + questionCount + ' c\u00e2u h\u1ecfi. Tr\u00f9ng ' + duplicateCount + '.' + imageWarningText, imageWarningCount > 0 ? 'error' : 'success');
+    const hasMediaWarning = imageWarningCount > 0 || audioWarningCount > 0;
+    setStatus('\u0110\u00e3 import ' + (result.importedCount || 0) + '/' + questionCount + ' c\u00e2u h\u1ecfi. Tr\u00f9ng ' + duplicateCount + '.' + imageWarningText + audioWarningText, hasMediaWarning ? 'error' : 'success');
     showImportNotification(result, questionCount);
   } catch (error) {
     setStatus('L\u1ed7i: ' + error.message, 'error');

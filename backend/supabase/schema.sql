@@ -25,6 +25,13 @@ on conflict (id) do update set
   file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
 
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('question-audio', 'question-audio', true, 33554432, array['audio/*', 'application/octet-stream'])
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
 create index if not exists questions_subject_id_idx on public.questions("subjectId");
 create index if not exists questions_quiz_name_idx on public.questions("quizName");
 create index if not exists questions_created_at_idx on public.questions("createdAt");

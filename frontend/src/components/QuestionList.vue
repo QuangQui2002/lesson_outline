@@ -88,7 +88,7 @@ import 'katex/dist/katex.min.css';
 import { useNotification } from '../composables/useNotification.js';
 
 const ALLOWED_CONTENT_TAGS = new Set([
-  'BR', 'IMG', 'A', 'U', 'B', 'STRONG', 'I', 'EM', 'P', 'DIV', 'SPAN', 'CODE', 'PRE', 'SUP', 'SUB',
+  'BR', 'IMG', 'A', 'AUDIO', 'SOURCE', 'U', 'B', 'STRONG', 'I', 'EM', 'P', 'DIV', 'SPAN', 'CODE', 'PRE', 'SUP', 'SUB',
   'UL', 'OL', 'LI', 'BLOCKQUOTE', 'HR', 'TABLE', 'THEAD', 'TBODY', 'TFOOT', 'TR', 'TH', 'TD',
   'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'MARK', 'S', 'DEL'
 ]);
@@ -218,6 +218,11 @@ export default {
           const attrValue = attribute.value || '';
           if (element.tagName === 'IMG' && name === 'src' && /^(data:image\/|https:\/\/)/i.test(attrValue)) return;
           if (element.tagName === 'IMG' && ['alt', 'title'].includes(name)) return;
+          if (element.tagName === 'AUDIO' && name === 'src' && /^https:\/\//i.test(attrValue)) return;
+          if (element.tagName === 'AUDIO' && name === 'controls') return;
+          if (element.tagName === 'AUDIO' && name === 'preload' && /^(none|metadata)$/i.test(attrValue)) return;
+          if (element.tagName === 'SOURCE' && name === 'src' && /^https:\/\//i.test(attrValue)) return;
+          if (element.tagName === 'SOURCE' && name === 'type' && /^audio\//i.test(attrValue)) return;
           if (element.tagName === 'A' && name === 'href' && /^https:\/\//i.test(attrValue)) return;
           if (element.tagName === 'A' && ['target', 'rel', 'title'].includes(name)) return;
           if (['TH', 'TD'].includes(element.tagName) && ['colspan', 'rowspan'].includes(name) && /^\d+$/.test(attrValue)) return;
@@ -230,8 +235,19 @@ export default {
         }
       });
       const imageUrlPattern = /https:\/\/[^\s<>'"]+?\.(?:png|jpe?g|gif|webp)(?:\?[^\s<>'"]*)?/gi;
+      const audioUrlPattern = /https:\/\/[^\s<>'"]+?\.(?:mp3|m4a|aac|ogg|oga|wav|webm)(?:\?[^\s<>'"]*)?/gi;
       template.content.querySelectorAll('a[href]').forEach(link => {
         const href = link.getAttribute('href') || '';
+        if (audioUrlPattern.test(href)) {
+          audioUrlPattern.lastIndex = 0;
+          const audio = document.createElement('audio');
+          audio.src = href;
+          audio.controls = true;
+          audio.preload = 'metadata';
+          link.replaceWith(audio);
+          return;
+        }
+        audioUrlPattern.lastIndex = 0;
         if (!imageUrlPattern.test(href)) return;
         imageUrlPattern.lastIndex = 0;
         const wrapper = document.createElement('div');
@@ -243,6 +259,29 @@ export default {
         wrapper.appendChild(image);
         wrapper.appendChild(link.cloneNode(true));
         link.replaceWith(wrapper);
+      });
+      const audioWalker = document.createTreeWalker(template.content, NodeFilter.SHOW_TEXT);
+      const audioTextNodes = [];
+      while (audioWalker.nextNode()) audioTextNodes.push(audioWalker.currentNode);
+      audioTextNodes.forEach(node => {
+        if (node.parentElement?.closest('audio, a')) return;
+        const value = node.nodeValue || '';
+        if (!audioUrlPattern.test(value)) return;
+        audioUrlPattern.lastIndex = 0;
+        const fragment = document.createDocumentFragment();
+        let lastIndex = 0;
+        value.replace(audioUrlPattern, (url, index) => {
+          if (index > lastIndex) fragment.appendChild(document.createTextNode(value.slice(lastIndex, index)));
+          const audio = document.createElement('audio');
+          audio.src = url;
+          audio.controls = true;
+          audio.preload = 'metadata';
+          fragment.appendChild(audio);
+          lastIndex = index + url.length;
+          return url;
+        });
+        if (lastIndex < value.length) fragment.appendChild(document.createTextNode(value.slice(lastIndex)));
+        node.replaceWith(fragment);
       });
       const walker = document.createTreeWalker(template.content, NodeFilter.SHOW_TEXT);
       const textNodes = [];

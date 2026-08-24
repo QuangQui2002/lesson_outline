@@ -1,5 +1,6 @@
 function decodeHtmlText(html = '') {
   const normalizedHtml = String(html || '')
+    .replace(/<audio\b[\s\S]*?<\/audio>/gi, '\n[Âm thanh]\n')
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/(p|div|li|tr|h[1-6])>/gi, '\n');
 

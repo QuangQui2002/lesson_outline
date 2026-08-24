@@ -676,6 +676,13 @@ button, input, textarea, select {
   overflow-wrap: anywhere;
 }
 
+.question-content audio,
+.question-answer-content audio {
+  display: block;
+  width: min(100%, 520px);
+  margin: 0.75rem 0;
+}
+
 .question-content img {
   display: block;
   width: auto;

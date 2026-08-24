@@ -5,6 +5,7 @@ const REVIEW_IMAGE_MAX_BYTES = 4 * 1024 * 1024;
 const REVIEW_IMAGES_TOTAL_MAX_BYTES = 6 * 1024 * 1024;
 const REVIEW_IMPORT_BODY_MAX_BYTES = 9 * 1024 * 1024;
 const fullAnswerCache = new Map();
+const AUDIO_URL_PATTERN = /https:\/\/[^\s<>'"]+?\.(?:mp3|m4a|aac|ogg|oga|wav|webm)(?:\?[^\s<>'"]*)?/gi;
 
 function normalizeBackendUrl(url = '') {
   return String(url || SERVER_BACKEND_URL).trim().replace(/\/+$/, '');
@@ -88,6 +89,82 @@ function stripHtml(value = '') {
     .trim();
 }
 
+function decodeAudioKey(value = '') {
+  const decoded = decodeHtmlEntities(value).trim();
+  try {
+    return decodeURIComponent(decoded);
+  } catch (error) {
+    return decoded;
+  }
+}
+
+function isAudioUrl(value = '') {
+  AUDIO_URL_PATTERN.lastIndex = 0;
+  const matched = AUDIO_URL_PATTERN.test(String(value || '').trim());
+  AUDIO_URL_PATTERN.lastIndex = 0;
+  return matched;
+}
+
+function getTagAttribute(tag = '', name = '') {
+  const match = String(tag || '').match(new RegExp(`\\s${name}=["']([^"']*)["']`, 'i'));
+  return match ? decodeAudioKey(match[1]) : '';
+}
+
+function extractAudioKeys(value = '') {
+  const html = String(value || '');
+  const keys = [];
+  let remaining = html.replace(/<audio\b[\s\S]*?<\/audio>/gi, audioHtml => {
+    const openingTag = audioHtml.match(/<audio\b[^>]*>/i)?.[0] || '';
+    const storedKey = getTagAttribute(openingTag, 'data-audio-key');
+    if (storedKey) {
+      keys.push(storedKey);
+      return ' ';
+    }
+    const source = getTagAttribute(openingTag, 'src');
+    if (source) keys.push(source);
+    return ' ';
+  });
+  remaining = remaining.replace(/<a\b[^>]*href=["']([^"']+)["'][^>]*>[\s\S]*?<\/a>/gi, (link, href) => {
+    const source = decodeAudioKey(href);
+    if (isAudioUrl(source)) keys.push(source);
+    return ' ';
+  });
+  remaining.match(AUDIO_URL_PATTERN)?.forEach(source => keys.push(decodeAudioKey(source)));
+  return [...new Set(keys.filter(Boolean))];
+}
+
+function removeAudioUrls(value = '') {
+  return String(value || '').replace(AUDIO_URL_PATTERN, ' ');
+}
+
+function hasSameAudioKeys(firstValue = '', secondValue = '') {
+  const firstKeys = extractAudioKeys(firstValue);
+  const secondKeys = extractAudioKeys(secondValue);
+  if (firstKeys.length !== secondKeys.length) return false;
+  return firstKeys.every((key, index) => key === secondKeys[index]);
+}
+
+function removeAudioMarkup(value = '') {
+  return removeAudioUrls(String(value || '')
+    .replace(/<audio\b[\s\S]*?<\/audio>/gi, ' ')
+    .replace(/<a\b[^>]*href=["'][^"']+\.(?:mp3|m4a|aac|ogg|oga|wav|webm)(?:\?[^"']*)?["'][^>]*>[\s\S]*?<\/a>/gi, ' '));
+}
+
+function extractQuestionStem(value = '') {
+  const text = decodeHtmlEntities(removeAudioMarkup(value))
+    .replace(/<br\s*\/?\s*>/gi, '\n')
+    .replace(/<\/(p|div|li)\s*>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ');
+  const lines = text.split(/\r?\n/).map(line => line.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const stemLines = [];
+  for (const line of lines) {
+    if (/^\d+\s*[.)]\s+/i.test(line)) break;
+    if (/^[A-Z]\s*[.)]\s+/i.test(line)) break;
+    stemLines.push(line);
+  }
+  return (stemLines.join(' ') || stripHtml(removeAudioMarkup(value))).replace(/\s+/g, ' ').trim();
+}
+
 function storedAnswerToText(value = '') {
   return decodeHtmlEntities(String(value || '')
     .replace(/<br\s*\/?\s*>/gi, '\n')
@@ -100,7 +177,7 @@ function storedAnswerToText(value = '') {
 }
 
 function normalizeQuestionText(value = '') {
-  return stripHtml(value)
+  return extractQuestionStem(value)
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/\u0111/g, 'd')
@@ -127,11 +204,11 @@ function extractStoredQuestionText(content = '') {
     if (/^(\u0110\u00e1p \u00e1n \u0111\u00fang l\u00e0|Dap an dung la|V\u00ec|Vi|Tham kh\u1ea3o|Tham khao)\s*:/i.test(line)) break;
     questionLines.push(line);
   }
-  return (questionLines.join(' ') || stripHtml(content)).trim();
+  return removeAudioUrls(questionLines.join(' ') || stripHtml(content)).replace(/\s+/g, ' ').trim();
 }
 
 function createSearchQueries(questionText = '') {
-  const text = stripHtml(questionText)
+  const text = extractQuestionStem(questionText)
     .replace(/^\s*C(?:\u00e2|a)u\s*\d+\s*[:.\-) ]*/i, '')
     .replace(/\s+/g, ' ')
     .trim();
@@ -144,29 +221,39 @@ function createSearchQueries(questionText = '') {
 }
 
 function scoreStoredQuestion(answer = {}, question = {}) {
-  if (answer.questionId !== null && answer.questionId !== undefined &&
-      question.sourceId !== null && question.sourceId !== undefined &&
-      String(answer.questionId) === String(question.sourceId)) return 3;
+  const answerContent = answer.questionHtml || answer.questionText || '';
+  const audioKeys = extractAudioKeys(answerContent);
+  if (!hasSameAudioKeys(answerContent, question.content || '')) return 0;
 
-  const target = normalizeQuestionText(answer.questionText || answer.questionHtml || '');
+  const target = normalizeQuestionText(answerContent);
   const candidate = normalizeQuestionText(extractStoredQuestionText(question.content || ''));
   if (!target || !candidate) return 0;
-  if (target === candidate) return 2;
-  if (target.includes(candidate) || candidate.includes(target)) {
-    return 1 + Math.min(target.length, candidate.length) / Math.max(target.length, candidate.length);
+
+  let score = 0;
+  if (target === candidate) score = 2;
+  else if (target.includes(candidate) || candidate.includes(target)) {
+    score = 1 + Math.min(target.length, candidate.length) / Math.max(target.length, candidate.length);
+  } else {
+    let matchingPrefixLength = 0;
+    const maxPrefixLength = Math.min(target.length, candidate.length);
+    while (matchingPrefixLength < maxPrefixLength && target[matchingPrefixLength] === candidate[matchingPrefixLength]) {
+      matchingPrefixLength += 1;
+    }
+    score = matchingPrefixLength / Math.max(target.length, candidate.length);
   }
 
-  let matchingPrefixLength = 0;
-  const maxPrefixLength = Math.min(target.length, candidate.length);
-  while (matchingPrefixLength < maxPrefixLength && target[matchingPrefixLength] === candidate[matchingPrefixLength]) {
-    matchingPrefixLength += 1;
-  }
-  return matchingPrefixLength / Math.max(target.length, candidate.length);
+  if (audioKeys.length > 0 && score < 1.85) return 0;
+  if (audioKeys.length === 0 && score < 0.5) return 0;
+  const sameSourceId = answer.questionId !== null && answer.questionId !== undefined
+    && question.sourceId !== null && question.sourceId !== undefined
+    && String(answer.questionId) === String(question.sourceId);
+  return score + (sameSourceId ? 0.02 : 0);
 }
 
 async function fetchFullStoredAnswer(answer = {}) {
-  const normalizedQuestion = normalizeQuestionText(answer.questionText || answer.questionHtml || '');
-  const cacheKey = String(answer.questionId || '') + ':' + normalizedQuestion;
+  const normalizedQuestion = normalizeQuestionText(answer.questionHtml || answer.questionText || '');
+  const audioKey = extractAudioKeys(answer.questionHtml || answer.questionText || '').join('|');
+  const cacheKey = String(answer.questionId || '') + ':' + normalizedQuestion + ':' + audioKey;
   if (!normalizedQuestion) return null;
   if (fullAnswerCache.has(cacheKey)) return fullAnswerCache.get(cacheKey);
 
@@ -177,7 +264,7 @@ async function fetchFullStoredAnswer(answer = {}) {
       const bestMatch = questions
         .map(question => ({ question, score: scoreStoredQuestion(answer, question) }))
         .sort((first, second) => second.score - first.score)[0];
-      if (bestMatch?.score >= 0.75 && bestMatch.question.answer) {
+      if (bestMatch?.score >= 0.5 && bestMatch.question.answer) {
         return {
           html: String(bestMatch.question.answer),
           text: storedAnswerToText(bestMatch.question.answer)
@@ -197,6 +284,19 @@ async function enrichStoredAnswers(response = {}) {
   const answers = await Promise.all(result.answers.map(async answer => {
     if (answer.source === 'database' && answer.fullAnswerHtml) return answer;
     const storedAnswer = await fetchFullStoredAnswer(answer);
+    if (!storedAnswer && extractAudioKeys(answer.questionHtml || answer.questionText || '').length > 0) {
+      return {
+        ...answer,
+        source: 'unavailable',
+        answerLabel: '',
+        answerId: null,
+        answerText: 'Chưa có thông tin trong Lesson Outline.',
+        fullAnswerHtml: '',
+        fullAnswerText: '',
+        confidence: null,
+        explanation: ''
+      };
+    }
     if (!storedAnswer) return answer;
     return {
       ...answer,
@@ -212,7 +312,8 @@ async function enrichStoredAnswers(response = {}) {
     data: {
       ...result,
       databaseCount: answers.filter(answer => answer.source === 'database').length,
-      aiCount: answers.filter(answer => answer.source !== 'database').length,
+      aiCount: answers.filter(answer => answer.source === 'ai').length,
+      unavailableCount: answers.filter(answer => answer.source === 'unavailable').length,
       answers
     }
   };

@@ -16,6 +16,12 @@ import {
   deleteQuestionImageFolder,
   syncQuestionImages
 } from '../services/questionImageService.js';
+import {
+  cleanupReplacedQuestionAudio,
+  deleteManagedAudio,
+  deleteQuestionAudioFolder,
+  syncQuestionAudio
+} from '../services/questionAudioService.js';
 
 function stripHtml(html = '') {
   return String(html)
@@ -44,8 +50,10 @@ function normalizeQuizName(quizName = '') {
 function normalizeQuestionForCompare(content = '') {
   return String(content)
     .replace(/<img\b[^>]*>/gi, ' ')
+    .replace(/<audio\b[\s\S]*?<\/audio>/gi, ' ')
     .replace(/data:image\/[a-zA-Z0-9.+-]+;base64,[a-zA-Z0-9+/=\r\n]+/gi, ' ')
     .replace(/https:\/\/[^\s<>'"]+?\.(?:png|jpe?g|gif|webp|svg|bmp)(?:\?[^\s<>'"]*)?/gi, ' ')
+    .replace(/https:\/\/[^\s<>'"]+?\.(?:mp3|m4a|aac|ogg|oga|wav|webm)(?:\?[^\s<>'"]*)?/gi, ' ')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/đ/g, 'd')
@@ -95,18 +103,21 @@ function prepareQuestionCandidate(question = {}) {
     ...question,
     normalizedContent,
     imageKeys: question.imageKeys || extractQuestionImageKeys(question.content || ''),
+    audioKeys: question.audioKeys || extractQuestionAudioKeys(question.content || ''),
     trigrams: question.trigrams || createTrigrams(normalizedContent)
   };
 }
 
-function hasSameQuestionImages(first, second) {
+function hasSameQuestionMedia(first, second) {
   if (first.imageKeys.length !== second.imageKeys.length) return false;
-  return first.imageKeys.every((key, index) => key === second.imageKeys[index]);
+  if (!first.imageKeys.every((key, index) => key === second.imageKeys[index])) return false;
+  if (first.audioKeys.length !== second.audioKeys.length) return false;
+  return first.audioKeys.every((key, index) => key === second.audioKeys[index]);
 }
 
 function hasPotentialSimilarity(first, second) {
   if (!first || !second) return false;
-  if (!hasSameQuestionImages(first, second)) return false;
+  if (!hasSameQuestionMedia(first, second)) return false;
   const maxLength = Math.max(first.normalizedContent.length, second.normalizedContent.length);
   const minLength = Math.min(first.normalizedContent.length, second.normalizedContent.length);
   if (minLength / maxLength < DUPLICATE_SIMILARITY_THRESHOLD) return false;
@@ -134,7 +145,7 @@ function yieldToEventLoop() {
   return new Promise(resolve => setImmediate(resolve));
 }
 
-async function findSimilarQuestion(content, questions, excludeId = null) {
+async function findSimilarQuestion(content, questions, excludeId = null, similarityThreshold = DUPLICATE_SIMILARITY_THRESHOLD) {
   let bestMatch = null;
   const target = prepareQuestionCandidate({ content });
 
@@ -143,7 +154,7 @@ async function findSimilarQuestion(content, questions, excludeId = null) {
     if (excludeId && question.id === excludeId) continue;
     if (!hasPotentialSimilarity(target, question)) continue;
     const similarity = calculateQuestionSimilarity(target.normalizedContent, question.normalizedContent);
-    if (similarity >= DUPLICATE_SIMILARITY_THRESHOLD && (!bestMatch || similarity > bestMatch.similarity)) {
+    if (similarity >= similarityThreshold && (!bestMatch || similarity > bestMatch.similarity)) {
       bestMatch = {
         id: question.id,
         content: question.content,
@@ -154,6 +165,27 @@ async function findSimilarQuestion(content, questions, excludeId = null) {
   }
 
   return bestMatch;
+}
+
+async function findExactQuestion(content, questions, excludeId = null) {
+  const target = prepareQuestionCandidate({ content });
+
+  for (let index = 0; index < questions.length; index += 1) {
+    const question = prepareQuestionCandidate(questions[index]);
+    const isExcluded = excludeId && question.id === excludeId;
+    const isExactMatch = target.normalizedContent === question.normalizedContent
+      && hasSameQuestionMedia(target, question);
+    if (!isExcluded && isExactMatch) {
+      return {
+        id: question.id,
+        content: question.content,
+        similarity: 1
+      };
+    }
+    if (index > 0 && index % 200 === 0) await yieldToEventLoop();
+  }
+
+  return null;
 }
 function getQuestionArray(importPayload, subjectId = '', subjectName = '') {
   if (Array.isArray(importPayload)) return importPayload;
@@ -256,16 +288,67 @@ function extractQuestionImageKeys(content = '') {
   return keys;
 }
 
+function isAudioUrl(value = '') {
+  return /^https:\/\/[^\s<>'"]+?\.(?:mp3|m4a|aac|ogg|oga|wav|webm)(?:\?[^\s<>'"]*)?$/i.test(String(value || '').trim());
+}
+
+function normalizeAudioKey(value = '') {
+  let normalized = decodeImageAttribute(value).trim();
+  if (!normalized) return '';
+  try {
+    normalized = decodeURIComponent(normalized);
+  } catch (error) {}
+  return normalized;
+}
+
+function extractQuestionAudioKeys(content = '') {
+  const keys = [];
+  String(content || '').replace(/<audio\b[^>]*>/gi, tag => {
+    const key = getImageTagAttribute(tag, 'data-audio-key') || getImageTagAttribute(tag, 'src');
+    const normalizedKey = normalizeAudioKey(key);
+    if (normalizedKey) keys.push(normalizedKey);
+    return tag;
+  });
+  String(content || '').replace(/<a\b[^>]*href=["']([^"']+)["'][^>]*>/gi, (tag, href) => {
+    const normalizedKey = normalizeAudioKey(href);
+    if (isAudioUrl(normalizedKey)) keys.push(normalizedKey);
+    return tag;
+  });
+  return [...new Set(keys)];
+}
+
+function escapeHtmlAttribute(value = '') {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function createAudioPlayer(source = '') {
+  const normalizedSource = normalizeAudioKey(source);
+  const escapedSource = escapeHtmlAttribute(normalizedSource);
+  const audioKey = escapeHtmlAttribute(encodeURIComponent(normalizedSource));
+  return `<audio controls preload="metadata" src="${escapedSource}" data-audio-key="${audioKey}"></audio>`;
+}
+
+function normalizeQuestionAudioHtml(content = '') {
+  return String(content || '').replace(/<a\b[^>]*href=["']([^"']+)["'][^>]*>[\s\S]*?<\/a>/gi, (link, href) => {
+    const source = normalizeAudioKey(href);
+    return isAudioUrl(source) ? createAudioPlayer(source) : link;
+  });
+}
+
 function stripHtmlPreservingImages(html = '') {
-  const images = [];
-  const textWithTokens = String(html || '').replace(/<img\b[^>]*>/gi, image => {
-    const token = `QUESTIONIMAGETOKEN${images.length}END`;
-    images.push(image);
+  const media = [];
+  const textWithTokens = String(html || '').replace(/<img\b[^>]*>|<audio\b[\s\S]*?<\/audio>/gi, item => {
+    const token = `QUESTIONMEDIATOKEN${media.length}END`;
+    media.push(item);
     return '\n' + token + '\n';
   });
   let text = stripHtml(textWithTokens);
-  images.forEach((image, index) => {
-    text = text.replace(`QUESTIONIMAGETOKEN${index}END`, image);
+  media.forEach((item, index) => {
+    text = text.replace(`QUESTIONMEDIATOKEN${index}END`, item);
   });
   return text.trim();
 }
@@ -308,14 +391,16 @@ function buildCompositeQuestionAnswer(sourceQuestion, answers) {
 }
 
 function normalizeImportedQuestion(sourceQuestion, quizName = DEFAULT_QUIZ_NAME) {
-  const rawQuestionContent = String(sourceQuestion.questiontext || sourceQuestion.questionText || sourceQuestion.content || '').trim();
+  const rawQuestionContent = normalizeQuestionAudioHtml(
+    String(sourceQuestion.questiontext || sourceQuestion.questionText || sourceQuestion.content || '').trim()
+  );
   const answers = Array.isArray(sourceQuestion.answertext) ? sourceQuestion.answertext : [];
   const compositeParts = getCompositeQuestionParts(answers);
   const isCompositeQuestion = compositeParts.length > 0;
   const baseQuestionText = stripQuestionNumberPrefix(rawQuestionContent);
-  const questionText = isCompositeQuestion
+  const questionText = normalizeQuestionAudioHtml(isCompositeQuestion
     ? buildCompositeQuestionContent(baseQuestionText, compositeParts)
-    : removeAnswerOptionLinesFromQuestionHtml(baseQuestionText);
+    : removeAnswerOptionLinesFromQuestionHtml(baseQuestionText));
 
   const correctAnswers = answers
     .filter(answer => answer.iscorrect === true || Number(answer.fraction) > 0)
@@ -357,7 +442,7 @@ async function buildImportAnalysis(sourceQuestions, existingQuestions, subjectId
       continue;
     }
 
-    const duplicateQuestion = await findSimilarQuestion(normalized.content, candidates);
+    const duplicateQuestion = await findExactQuestion(normalized.content, candidates);
     if (duplicateQuestion) {
       skipped.push({
         index,
@@ -397,19 +482,34 @@ async function buildImportAnalysis(sourceQuestions, existingQuestions, subjectId
   };
 }
 
-async function syncImportedQuestionImages(questions, importedImages, concurrency = 3) {
+async function syncImportedQuestionMedia(questions, importedImages, concurrency = 3) {
   const syncedQuestions = [];
-  const uploadedPaths = [];
+  const uploadedImagePaths = [];
+  const uploadedAudioPaths = [];
   const imageWarnings = [];
+  const audioWarnings = [];
 
   for (let index = 0; index < questions.length; index += concurrency) {
     const batch = questions.slice(index, index + concurrency);
     const hydratedBatch = batch.map(question => hydrateImportedQuestionImages(question, importedImages));
-    const results = await Promise.allSettled(hydratedBatch.map(question => syncQuestionImages(question)));
-    const batchUploadedPaths = results.flatMap(result => result.status === 'fulfilled' ? result.value.uploadedPaths : []);
+    const results = await Promise.allSettled(hydratedBatch.map(async question => {
+      const imageSync = await syncQuestionImages(question);
+      try {
+        const audioSync = await syncQuestionAudio(imageSync.question);
+        return { question: audioSync.question, imageSync, audioSync };
+      } catch (error) {
+        await deleteManagedImages(imageSync.uploadedPaths);
+        throw error;
+      }
+    }));
+    const batchImagePaths = results.flatMap(result => result.status === 'fulfilled' ? result.value.imageSync.uploadedPaths : []);
+    const batchAudioPaths = results.flatMap(result => result.status === 'fulfilled' ? result.value.audioSync.uploadedPaths : []);
     const rejectedResult = results.find(result => result.status === 'rejected');
     if (rejectedResult) {
-      await deleteManagedImages([...uploadedPaths, ...batchUploadedPaths]);
+      await Promise.all([
+        deleteManagedImages([...uploadedImagePaths, ...batchImagePaths]),
+        deleteManagedAudio([...uploadedAudioPaths, ...batchAudioPaths])
+      ]);
       throw rejectedResult.reason;
     }
 
@@ -417,14 +517,16 @@ async function syncImportedQuestionImages(questions, importedImages, concurrency
       const result = results[resultIndex];
       const question = batch[resultIndex];
       syncedQuestions.push(result.value.question);
-      uploadedPaths.push(...result.value.uploadedPaths);
-      imageWarnings.push(...result.value.failures.map(failure => ({ questionId: question.id, ...failure })));
+      uploadedImagePaths.push(...result.value.imageSync.uploadedPaths);
+      uploadedAudioPaths.push(...result.value.audioSync.uploadedPaths);
+      imageWarnings.push(...result.value.imageSync.failures.map(failure => ({ questionId: question.id, ...failure })));
+      audioWarnings.push(...result.value.audioSync.failures.map(failure => ({ questionId: question.id, ...failure })));
     }
 
     await yieldToEventLoop();
   }
 
-  return { syncedQuestions, uploadedPaths, imageWarnings };
+  return { syncedQuestions, uploadedImagePaths, uploadedAudioPaths, imageWarnings, audioWarnings };
 }
 
 async function validateImportRequest(req) {
@@ -491,6 +593,7 @@ export async function getQuestionStats(req, res, next) {
 export async function createQuestion(req, res, next) {
   try {
     const { subjectId, content, answer, tags, quizName } = req.body;
+    const normalizedContent = normalizeQuestionAudioHtml(content);
 
     if (!subjectId) {
       return res.status(400).json({ success: false, message: 'ID môn học là bắt buộc' });
@@ -506,7 +609,7 @@ export async function createQuestion(req, res, next) {
       return res.status(400).json({ success: false, message: 'Môn học không tồn tại trong hệ thống' });
     }
 
-    const duplicateQuestion = await findSimilarQuestion(content, await listQuestionCandidates());
+    const duplicateQuestion = await findSimilarQuestion(normalizedContent, await listQuestionCandidates());
     if (duplicateQuestion) {
       const percent = Math.round(duplicateQuestion.similarity * 100);
       return res.status(409).json({
@@ -527,7 +630,7 @@ export async function createQuestion(req, res, next) {
     const newQuestion = {
       id: 'q_' + Date.now(),
       subjectId: subjectId,
-      content: content.trim(),
+      content: normalizedContent.trim(),
       answer: answer.trim(),
       quizName: normalizeQuizName(quizName),
       tags: processedTags,
@@ -535,11 +638,21 @@ export async function createQuestion(req, res, next) {
     };
 
     const imageSync = await syncQuestionImages(newQuestion);
-    let createdQuestion;
+    let audioSync;
     try {
-      createdQuestion = await insertQuestion(imageSync.question);
+      audioSync = await syncQuestionAudio(imageSync.question);
     } catch (error) {
       await deleteManagedImages(imageSync.uploadedPaths);
+      throw error;
+    }
+    let createdQuestion;
+    try {
+      createdQuestion = await insertQuestion(audioSync.question);
+    } catch (error) {
+      await Promise.all([
+        deleteManagedImages(imageSync.uploadedPaths),
+        deleteManagedAudio(audioSync.uploadedPaths)
+      ]);
       throw error;
     }
 
@@ -547,7 +660,8 @@ export async function createQuestion(req, res, next) {
       success: true,
       message: 'Thêm câu hỏi thành công',
       data: createdQuestion,
-      imageWarnings: imageSync.failures
+      imageWarnings: imageSync.failures,
+      audioWarnings: audioSync.failures
     });
   } catch (error) {
     next(error);
@@ -581,7 +695,8 @@ export async function updateQuestion(req, res, next) {
         return res.status(400).json({ success: false, message: 'Nội dung câu hỏi không được để trống' });
       }
 
-      const duplicateQuestion = await findSimilarQuestion(content, await listQuestionCandidates(id));
+      const normalizedContent = normalizeQuestionAudioHtml(content);
+      const duplicateQuestion = await findSimilarQuestion(normalizedContent, await listQuestionCandidates(id));
       if (duplicateQuestion) {
         const percent = Math.round(duplicateQuestion.similarity * 100);
         return res.status(409).json({
@@ -591,7 +706,7 @@ export async function updateQuestion(req, res, next) {
         });
       }
 
-      changes.content = content.trim();
+      changes.content = normalizedContent.trim();
     }
 
     if (answer !== undefined) {
@@ -625,26 +740,43 @@ export async function updateQuestion(req, res, next) {
       content: changes.content ?? existingQuestion.content,
       answer: changes.answer ?? existingQuestion.answer
     });
-    changes.content = imageSync.question.content;
-    changes.answer = imageSync.question.answer;
+    let audioSync;
+    try {
+      audioSync = await syncQuestionAudio(imageSync.question);
+    } catch (error) {
+      await deleteManagedImages(imageSync.uploadedPaths);
+      throw error;
+    }
+    changes.content = audioSync.question.content;
+    changes.answer = audioSync.question.answer;
 
     let updatedQuestion;
     try {
       updatedQuestion = await updateQuestionById(id, changes);
     } catch (error) {
-      await deleteManagedImages(imageSync.uploadedPaths);
+      await Promise.all([
+        deleteManagedImages(imageSync.uploadedPaths),
+        deleteManagedAudio(audioSync.uploadedPaths)
+      ]);
       throw error;
     }
-    const cleanupResult = await cleanupReplacedQuestionImages(existingQuestion, updatedQuestion);
-    if (cleanupResult.error) {
-      console.error('[question-images] Failed to remove replaced images:', cleanupResult.error.message);
+    const [imageCleanup, audioCleanup] = await Promise.all([
+      cleanupReplacedQuestionImages(existingQuestion, updatedQuestion),
+      cleanupReplacedQuestionAudio(existingQuestion, updatedQuestion)
+    ]);
+    if (imageCleanup.error) {
+      console.error('[question-images] Failed to remove replaced images:', imageCleanup.error.message);
+    }
+    if (audioCleanup.error) {
+      console.error('[question-audio] Failed to remove replaced audio:', audioCleanup.error.message);
     }
 
     res.json({
       success: true,
       message: 'Cập nhật câu hỏi thành công',
       data: updatedQuestion,
-      imageWarnings: imageSync.failures
+      imageWarnings: imageSync.failures,
+      audioWarnings: audioSync.failures
     });
   } catch (error) {
     next(error);
@@ -663,17 +795,27 @@ export async function deleteQuestion(req, res, next) {
     if (!await removeQuestion(req.params.id)) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy câu hỏi' });
     }
-    const cleanupResult = await deleteQuestionImageFolder(existingQuestion);
-    if (cleanupResult.error) {
-      console.error('[question-images] Failed to remove deleted question images:', cleanupResult.error.message);
+    const [imageCleanup, audioCleanup] = await Promise.all([
+      deleteQuestionImageFolder(existingQuestion),
+      deleteQuestionAudioFolder(existingQuestion)
+    ]);
+    if (imageCleanup.error) {
+      console.error('[question-images] Failed to remove deleted question images:', imageCleanup.error.message);
+    }
+    if (audioCleanup.error) {
+      console.error('[question-audio] Failed to remove deleted question audio:', audioCleanup.error.message);
     }
 
     res.json({
       success: true,
       message: 'Xóa câu hỏi thành công!',
       imageCleanup: {
-        deletedCount: cleanupResult.deletedCount,
-        success: !cleanupResult.error
+        deletedCount: imageCleanup.deletedCount,
+        success: !imageCleanup.error
+      },
+      audioCleanup: {
+        deletedCount: audioCleanup.deletedCount,
+        success: !audioCleanup.error
       }
     });
   } catch (error) {
@@ -736,7 +878,13 @@ export async function importQuestions(req, res, next) {
       });
     }
 
-    const { syncedQuestions, uploadedPaths, imageWarnings } = await syncImportedQuestionImages(
+    const {
+      syncedQuestions,
+      uploadedImagePaths,
+      uploadedAudioPaths,
+      imageWarnings,
+      audioWarnings
+    } = await syncImportedQuestionMedia(
       importedQuestions,
       validation.importedImages
     );
@@ -744,7 +892,10 @@ export async function importQuestions(req, res, next) {
     try {
       await appendQuestions(syncedQuestions);
     } catch (error) {
-      await deleteManagedImages(uploadedPaths);
+      await Promise.all([
+        deleteManagedImages(uploadedImagePaths),
+        deleteManagedAudio(uploadedAudioPaths)
+      ]);
       throw error;
     }
 
@@ -756,7 +907,8 @@ export async function importQuestions(req, res, next) {
         skippedCount: skipped.length,
         skipped,
         questions: syncedQuestions,
-        imageWarnings
+        imageWarnings,
+        audioWarnings
       }
     });
   } catch (error) {

@@ -1,6 +1,7 @@
 ﻿import { readDb } from './dbService.js';
 
 const STORED_QUESTION_SIMILARITY_THRESHOLD = 0.5;
+const AUDIO_URL_PATTERN = /https:\/\/[^\s<>'"]+?\.(?:mp3|m4a|aac|ogg|oga|wav|webm)(?:\?[^\s<>'"]*)?/gi;
 
 function decodeEntities(value = '') {
   return String(value || '')
@@ -20,6 +21,88 @@ function stripHtml(value = '') {
     .trim();
 }
 
+function decodeAudioKey(value = '') {
+  const decoded = decodeEntities(value).trim();
+  try {
+    return decodeURIComponent(decoded);
+  } catch (error) {
+    return decoded;
+  }
+}
+
+function isAudioUrl(value = '') {
+  AUDIO_URL_PATTERN.lastIndex = 0;
+  const matched = AUDIO_URL_PATTERN.test(String(value || '').trim());
+  AUDIO_URL_PATTERN.lastIndex = 0;
+  return matched;
+}
+
+function getTagAttribute(tag = '', name = '') {
+  const match = String(tag || '').match(new RegExp(`\\s${name}=["']([^"']*)["']`, 'i'));
+  return match ? decodeAudioKey(match[1]) : '';
+}
+
+function extractAudioKeys(value = '') {
+  const html = String(value || '');
+  const keys = [];
+  let remaining = html.replace(/<audio\b[\s\S]*?<\/audio>/gi, audioHtml => {
+    const openingTag = audioHtml.match(/<audio\b[^>]*>/i)?.[0] || '';
+    const storedKey = getTagAttribute(openingTag, 'data-audio-key');
+    if (storedKey) {
+      keys.push(storedKey);
+      return ' ';
+    }
+    const audioSource = getTagAttribute(openingTag, 'src');
+    if (audioSource) keys.push(audioSource);
+    audioHtml.replace(/<source\b[^>]*>/gi, sourceTag => {
+      const source = getTagAttribute(sourceTag, 'src');
+      if (source) keys.push(source);
+      return sourceTag;
+    });
+    return ' ';
+  });
+  remaining = remaining.replace(/<a\b[^>]*href=["']([^"']+)["'][^>]*>[\s\S]*?<\/a>/gi, (link, href) => {
+    const source = decodeAudioKey(href);
+    if (isAudioUrl(source)) keys.push(source);
+    return ' ';
+  });
+  remaining.match(AUDIO_URL_PATTERN)?.forEach(source => keys.push(decodeAudioKey(source)));
+  return [...new Set(keys.filter(Boolean))];
+}
+
+function removeAudioUrls(value = '') {
+  return String(value || '').replace(AUDIO_URL_PATTERN, ' ');
+}
+
+function hasSameAudioKeys(firstValue = '', secondValue = '') {
+  const firstKeys = extractAudioKeys(firstValue);
+  const secondKeys = extractAudioKeys(secondValue);
+  if (firstKeys.length !== secondKeys.length) return false;
+  return firstKeys.every((key, index) => key === secondKeys[index]);
+}
+
+function hasSameAudioKeyLists(firstKeys = [], secondKeys = []) {
+  if (firstKeys.length !== secondKeys.length) return false;
+  return firstKeys.every((key, index) => key === secondKeys[index]);
+}
+
+function removeAudioMarkup(value = '') {
+  return removeAudioUrls(String(value || '')
+    .replace(/<audio\b[\s\S]*?<\/audio>/gi, ' ')
+    .replace(/<a\b[^>]*href=["'][^"']+\.(?:mp3|m4a|aac|ogg|oga|wav|webm)(?:\?[^"']*)?["'][^>]*>[\s\S]*?<\/a>/gi, ' '));
+}
+
+function extractQuestionStem(value = '') {
+  const lines = htmlToLines(removeAudioMarkup(value));
+  const stemLines = [];
+  for (const line of lines) {
+    if (/^\d+\s*[.)]\s+/i.test(line)) break;
+    if (/^[A-Z]\s*[.)]\s+/i.test(line)) break;
+    stemLines.push(line);
+  }
+  return (stemLines.join(' ') || removeAudioMarkup(stripHtml(value))).replace(/\s+/g, ' ').trim();
+}
+
 function htmlToLines(value = '') {
   return decodeEntities(value)
     .replace(/<br\s*\/?\s*>/gi, '\n')
@@ -34,6 +117,9 @@ function htmlToLines(value = '') {
 
 function normalizeQuestion(question = {}, index = 0) {
   const answers = Array.isArray(question.answertext) ? question.answertext : [];
+  const questionHtml = String(question.questiontext || question.content || '').trim();
+  const serializedQuestion = JSON.stringify(question);
+  const audioKeys = extractAudioKeys(questionHtml + ' ' + serializedQuestion);
   const normalizedAnswers = answers.map((answer, answerIndex) => ({
     id: answer.id || null,
     label: String.fromCharCode(65 + answerIndex),
@@ -44,8 +130,9 @@ function normalizeQuestion(question = {}, index = 0) {
     id: question.id || null,
     slot: question.slot || index + 1,
     type: question.type || '',
-    questionHtml: String(question.questiontext || question.content || '').trim(),
-    questiontext: stripHtml(question.questiontext || question.content || ''),
+    questionHtml,
+    questiontext: extractQuestionStem(questionHtml),
+    audioKeys,
     answers: normalizedAnswers,
     isComposite: normalizedAnswers.some(answer => answer.questionText)
   };
@@ -116,7 +203,7 @@ function calculateSimilarity(contentA, contentB) {
 }
 
 function getQuestionCompareText(question = {}) {
-  return stripHtml(question.questiontext || '');
+  return extractQuestionStem(question.questionHtml || question.questiontext || '');
 }
 
 function extractStoredQuestionText(content = '') {
@@ -132,7 +219,7 @@ function extractStoredQuestionText(content = '') {
     if (/^Tham khao\s*:/i.test(line)) break;
     questionLines.push(line);
   }
-  return (questionLines.join(' ') || stripHtml(content)).trim();
+  return removeAudioUrls(questionLines.join(' ') || stripHtml(content)).replace(/\s+/g, ' ').trim();
 }
 
 function extractStoredCorrectAnswer(answerText = '') {
@@ -161,23 +248,21 @@ function findMatchingOption(question = {}, correctAnswerText = '') {
 
 function findStoredAnswer(question = {}, storedQuestions = []) {
   const questionCompareText = getQuestionCompareText(question);
-  const sourceMatches = question.id === null || question.id === undefined
-    ? []
-    : storedQuestions
-      .filter(storedQuestion => storedQuestion.sourceId !== null && storedQuestion.sourceId !== undefined &&
-        String(storedQuestion.sourceId) === String(question.id))
-      .sort((first, second) => new Date(second.createdAt || 0) - new Date(first.createdAt || 0));
-  let bestMatch = sourceMatches.length > 0
-    ? { storedQuestion: sourceMatches[0], similarity: 1 }
-    : null;
+  const similarityThreshold = question.audioKeys.length > 0 ? 0.85 : STORED_QUESTION_SIMILARITY_THRESHOLD;
+  let bestMatch = null;
 
-  if (!bestMatch) {
-    for (const storedQuestion of storedQuestions) {
-      const storedQuestionText = extractStoredQuestionText(storedQuestion.content || '');
-      const similarity = calculateSimilarity(questionCompareText, storedQuestionText);
-      if (similarity >= STORED_QUESTION_SIMILARITY_THRESHOLD && (!bestMatch || similarity > bestMatch.similarity)) {
-        bestMatch = { storedQuestion, similarity };
-      }
+  for (const storedQuestion of storedQuestions) {
+    const storedAudioKeys = extractAudioKeys(storedQuestion.content || '');
+    if (!hasSameAudioKeyLists(question.audioKeys, storedAudioKeys)) continue;
+    const storedQuestionText = extractStoredQuestionText(storedQuestion.content || '');
+    const similarity = calculateSimilarity(questionCompareText, storedQuestionText);
+    if (similarity < similarityThreshold) continue;
+    const sameSourceId = question.id !== null && question.id !== undefined
+      && storedQuestion.sourceId !== null && storedQuestion.sourceId !== undefined
+      && String(question.id) === String(storedQuestion.sourceId);
+    const score = similarity + (sameSourceId ? 0.02 : 0);
+    if (!bestMatch || score > bestMatch.score) {
+      bestMatch = { storedQuestion, similarity, score };
     }
   }
   if (!bestMatch) return null;
@@ -196,7 +281,9 @@ function findStoredAnswer(question = {}, storedQuestions = []) {
     fullAnswerHtml: String(bestMatch.storedQuestion.answer || ''),
     fullAnswerText: formatStoredAnswer(bestMatch.storedQuestion.answer || ''),
     confidence: Number(bestMatch.similarity.toFixed(2)),
-    explanation: 'Tìm thấy câu hỏi trùng trong ngân hàng câu hỏi theo nội dung câu hỏi.'
+    explanation: question.audioKeys?.length > 0
+      ? 'Tìm thấy câu hỏi trong Lesson Outline theo nội dung và URL âm thanh.'
+      : 'Tìm thấy câu hỏi trùng trong ngân hàng câu hỏi theo nội dung câu hỏi.'
   };
 }
 
@@ -211,6 +298,21 @@ async function findStoredAnswers(questions = []) {
     else unansweredQuestions.push(question);
   }
   return { matchedAnswers, unansweredQuestions };
+}
+
+function createUnavailableAudioAnswer(question = {}) {
+  return {
+    slot: question.slot,
+    questionId: question.id,
+    questionText: question.questiontext,
+    questionHtml: question.questionHtml || '',
+    source: 'unavailable',
+    answerLabel: '',
+    answerId: null,
+    answerText: 'Chưa có thông tin trong Lesson Outline.',
+    confidence: null,
+    explanation: ''
+  };
 }
 
 function getGeminiModels() {
@@ -326,26 +428,31 @@ export async function solveAttemptQuestions(payload = {}) {
   if (questions.length === 0) throw new Error('Không có câu hỏi trắc nghiệm hợp lệ để AI trả lời.');
 
   const { matchedAnswers, unansweredQuestions } = await findStoredAnswers(questions);
+  const unavailableAnswers = unansweredQuestions
+    .filter(question => question.audioKeys.length > 0)
+    .map(createUnavailableAudioAnswer);
+  const aiQuestions = unansweredQuestions.filter(question => question.audioKeys.length === 0);
   let aiAnswers = [];
   let usedProvider = null;
 
-  if (unansweredQuestions.length > 0) {
+  if (aiQuestions.length > 0) {
     const providers = getConfiguredProviders();
     if (providers.length === 0) {
-      if (matchedAnswers.length > 0) {
+      if (matchedAnswers.length > 0 || unavailableAnswers.length > 0) {
         return {
           totalQuestions: questions.length,
           databaseCount: matchedAnswers.length,
           aiCount: 0,
           provider: '',
           model: '',
-          answers: matchedAnswers.sort((a, b) => Number(a.slot) - Number(b.slot))
+          unavailableCount: unavailableAnswers.length,
+          answers: [...matchedAnswers, ...unavailableAnswers].sort((a, b) => Number(a.slot) - Number(b.slot))
         };
       }
       throw new Error('Backend chưa cấu hình GEMINI_API_KEY. Hãy thêm Gemini API key vào file .env.');
     }
 
-    const prompt = buildPrompt(unansweredQuestions);
+    const prompt = buildPrompt(aiQuestions);
     const errors = [];
     let parsed = null;
     for (const provider of providers) {
@@ -360,27 +467,29 @@ export async function solveAttemptQuestions(payload = {}) {
     }
 
     if (!parsed) {
-      if (matchedAnswers.length > 0) {
+      if (matchedAnswers.length > 0 || unavailableAnswers.length > 0) {
         return {
           totalQuestions: questions.length,
           databaseCount: matchedAnswers.length,
           aiCount: 0,
           provider: '',
           model: '',
-          aiError: `AI lỗi với ${unansweredQuestions.length} câu chưa có trong hệ thống. ${errors.join(' | ')}`,
-          answers: matchedAnswers.sort((a, b) => Number(a.slot) - Number(b.slot))
+          aiError: `AI lỗi với ${aiQuestions.length} câu chưa có trong hệ thống. ${errors.join(' | ')}`,
+          unavailableCount: unavailableAnswers.length,
+          answers: [...matchedAnswers, ...unavailableAnswers].sort((a, b) => Number(a.slot) - Number(b.slot))
         };
       }
       throw new Error(`Tất cả model AI đều lỗi. ${errors.join(' | ')}`);
     }
-    aiAnswers = normalizeAiAnswers(Array.isArray(parsed.answers) ? parsed.answers : [], unansweredQuestions);
+    aiAnswers = normalizeAiAnswers(Array.isArray(parsed.answers) ? parsed.answers : [], aiQuestions);
   }
 
-  const answers = [...matchedAnswers, ...aiAnswers].sort((a, b) => Number(a.slot) - Number(b.slot));
+  const answers = [...matchedAnswers, ...unavailableAnswers, ...aiAnswers].sort((a, b) => Number(a.slot) - Number(b.slot));
   return {
     totalQuestions: questions.length,
     databaseCount: matchedAnswers.length,
     aiCount: aiAnswers.length,
+    unavailableCount: unavailableAnswers.length,
     provider: usedProvider?.name || '',
     model: usedProvider?.model || '',
     answers

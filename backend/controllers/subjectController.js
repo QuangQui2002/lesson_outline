@@ -1,5 +1,6 @@
 import { getSubjectByName, insertSubject, listSubjectsWithCounts, removeSubject } from '../services/dbService.js';
 import { deleteSubjectImageFolder } from '../services/questionImageService.js';
+import { deleteSubjectAudioFolder } from '../services/questionAudioService.js';
 
 export async function getSubjects(req, res, next) {
   try {
@@ -36,16 +37,26 @@ export async function deleteSubject(req, res, next) {
     if (!await removeSubject(subjectId)) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy môn học' });
     }
-    const cleanupResult = await deleteSubjectImageFolder(subjectId);
-    if (cleanupResult.error) {
-      console.error('[question-images] Failed to remove subject images:', cleanupResult.error.message);
+    const [imageCleanup, audioCleanup] = await Promise.all([
+      deleteSubjectImageFolder(subjectId),
+      deleteSubjectAudioFolder(subjectId)
+    ]);
+    if (imageCleanup.error) {
+      console.error('[question-images] Failed to remove subject images:', imageCleanup.error.message);
+    }
+    if (audioCleanup.error) {
+      console.error('[question-audio] Failed to remove subject audio:', audioCleanup.error.message);
     }
     res.json({
       success: true,
       message: 'Xóa môn học và toàn bộ câu hỏi thuộc môn học thành công!',
       imageCleanup: {
-        deletedCount: cleanupResult.deletedCount,
-        success: !cleanupResult.error
+        deletedCount: imageCleanup.deletedCount,
+        success: !imageCleanup.error
+      },
+      audioCleanup: {
+        deletedCount: audioCleanup.deletedCount,
+        success: !audioCleanup.error
       }
     });
   } catch (error) {
