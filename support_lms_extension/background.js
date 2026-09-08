@@ -5,6 +5,7 @@ const REVIEW_IMAGE_MAX_BYTES = 4 * 1024 * 1024;
 const REVIEW_IMAGES_TOTAL_MAX_BYTES = 6 * 1024 * 1024;
 const REVIEW_IMPORT_BODY_MAX_BYTES = 9 * 1024 * 1024;
 const fullAnswerCache = new Map();
+const IMAGE_URL_PATTERN = /https:\/\/[^\s<>'"]+?\.(?:png|jpe?g|gif|webp|svg|bmp)(?:\?[^\s<>'"]*)?/gi;
 const AUDIO_URL_PATTERN = /https:\/\/[^\s<>'"]+?\.(?:mp3|m4a|aac|ogg|oga|wav|webm)(?:\?[^\s<>'"]*)?/gi;
 
 function normalizeBackendUrl(url = '') {
@@ -110,6 +111,65 @@ function getTagAttribute(tag = '', name = '') {
   return match ? decodeAudioKey(match[1]) : '';
 }
 
+function getLiteralTagAttribute(tag = '', name = '') {
+  const match = String(tag || '').match(new RegExp(`\\s${name}=["']([^"']*)["']`, 'i'));
+  return match ? decodeHtmlEntities(match[1]).trim() : '';
+}
+
+function isImageUrl(value = '') {
+  IMAGE_URL_PATTERN.lastIndex = 0;
+  const matched = IMAGE_URL_PATTERN.test(String(value || '').trim());
+  IMAGE_URL_PATTERN.lastIndex = 0;
+  return matched;
+}
+
+function extractImageKeys(value = '') {
+  const html = String(value || '');
+  const keys = [];
+  let remaining = html.replace(/<!--\s*question-image-key:([\s\S]*?)-->/gi, (marker, encodedKey) => {
+    const storedKey = decodeHtmlEntities(encodedKey).trim();
+    try {
+      keys.push(decodeURIComponent(storedKey));
+    } catch (error) {
+      keys.push(storedKey);
+    }
+    return ' ';
+  });
+  if (keys.length > 0) return [...new Set(keys.filter(Boolean))];
+  remaining = remaining.replace(/<img\b[^>]*>/gi, imageTag => {
+    const storedKey = getLiteralTagAttribute(imageTag, 'data-image-key');
+    if (storedKey) {
+      try {
+        keys.push(decodeURIComponent(storedKey));
+      } catch (error) {
+        keys.push(storedKey);
+      }
+      return ' ';
+    }
+    const source = getLiteralTagAttribute(imageTag, 'src');
+    if (source) keys.push(source);
+    return ' ';
+  });
+  remaining = remaining.replace(/<a\b[^>]*href=["']([^"']+)["'][^>]*>[\s\S]*?<\/a>/gi, (link, href) => {
+    const source = decodeHtmlEntities(href).trim();
+    if (isImageUrl(source)) keys.push(source);
+    return ' ';
+  });
+  remaining.match(IMAGE_URL_PATTERN)?.forEach(source => keys.push(decodeHtmlEntities(source).trim()));
+  return [...new Set(keys.filter(Boolean))];
+}
+
+function removeImageUrls(value = '') {
+  return String(value || '').replace(IMAGE_URL_PATTERN, ' ');
+}
+
+function removeImageMarkup(value = '') {
+  return removeImageUrls(String(value || '')
+    .replace(/<!--\s*question-image-key:[\s\S]*?-->/gi, ' ')
+    .replace(/<img\b[^>]*>/gi, ' ')
+    .replace(/<a\b[^>]*href=["'][^"']+\.(?:png|jpe?g|gif|webp|svg|bmp)(?:\?[^"']*)?["'][^>]*>[\s\S]*?<\/a>/gi, ' '));
+}
+
 function extractAudioKeys(value = '') {
   const html = String(value || '');
   const keys = [];
@@ -144,6 +204,13 @@ function hasSameAudioKeys(firstValue = '', secondValue = '') {
   return firstKeys.every((key, index) => key === secondKeys[index]);
 }
 
+function hasSameImageKeys(firstValue = '', secondValue = '') {
+  const firstKeys = extractImageKeys(firstValue);
+  const secondKeys = extractImageKeys(secondValue);
+  if (firstKeys.length !== secondKeys.length) return false;
+  return firstKeys.every((key, index) => key === secondKeys[index]);
+}
+
 function removeAudioMarkup(value = '') {
   return removeAudioUrls(String(value || '')
     .replace(/<audio\b[\s\S]*?<\/audio>/gi, ' ')
@@ -151,7 +218,8 @@ function removeAudioMarkup(value = '') {
 }
 
 function extractQuestionStem(value = '') {
-  const text = decodeHtmlEntities(removeAudioMarkup(value))
+  const mediaFreeValue = removeImageMarkup(removeAudioMarkup(value));
+  const text = decodeHtmlEntities(mediaFreeValue)
     .replace(/<br\s*\/?\s*>/gi, '\n')
     .replace(/<\/(p|div|li)\s*>/gi, '\n')
     .replace(/<[^>]+>/g, ' ');
@@ -162,7 +230,7 @@ function extractQuestionStem(value = '') {
     if (/^[A-Z]\s*[.)]\s+/i.test(line)) break;
     stemLines.push(line);
   }
-  return (stemLines.join(' ') || stripHtml(removeAudioMarkup(value))).replace(/\s+/g, ' ').trim();
+  return (stemLines.join(' ') || stripHtml(mediaFreeValue)).replace(/\s+/g, ' ').trim();
 }
 
 function storedAnswerToText(value = '') {
@@ -223,6 +291,7 @@ function createSearchQueries(questionText = '') {
 function scoreStoredQuestion(answer = {}, question = {}) {
   const answerContent = answer.questionHtml || answer.questionText || '';
   const audioKeys = extractAudioKeys(answerContent);
+  if (!hasSameImageKeys(answerContent, question.content || '')) return 0;
   if (!hasSameAudioKeys(answerContent, question.content || '')) return 0;
 
   const target = normalizeQuestionText(answerContent);
@@ -252,8 +321,9 @@ function scoreStoredQuestion(answer = {}, question = {}) {
 
 async function fetchFullStoredAnswer(answer = {}) {
   const normalizedQuestion = normalizeQuestionText(answer.questionHtml || answer.questionText || '');
+  const imageKey = extractImageKeys(answer.questionHtml || answer.questionText || '').join('|');
   const audioKey = extractAudioKeys(answer.questionHtml || answer.questionText || '').join('|');
-  const cacheKey = String(answer.questionId || '') + ':' + normalizedQuestion + ':' + audioKey;
+  const cacheKey = String(answer.questionId || '') + ':' + normalizedQuestion + ':' + imageKey + ':' + audioKey;
   if (!normalizedQuestion) return null;
   if (fullAnswerCache.has(cacheKey)) return fullAnswerCache.get(cacheKey);
 

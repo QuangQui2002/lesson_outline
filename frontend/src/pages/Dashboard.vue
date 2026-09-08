@@ -227,9 +227,9 @@ export default {
       jsonImportText: '',
       jsonImportPreview: null,
       extensionInfo: {
-        version: '1.0.15',
+        version: '1.0.16',
         downloadUrl: '/downloads/support_lms_extension.zip',
-        note: 'Khớp chặt bài nghe theo nội dung và URL; câu MP3 chưa có dữ liệu sẽ không hiển thị đáp án.'
+          note: 'Khớp chính xác URL hình ảnh và âm thanh; media khác URL sẽ không lấy nhầm đáp án.'
       },
       editingQuestion: null
     };

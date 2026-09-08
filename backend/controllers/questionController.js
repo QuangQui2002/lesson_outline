@@ -279,13 +279,24 @@ function normalizeImageKey(value = '') {
 
 function extractQuestionImageKeys(content = '') {
   const keys = [];
-  String(content || '').replace(/<img\b[^>]*>/gi, tag => {
+  let remaining = String(content || '').replace(/<!--\s*question-image-key:([\s\S]*?)-->/gi, (marker, encodedKey) => {
+    const normalizedKey = normalizeImageKey(decodeImageAttribute(encodedKey));
+    if (normalizedKey) keys.push(normalizedKey);
+    return ' ';
+  });
+  if (keys.length > 0) return [...new Set(keys)];
+  remaining.replace(/<img\b[^>]*>/gi, tag => {
     const key = getImageTagAttribute(tag, 'data-image-key') || getImageTagAttribute(tag, 'src');
     const normalizedKey = normalizeImageKey(key);
     if (normalizedKey) keys.push(normalizedKey);
     return tag;
   });
-  return keys;
+  const imageUrlPattern = /https:\/\/[^\s<>'"]+?\.(?:png|jpe?g|gif|webp|svg|bmp)(?:\?[^\s<>'"]*)?/gi;
+  remaining.match(imageUrlPattern)?.forEach(source => {
+    const normalizedKey = normalizeImageKey(decodeImageAttribute(source));
+    if (normalizedKey) keys.push(normalizedKey);
+  });
+  return [...new Set(keys)];
 }
 
 function isAudioUrl(value = '') {

@@ -1,6 +1,7 @@
 ﻿import { readDb } from './dbService.js';
 
 const STORED_QUESTION_SIMILARITY_THRESHOLD = 0.5;
+const IMAGE_URL_PATTERN = /https:\/\/[^\s<>'"]+?\.(?:png|jpe?g|gif|webp|svg|bmp)(?:\?[^\s<>'"]*)?/gi;
 const AUDIO_URL_PATTERN = /https:\/\/[^\s<>'"]+?\.(?:mp3|m4a|aac|ogg|oga|wav|webm)(?:\?[^\s<>'"]*)?/gi;
 
 function decodeEntities(value = '') {
@@ -42,6 +43,65 @@ function getTagAttribute(tag = '', name = '') {
   return match ? decodeAudioKey(match[1]) : '';
 }
 
+function getLiteralTagAttribute(tag = '', name = '') {
+  const match = String(tag || '').match(new RegExp(`\\s${name}=["']([^"']*)["']`, 'i'));
+  return match ? decodeEntities(match[1]).trim() : '';
+}
+
+function isImageUrl(value = '') {
+  IMAGE_URL_PATTERN.lastIndex = 0;
+  const matched = IMAGE_URL_PATTERN.test(String(value || '').trim());
+  IMAGE_URL_PATTERN.lastIndex = 0;
+  return matched;
+}
+
+function extractImageKeys(value = '') {
+  const html = String(value || '');
+  const keys = [];
+  let remaining = html.replace(/<!--\s*question-image-key:([\s\S]*?)-->/gi, (marker, encodedKey) => {
+    const storedKey = decodeEntities(encodedKey).trim();
+    try {
+      keys.push(decodeURIComponent(storedKey));
+    } catch (error) {
+      keys.push(storedKey);
+    }
+    return ' ';
+  });
+  if (keys.length > 0) return [...new Set(keys.filter(Boolean))];
+  remaining = remaining.replace(/<img\b[^>]*>/gi, imageTag => {
+    const storedKey = getLiteralTagAttribute(imageTag, 'data-image-key');
+    if (storedKey) {
+      try {
+        keys.push(decodeURIComponent(storedKey));
+      } catch (error) {
+        keys.push(storedKey);
+      }
+      return ' ';
+    }
+    const source = getLiteralTagAttribute(imageTag, 'src');
+    if (source) keys.push(source);
+    return ' ';
+  });
+  remaining = remaining.replace(/<a\b[^>]*href=["']([^"']+)["'][^>]*>[\s\S]*?<\/a>/gi, (link, href) => {
+    const source = decodeEntities(href).trim();
+    if (isImageUrl(source)) keys.push(source);
+    return ' ';
+  });
+  remaining.match(IMAGE_URL_PATTERN)?.forEach(source => keys.push(decodeEntities(source).trim()));
+  return [...new Set(keys.filter(Boolean))];
+}
+
+function removeImageUrls(value = '') {
+  return String(value || '').replace(IMAGE_URL_PATTERN, ' ');
+}
+
+function removeImageMarkup(value = '') {
+  return removeImageUrls(String(value || '')
+    .replace(/<!--\s*question-image-key:[\s\S]*?-->/gi, ' ')
+    .replace(/<img\b[^>]*>/gi, ' ')
+    .replace(/<a\b[^>]*href=["'][^"']+\.(?:png|jpe?g|gif|webp|svg|bmp)(?:\?[^"']*)?["'][^>]*>[\s\S]*?<\/a>/gi, ' '));
+}
+
 function extractAudioKeys(value = '') {
   const html = String(value || '');
   const keys = [];
@@ -81,7 +141,7 @@ function hasSameAudioKeys(firstValue = '', secondValue = '') {
   return firstKeys.every((key, index) => key === secondKeys[index]);
 }
 
-function hasSameAudioKeyLists(firstKeys = [], secondKeys = []) {
+function hasSameMediaKeyLists(firstKeys = [], secondKeys = []) {
   if (firstKeys.length !== secondKeys.length) return false;
   return firstKeys.every((key, index) => key === secondKeys[index]);
 }
@@ -93,14 +153,15 @@ function removeAudioMarkup(value = '') {
 }
 
 function extractQuestionStem(value = '') {
-  const lines = htmlToLines(removeAudioMarkup(value));
+  const mediaFreeValue = removeImageMarkup(removeAudioMarkup(value));
+  const lines = htmlToLines(mediaFreeValue);
   const stemLines = [];
   for (const line of lines) {
     if (/^\d+\s*[.)]\s+/i.test(line)) break;
     if (/^[A-Z]\s*[.)]\s+/i.test(line)) break;
     stemLines.push(line);
   }
-  return (stemLines.join(' ') || removeAudioMarkup(stripHtml(value))).replace(/\s+/g, ' ').trim();
+  return (stemLines.join(' ') || stripHtml(mediaFreeValue)).replace(/\s+/g, ' ').trim();
 }
 
 function htmlToLines(value = '') {
@@ -119,6 +180,7 @@ function normalizeQuestion(question = {}, index = 0) {
   const answers = Array.isArray(question.answertext) ? question.answertext : [];
   const questionHtml = String(question.questiontext || question.content || '').trim();
   const serializedQuestion = JSON.stringify(question);
+  const imageKeys = extractImageKeys(questionHtml);
   const audioKeys = extractAudioKeys(questionHtml + ' ' + serializedQuestion);
   const normalizedAnswers = answers.map((answer, answerIndex) => ({
     id: answer.id || null,
@@ -132,6 +194,7 @@ function normalizeQuestion(question = {}, index = 0) {
     type: question.type || '',
     questionHtml,
     questiontext: extractQuestionStem(questionHtml),
+    imageKeys,
     audioKeys,
     answers: normalizedAnswers,
     isComposite: normalizedAnswers.some(answer => answer.questionText)
@@ -219,7 +282,7 @@ function extractStoredQuestionText(content = '') {
     if (/^Tham khao\s*:/i.test(line)) break;
     questionLines.push(line);
   }
-  return removeAudioUrls(questionLines.join(' ') || stripHtml(content)).replace(/\s+/g, ' ').trim();
+  return removeImageUrls(removeAudioUrls(questionLines.join(' ') || stripHtml(content))).replace(/\s+/g, ' ').trim();
 }
 
 function extractStoredCorrectAnswer(answerText = '') {
@@ -252,8 +315,10 @@ function findStoredAnswer(question = {}, storedQuestions = []) {
   let bestMatch = null;
 
   for (const storedQuestion of storedQuestions) {
+    const storedImageKeys = extractImageKeys(storedQuestion.content || '');
+    if (!hasSameMediaKeyLists(question.imageKeys, storedImageKeys)) continue;
     const storedAudioKeys = extractAudioKeys(storedQuestion.content || '');
-    if (!hasSameAudioKeyLists(question.audioKeys, storedAudioKeys)) continue;
+    if (!hasSameMediaKeyLists(question.audioKeys, storedAudioKeys)) continue;
     const storedQuestionText = extractStoredQuestionText(storedQuestion.content || '');
     const similarity = calculateSimilarity(questionCompareText, storedQuestionText);
     if (similarity < similarityThreshold) continue;
@@ -283,6 +348,8 @@ function findStoredAnswer(question = {}, storedQuestions = []) {
     confidence: Number(bestMatch.similarity.toFixed(2)),
     explanation: question.audioKeys?.length > 0
       ? 'Tìm thấy câu hỏi trong Lesson Outline theo nội dung và URL âm thanh.'
+      : question.imageKeys?.length > 0
+        ? 'Tìm thấy câu hỏi trong Lesson Outline theo nội dung và URL hình ảnh.'
       : 'Tìm thấy câu hỏi trùng trong ngân hàng câu hỏi theo nội dung câu hỏi.'
   };
 }
