@@ -311,6 +311,20 @@ function showImportNotification(result = {}, questionCount = 0) {
     ? '<p>Bỏ qua khác: ' + otherSkipped.map(item => 'câu ' + escapeHtml(getSkippedQuestionNumber(item))).join(', ') + '.</p>'
     : '';
 
+  const questionResults = Array.isArray(result.results) ? result.results : [];
+  const resultItems = questionResults.map(item => {
+    const status = item.status === 'imported' ? 'Đã import'
+      : item.status === 'duplicate' ? 'Bỏ qua: trùng 100%'
+        : item.status === 'missing_required' ? 'Bỏ qua: thiếu dữ liệu' : 'Chưa import';
+    const percent = typeof item.similarity === 'number'
+      ? (Math.floor(item.similarity * 10000) / 100).toLocaleString('vi-VN', { maximumFractionDigits: 2 }) + '%'
+      : 'chưa xác định';
+    const media = item.mediaMatch === false ? '; URL ảnh/audio khác'
+      : item.mediaMatch === true ? '; URL ảnh/audio khớp' : '; chưa có câu đối chiếu';
+    return '<li>Câu ' + escapeHtml(getSkippedQuestionNumber(item)) + ' — ' + escapeHtml(status)
+      + '<br><small>Giống nội dung chữ: ' + escapeHtml(percent + media) + '</small></li>';
+  }).join('');
+
   const notification = document.createElement('section');
   notification.id = 'lms-import-notification';
   notification.dataset.type = type;
@@ -318,9 +332,10 @@ function showImportNotification(result = {}, questionCount = 0) {
     + '<div class="lms-import-notification__body">'
     + '<p>Đã import <strong>' + importedCount + '/' + questionCount + '</strong> câu hỏi.</p>'
     + (duplicates.length > 0
-      ? '<p>Phát hiện <strong>' + duplicates.length + '</strong> câu trùng:</p><ul>' + duplicateItems + remainingDuplicates + '</ul>'
+      ? '<p>Phát hiện <strong>' + duplicates.length + '</strong> câu trùng:</p>' + (questionResults.length ? '' : '<ul>' + duplicateItems + remainingDuplicates + '</ul>')
       : '<p>Không phát hiện câu hỏi trùng.</p>')
     + otherSkippedText
+    + (questionResults.length ? '<p>Kết quả từng câu (so với câu gần nhất):</p><ul>' + resultItems + '</ul>' : '')
     + (imageWarningCount > 0 ? '<p>Có ' + imageWarningCount + ' ảnh chưa lưu được.</p>' : '')
     + (audioWarningCount > 0 ? '<p>Có ' + audioWarningCount + ' file âm thanh chưa lưu được; hệ thống vẫn giữ link LMS.</p>' : '')
     + '</div>';

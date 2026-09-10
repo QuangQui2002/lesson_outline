@@ -130,13 +130,15 @@ function annotateImageSource(value = '', source = '') {
   if (!original.includes(source)) return original;
   const encodedKey = encodeURIComponent(getImageSourceKey(source));
   const marker = `<!--question-image-key:${encodedKey}-->`;
+  let taggedSource = false;
   const annotated = original.replace(/<img\b[^>]*>/gi, tag => {
-    if (/\sdata-image-key=["'][^"']*["']/i.test(tag)) return tag;
     const sourceMatch = tag.match(/\ssrc=["']([^"']*)["']/i);
     if (!sourceMatch || sourceMatch[1] !== source) return tag;
+    taggedSource = true;
+    if (/\sdata-image-key=["'][^"']*["']/i.test(tag)) return tag;
     return tag.replace(/^<img\b/i, '<img data-image-key="' + encodedKey + '"');
   });
-  return annotated.includes(marker) ? annotated : annotated + marker;
+  return taggedSource || annotated.includes(marker) ? annotated : annotated + marker;
 }
 
 export function getManagedImagePaths(value = '') {

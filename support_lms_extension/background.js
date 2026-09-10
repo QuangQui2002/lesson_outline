@@ -135,7 +135,7 @@ function extractImageKeys(value = '') {
     }
     return ' ';
   });
-  if (keys.length > 0) return [...new Set(keys.filter(Boolean))];
+  const markerKeys = keys.splice(0);
   remaining = remaining.replace(/<img\b[^>]*>/gi, imageTag => {
     const storedKey = getLiteralTagAttribute(imageTag, 'data-image-key');
     if (storedKey) {
@@ -150,6 +150,7 @@ function extractImageKeys(value = '') {
     if (source) keys.push(source);
     return ' ';
   });
+  if (keys.length === 0 && markerKeys.length > 0) return [...new Set(markerKeys.filter(Boolean))];
   remaining = remaining.replace(/<a\b[^>]*href=["']([^"']+)["'][^>]*>[\s\S]*?<\/a>/gi, (link, href) => {
     const source = decodeHtmlEntities(href).trim();
     if (isImageUrl(source)) keys.push(source);
@@ -569,6 +570,7 @@ async function importAttemptQuestions(reviewJson) {
       data: {
         importedCount: 0,
         skippedCount: skipped.length,
+        results: error.responseData?.results || [],
         skipped,
         questions: [],
         imageWarnings: []

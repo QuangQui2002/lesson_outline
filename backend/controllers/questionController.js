@@ -49,6 +49,7 @@ function normalizeQuizName(quizName = '') {
 
 function normalizeQuestionForCompare(content = '') {
   return String(content)
+    .replace(/<!--[\s\S]*?-->/g, ' ')
     .replace(/<img\b[^>]*>/gi, ' ')
     .replace(/<audio\b[\s\S]*?<\/audio>/gi, ' ')
     .replace(/data:image\/[a-zA-Z0-9.+-]+;base64,[a-zA-Z0-9+/=\r\n]+/gi, ' ')
@@ -284,13 +285,14 @@ function extractQuestionImageKeys(content = '') {
     if (normalizedKey) keys.push(normalizedKey);
     return ' ';
   });
-  if (keys.length > 0) return [...new Set(keys)];
-  remaining.replace(/<img\b[^>]*>/gi, tag => {
+  const markerKeys = keys.splice(0);
+  remaining = remaining.replace(/<img\b[^>]*>/gi, tag => {
     const key = getImageTagAttribute(tag, 'data-image-key') || getImageTagAttribute(tag, 'src');
     const normalizedKey = normalizeImageKey(key);
     if (normalizedKey) keys.push(normalizedKey);
-    return tag;
+    return ' ';
   });
+  if (keys.length === 0 && markerKeys.length > 0) return [...new Set(markerKeys)];
   const imageUrlPattern = /https:\/\/[^\s<>'"]+?\.(?:png|jpe?g|gif|webp|svg|bmp)(?:\?[^\s<>'"]*)?/gi;
   remaining.match(imageUrlPattern)?.forEach(source => {
     const normalizedKey = normalizeImageKey(decodeImageAttribute(source));
@@ -443,17 +445,36 @@ function normalizeImportedQuestion(sourceQuestion, quizName = DEFAULT_QUIZ_NAME)
 async function buildImportAnalysis(sourceQuestions, existingQuestions, subjectId, quizName = DEFAULT_QUIZ_NAME, now = Date.now()) {
   const importableQuestions = [];
   const skipped = [];
+  const results = [];
   const candidates = existingQuestions.map(prepareQuestionCandidate);
 
   for (let index = 0; index < sourceQuestions.length; index += 1) {
     const sourceQuestion = sourceQuestions[index];
     const normalized = normalizeImportedQuestion(sourceQuestion, quizName);
     if (!normalized.content || !normalized.answer) {
+      results.push({ index, slot: sourceQuestion.slot, status: 'missing_required', similarity: null, mediaMatch: null });
       skipped.push({ index, slot: sourceQuestion.slot, reason: 'Thiếu nội dung câu hỏi hoặc đáp án.', type: 'missing_required' });
       continue;
     }
 
     const duplicateQuestion = await findExactQuestion(normalized.content, candidates);
+    const target = prepareQuestionCandidate(normalized);
+    let closest = duplicateQuestion ? { similarity: 1, mediaMatch: true, matchedId: duplicateQuestion.id } : null;
+    if (!closest) {
+      for (let candidateIndex = 0; candidateIndex < candidates.length; candidateIndex += 1) {
+        if (candidateIndex > 0 && candidateIndex % 100 === 0) await yieldToEventLoop();
+        const candidate = candidates[candidateIndex];
+        const maxLength = Math.max(target.normalizedContent.length, candidate.normalizedContent.length);
+        const minLength = Math.min(target.normalizedContent.length, candidate.normalizedContent.length);
+        if (closest && maxLength > 0 && minLength / maxLength < closest.similarity) continue;
+        const similarity = calculateQuestionSimilarity(target.normalizedContent, candidate.normalizedContent);
+        const mediaMatch = hasSameQuestionMedia(target, candidate);
+        if (!closest || similarity > closest.similarity || (similarity === closest.similarity && mediaMatch && !closest.mediaMatch)) {
+          closest = { similarity, mediaMatch, matchedId: candidate.id };
+        }
+      }
+    }
+    results.push({ index, slot: sourceQuestion.slot, status: duplicateQuestion ? 'duplicate' : 'importable', similarity: closest?.similarity ?? 0, mediaMatch: closest?.mediaMatch ?? null, matchedId: closest?.matchedId ?? null });
     if (duplicateQuestion) {
       skipped.push({
         index,
@@ -489,6 +510,7 @@ async function buildImportAnalysis(sourceQuestions, existingQuestions, subjectId
     missingRequiredCount: skipped.filter(item => item.type === 'missing_required').length,
     duplicateCount: skipped.filter(item => item.type === 'duplicate').length,
     importableQuestions,
+    results,
     skipped
   };
 }
@@ -856,6 +878,7 @@ export async function previewImportQuestions(req, res, next) {
         missingRequiredCount: analysis.missingRequiredCount,
         duplicateCount: analysis.duplicateCount,
         skipped: analysis.skipped,
+        results: analysis.results,
         previewQuestions: analysis.importableQuestions.slice(0, 5)
       }
     });
@@ -885,7 +908,8 @@ export async function importQuestions(req, res, next) {
       return res.status(400).json({
         success: false,
         message: skipped.some(item => item.type === 'duplicate') ? 'Các câu hỏi trong file đã có trong hệ thống.' : 'Không có câu hỏi hợp lệ để import.',
-        skipped
+        skipped,
+        results: analysis.results
       });
     }
 
@@ -915,6 +939,7 @@ export async function importQuestions(req, res, next) {
       message: `Đã import ${importedQuestions.length} câu hỏi thành công.`,
       data: {
         importedCount: importedQuestions.length,
+        results: analysis.results.map(item => ({ ...item, status: item.status === 'importable' ? 'imported' : item.status })),
         skippedCount: skipped.length,
         skipped,
         questions: syncedQuestions,
