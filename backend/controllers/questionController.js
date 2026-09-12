@@ -55,14 +55,23 @@ function normalizeQuestionForCompare(content = '') {
     .replace(/data:image\/[a-zA-Z0-9.+-]+;base64,[a-zA-Z0-9+/=\r\n]+/gi, ' ')
     .replace(/https:\/\/[^\s<>'"]+?\.(?:png|jpe?g|gif|webp|svg|bmp)(?:\?[^\s<>'"]*)?/gi, ' ')
     .replace(/https:\/\/[^\s<>'"]+?\.(?:mp3|m4a|aac|ogg|oga|wav|webm)(?:\?[^\s<>'"]*)?/gi, ' ')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd')
-    .replace(/Đ/g, 'D')
-    .toLowerCase()
-    .replace(/^\s*cau\s*\d+\s*[:\.\-\)]?/i, '')
-    .replace(/\b\d+\s*\/\s*\d+\s*(diem|point|points)\b/gi, '')
-    .replace(/[^a-z0-9]+/g, '')
+    .replace(/<sup\b[^>]*>/gi, '^(')
+    .replace(/<sub\b[^>]*>/gi, '_(')
+    .replace(/<\/(?:sup|sub)\s*>/gi, ')')
+    .replace(/<\/?(?:a|abbr|b|blockquote|br|code|div|em|font|h[1-6]|hr|i|li|ol|p|pre|s|small|span|strong|table|tbody|td|th|thead|tr|u|ul)\b(?=[\s/>])[^>]*>/gi, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&apos;/gi, "'")
+    .replace(/&#(x[0-9a-f]+|\d+);/gi, (entity, code) => {
+      const point = code[0].toLowerCase() === 'x' ? parseInt(code.slice(1), 16) : parseInt(code, 10);
+      return point >= 0 && point <= 0x10ffff ? String.fromCodePoint(point) : entity;
+    })
+    .replace(/&amp;/gi, '&')
+    .normalize('NFC')
+    .replace(/^\s*c(?:â|a)u\s*\d+\s*[:.\-)]?/i, '')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
@@ -286,15 +295,22 @@ function extractQuestionImageKeys(content = '') {
     return ' ';
   });
   const markerKeys = keys.splice(0);
+  const taggedSources = new Set();
   remaining = remaining.replace(/<img\b[^>]*>/gi, tag => {
     const key = getImageTagAttribute(tag, 'data-image-key') || getImageTagAttribute(tag, 'src');
     const normalizedKey = normalizeImageKey(key);
     if (normalizedKey) keys.push(normalizedKey);
+    const source = getImageTagAttribute(tag, 'src');
+    taggedSources.add(source);
+    taggedSources.add(normalizeImageKey(source));
     return ' ';
   });
-  if (keys.length === 0 && markerKeys.length > 0) return [...new Set(markerKeys)];
+  const originalKeys = markerKeys.filter(key => !taggedSources.has(key) && !keys.includes(key));
+  keys.push(...originalKeys);
   const imageUrlPattern = /https:\/\/[^\s<>'"]+?\.(?:png|jpe?g|gif|webp|svg|bmp)(?:\?[^\s<>'"]*)?/gi;
   remaining.match(imageUrlPattern)?.forEach(source => {
+    if (taggedSources.has(decodeImageAttribute(source))) return;
+    if (originalKeys.length > 0 && /\/storage\/v1\/object\/public\//.test(source)) return;
     const normalizedKey = normalizeImageKey(decodeImageAttribute(source));
     if (normalizedKey) keys.push(normalizedKey);
   });

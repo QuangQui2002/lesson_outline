@@ -358,6 +358,70 @@ function showImportErrorNotification(message) {
   notification.querySelector('.lms-import-notification__body').innerHTML = '<p>Lỗi: ' + escapeHtml(message) + '</p>';
 }
 
+function storedOptionText(value = '') {
+  return String(value || '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<br\s*\/?\s*>|<\/(?:p|div|li)\s*>/gi, '\n')
+    .replace(/<sup\b[^>]*>/gi, '^(')
+    .replace(/<sub\b[^>]*>/gi, '_(')
+    .replace(/<\/(?:sup|sub)\s*>/gi, ')')
+    .replace(/<\/?(?:a|b|div|em|font|i|li|ol|p|small|span|strong|u|ul)\b(?=[\s/>])[^>]*>/gi, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&apos;/gi, "'")
+    .replace(/&#(x[0-9a-f]+|\d+);/gi, (entity, code) => {
+      const point = code[0].toLowerCase() === 'x' ? Number.parseInt(code.slice(1), 16) : Number.parseInt(code, 10);
+      return point >= 0 && point <= 0x10ffff ? String.fromCodePoint(point) : entity;
+    })
+    .replace(/&amp;/gi, '&')
+    .trim();
+}
+
+function normalizeStoredOption(value = '') {
+  return storedOptionText(value)
+    .normalize('NFC')
+    .replace(/\\[()[\]]/g, '')
+    .replace(/\\(?:left|right)\b/g, '')
+    .replace(/\\(?:leq|le)\b/g, '≤')
+    .replace(/\\(?:geq|ge)\b/g, '≥')
+    .replace(/\\(?:neq|ne)\b/g, '≠')
+    .replace(/\\lt\b/g, '<')
+    .replace(/\\gt\b/g, '>')
+    .replace(/^[A-Z][.)]\s+/i, '')
+    .replace(/[.。]\s*$/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function matchStoredAnswerOption(answer = {}, questions = []) {
+  if (answer.source !== 'database') return answer;
+  const question = questions.find(item => {
+    const sameSlot = String(item.slot) === String(answer.slot);
+    return answer.questionId !== null && answer.questionId !== undefined
+      ? String(item.id) === String(answer.questionId) && (answer.slot == null || sameSlot)
+      : sameSlot;
+  });
+  const options = Array.isArray(question?.answertext) ? question.answertext : [];
+  const feedback = answer.fullAnswerHtml || answer.fullAnswerText || answer.answerText || '';
+  const cleanFeedback = storedOptionText(feedback);
+  const heading = /(?:Đáp\s+án\s+đúng\s+là|Dap\s+an\s+dung\s+la)\s*:\s*/i.exec(cleanFeedback);
+  const correctText = (heading ? cleanFeedback.slice(heading.index + heading[0].length) : cleanFeedback)
+    .split(/(?:^|\s)(?:Vì|Vi|Giải\s+thích|Giai\s+thich|Tham\s+khảo|Tham\s+khao)\s*:/i)[0].trim();
+  const normalizedCorrect = normalizeStoredOption(correctText);
+  const unsupported = options.some(option => option.question)
+    || /<(?:img|audio)\b/i.test(feedback)
+    || /^[A-Z][.)]?$/i.test(normalizedCorrect);
+  const matches = unsupported || !normalizedCorrect ? [] : options.map((option, index) => ({
+    id: option.id,
+    label: String.fromCharCode(65 + index),
+    html: String(option.answer || option.text || '')
+  })).filter(option => !/<(?:img|audio)\b/i.test(option.html)
+    && normalizeStoredOption(option.html) === normalizedCorrect);
+  return { ...answer, currentOption: matches.length === 1 ? matches[0] : null };
+}
+
 function renderAiAnswerPanel(answers = [], meta = {}) {
   let panel = document.querySelector('#lms-ai-answer-panel');
   if (!panel) {
@@ -398,6 +462,10 @@ function renderAiAnswerPanel(answers = [], meta = {}) {
         <strong>C\u00e2u ${escapeHtml(answer.slot)} <em>H\u1ec7 th\u1ed1ng</em></strong>
         ${questionHtml ? `<div class="lms-ai-question-text">${questionHtml}</div>` : ''}
         <div class="lms-ai-answer-result">
+          <span>Lựa chọn tương ứng trong đề</span>
+          ${answer.currentOption
+            ? `<div class="lms-ai-answer-content"><strong>${escapeHtml(answer.currentOption.label)}.</strong> ${sanitizeQuestionHtml(answer.currentOption.html)}</div>`
+            : '<div class="lms-ai-answer-content">Chưa đối chiếu chắc chắn với các lựa chọn trong đề.</div>'}
           <span>\u0110\u00e1p \u00e1n \u0111\u00fang</span>
           <div class="lms-ai-answer-content">${answerHtml}</div>
         </div>
@@ -465,7 +533,8 @@ async function solveLiveAttemptQuestions() {
     const response = await chrome.runtime.sendMessage({ type: 'SOLVE_ATTEMPT_QUESTIONS', attemptJson });
     if (!response?.ok) throw new Error(response?.message || 'Không lấy được đáp án AI.');
     const result = response.data?.data || {};
-    const answers = (result.answers || []).filter(answer => answer.source !== 'unavailable');
+    const answers = (result.answers || []).filter(answer => answer.source !== 'unavailable')
+      .map(answer => matchStoredAnswerOption(answer, attemptJson.questions || []));
     renderAiAnswerPanel(answers, result);
     setStatus('Đã nhận ' + answers.length + ' đáp án (' + (result.databaseCount || 0) + ' từ hệ thống, ' + (result.aiCount || 0) + ' từ AI).', 'success');
   } catch (error) {

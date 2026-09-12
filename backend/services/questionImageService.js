@@ -128,6 +128,7 @@ function getImageSourceKey(source = '') {
 function annotateImageSource(value = '', source = '') {
   const original = String(value || '');
   if (!original.includes(source)) return original;
+  if (getManagedImagePaths(source).length > 0 && /<!--\s*question-image-key:/.test(original)) return original;
   const encodedKey = encodeURIComponent(getImageSourceKey(source));
   const marker = `<!--question-image-key:${encodedKey}-->`;
   let taggedSource = false;

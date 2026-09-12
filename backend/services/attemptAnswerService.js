@@ -68,7 +68,12 @@ function extractImageKeys(value = '') {
     return ' ';
   });
   const markerKeys = keys.splice(0);
+  const taggedSources = new Set();
   remaining = remaining.replace(/<img\b[^>]*>/gi, imageTag => {
+    const source = getLiteralTagAttribute(imageTag, 'src');
+    taggedSources.add(source);
+    const hash = source.match(/\/([a-f0-9]{24})\.[a-z0-9]+(?:[?#]|$)/i)?.[1];
+    if (hash) taggedSources.add('sha256:' + hash.toLowerCase());
     const storedKey = getLiteralTagAttribute(imageTag, 'data-image-key');
     if (storedKey) {
       try {
@@ -78,17 +83,23 @@ function extractImageKeys(value = '') {
       }
       return ' ';
     }
-    const source = getLiteralTagAttribute(imageTag, 'src');
     if (source) keys.push(source);
     return ' ';
   });
-  if (keys.length === 0 && markerKeys.length > 0) return [...new Set(markerKeys.filter(Boolean))];
+  const originalKeys = markerKeys.filter(key => key && !taggedSources.has(key) && !keys.includes(key));
+  keys.push(...originalKeys);
   remaining = remaining.replace(/<a\b[^>]*href=["']([^"']+)["'][^>]*>[\s\S]*?<\/a>/gi, (link, href) => {
     const source = decodeEntities(href).trim();
+    if (taggedSources.has(source)) return ' ';
+    if (originalKeys.length > 0 && /\/storage\/v1\/object\/public\//.test(source)) return ' ';
     if (isImageUrl(source)) keys.push(source);
     return ' ';
   });
-  remaining.match(IMAGE_URL_PATTERN)?.forEach(source => keys.push(decodeEntities(source).trim()));
+  remaining.match(IMAGE_URL_PATTERN)?.forEach(source => {
+    if (taggedSources.has(decodeEntities(source).trim())) return;
+    if (originalKeys.length > 0 && /\/storage\/v1\/object\/public\//.test(source)) return;
+    keys.push(decodeEntities(source).trim());
+  });
   return [...new Set(keys.filter(Boolean))];
 }
 
