@@ -227,9 +227,9 @@ export default {
       jsonImportText: '',
       jsonImportPreview: null,
       extensionInfo: {
-        version: '1.0.19',
+        version: '1.0.21',
         downloadUrl: '/downloads/support_lms_extension.zip',
-          note: 'Đối chiếu đáp án hệ thống với lựa chọn trong đề, hiển thị A/B/C/D khi khớp chắc chắn.'
+          note: 'Hỗ trợ chọn radio qua nhãn đáp án và radio tùy chỉnh; xác nhận trạng thái sau khi bấm.'
       },
       editingQuestion: null
     };

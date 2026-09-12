@@ -934,6 +934,34 @@
   vertical-align: middle;
 }
 
+.lms-select-answer {
+  margin: 8px 0;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: #047857;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.lms-select-answer:hover {
+  background: #065f46;
+}
+
+.lms-select-answer:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.lms-select-answer-status {
+  display: block;
+  margin-bottom: 8px;
+  color: #334155;
+  line-height: 1.4;
+}
+
 .lms-ai-answer-summary,
 .lms-ai-answer-warning {
   flex-shrink: 0;

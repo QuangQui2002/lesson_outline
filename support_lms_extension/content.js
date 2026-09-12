@@ -422,6 +422,96 @@ function matchStoredAnswerOption(answer = {}, questions = []) {
   return { ...answer, currentOption: matches.length === 1 ? matches[0] : null };
 }
 
+function getLiveQuestionScope(input, answer) {
+  for (let element = input.parentElement; element && element !== document.body; element = element.parentElement) {
+    const questionId = element.getAttribute('data-question-id');
+    if (questionId && answer.questionId != null) return questionId === String(answer.questionId);
+    const slots = [...String(element.textContent || '').matchAll(/(?:Câu|Cau|Question)\s*(\d+)\s*[:：.)]/gi)]
+      .map(match => match[1]);
+    if (slots.length > 0) return slots.every(slot => slot === String(answer.slot));
+  }
+  return null;
+}
+
+function getLiveRadioControls(root = document) {
+  return [...root.querySelectorAll('input[type="radio"], [role="radio"]')]
+    .filter(control => !control.matches('[role="radio"]') || !control.querySelector('input[type="radio"]'));
+}
+
+function getLiveOptionLabels(input) {
+  const labels = [...(input.labels || [])];
+  const labelledBy = String(input.getAttribute('aria-labelledby') || '').trim().split(/\s+/).filter(Boolean);
+  labelledBy.forEach(id => {
+    const label = document.getElementById(id);
+    if (label) labels.push(label);
+  });
+  if (input.matches('[role="radio"]')) labels.push(input);
+  for (let element = input.parentElement; element && element !== document.body; element = element.parentElement) {
+    if (getLiveRadioControls(element).length !== 1) break;
+    labels.push(element);
+  }
+  return [...new Set(labels)];
+}
+
+function hasLiveOptionText(input, option) {
+  const expected = normalizeStoredOption(option.html);
+  if (!expected) return false;
+  const texts = getLiveOptionLabels(input).map(label => label.textContent || '');
+  texts.push(input.getAttribute('aria-label') || '');
+  return texts.some(text => {
+    const clean = String(text).replace(/[\u200b-\u200d\ufeff]/g, '').trim();
+    const withoutLabel = clean.replace(/^[A-Z]\s*[.)：:]\s*/i, '');
+    return normalizeStoredOption(clean) === expected || normalizeStoredOption(withoutLabel) === expected;
+  });
+}
+
+function findLiveAnswerInput(answer) {
+  const radios = getLiveRadioControls().filter(input => {
+    if (input.closest('#lms-ai-answer-panel, [aria-disabled="true"], [inert]') || input.matches(':disabled')) return false;
+    if (input.matches('button') && input.form && input.type !== 'button') return false;
+    const visible = input.getClientRects().length > 0
+      || getLiveOptionLabels(input).some(element => element.getClientRects().length > 0);
+    return visible && getLiveQuestionScope(input, answer) !== false;
+  });
+  const optionId = answer.currentOption.id;
+  const byId = optionId == null ? [] : radios.filter(input => input.value === String(optionId)
+    || input.getAttribute('data-answer-id') === String(optionId));
+  if (byId.length > 0) return byId.length === 1 ? byId[0] : null;
+  const byText = radios.filter(input => getLiveQuestionScope(input, answer) === true
+    && hasLiveOptionText(input, answer.currentOption));
+  return byText.length === 1 ? byText[0] : null;
+}
+
+function isLiveAnswerChecked(input) {
+  if (!input) return false;
+  return input.matches('input[type="radio"]') ? input.checked : input.getAttribute('aria-checked') === 'true';
+}
+
+async function selectLiveAnswer(answer) {
+  if (answer?.source !== 'database' || !answer.currentOption) return 'Chưa có lựa chọn được đối chiếu chắc chắn.';
+  if (!isLiveAttemptPage() || answer.selectionAttemptId !== getLiveAttemptIdFromUrl()) {
+    return 'Bài làm đã thay đổi. Hãy lấy lại đáp án trước khi chọn.';
+  }
+  const input = findLiveAnswerInput(answer);
+  if (!input) return 'Không tìm thấy lựa chọn chắc chắn trên trang này. Hãy mở đúng trang câu hỏi rồi thử lại.';
+  if (isLiveAnswerChecked(input)) return 'Đáp án ' + answer.currentOption.label + ' đã được chọn.';
+  const visibleLabel = [...(input.labels || [])].find(label => label.getClientRects().length > 0);
+  const action = visibleLabel || input;
+  action.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  action.focus({ preventScroll: true });
+  action.click();
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    await new Promise(resolve => setTimeout(resolve, 50));
+    if (!isLiveAttemptPage() || answer.selectionAttemptId !== getLiveAttemptIdFromUrl()) {
+      return 'Bài làm đã thay đổi. Hãy kiểm tra lựa chọn trực tiếp trên LMS.';
+    }
+    if (isLiveAnswerChecked(findLiveAnswerInput(answer))) {
+      return 'Đã chọn ' + answer.currentOption.label + '. Chưa nộp bài.';
+    }
+  }
+  return 'Trang LMS chưa xác nhận lựa chọn. Hãy kiểm tra và chọn trực tiếp.';
+}
+
 function renderAiAnswerPanel(answers = [], meta = {}) {
   let panel = document.querySelector('#lms-ai-answer-panel');
   if (!panel) {
@@ -431,7 +521,7 @@ function renderAiAnswerPanel(answers = [], meta = {}) {
   }
 
   const answerItems = answers.length > 0
-    ? answers.map(answer => {
+    ? answers.map((answer, answerIndex) => {
       const questionHtml = sanitizeQuestionHtml(answer.questionHtml || answer.questionText || '');
       const isDatabaseAnswer = answer.source === 'database';
       const isUnavailable = answer.source === 'unavailable';
@@ -464,7 +554,9 @@ function renderAiAnswerPanel(answers = [], meta = {}) {
         <div class="lms-ai-answer-result">
           <span>Lựa chọn tương ứng trong đề</span>
           ${answer.currentOption
-            ? `<div class="lms-ai-answer-content"><strong>${escapeHtml(answer.currentOption.label)}.</strong> ${sanitizeQuestionHtml(answer.currentOption.html)}</div>`
+            ? `<div class="lms-ai-answer-content"><strong>${escapeHtml(answer.currentOption.label)}.</strong> ${sanitizeQuestionHtml(answer.currentOption.html)}</div>
+              <button type="button" class="lms-select-answer" data-select-answer="${answerIndex}">Chọn đáp án ${escapeHtml(answer.currentOption.label)}</button>
+              <small class="lms-select-answer-status" role="status" aria-live="polite"></small>`
             : '<div class="lms-ai-answer-content">Chưa đối chiếu chắc chắn với các lựa chọn trong đề.</div>'}
           <span>\u0110\u00e1p \u00e1n \u0111\u00fang</span>
           <div class="lms-ai-answer-content">${answerHtml}</div>
@@ -483,6 +575,19 @@ function renderAiAnswerPanel(answers = [], meta = {}) {
     <div class="lms-ai-answer-body">${answerItems}</div>
   `;
   panel.querySelector('#lms-ai-answer-close').addEventListener('click', () => panel.remove());
+  panel.querySelectorAll('button.lms-select-answer[data-select-answer]').forEach(button => {
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      const status = button.nextElementSibling;
+      try {
+        status.textContent = await selectLiveAnswer(answers[Number(button.dataset.selectAnswer)]);
+      } catch (error) {
+        status.textContent = 'Không chọn được đáp án. Hãy kiểm tra trực tiếp trên LMS.';
+      } finally {
+        button.disabled = false;
+      }
+    });
+  });
 }
 
 function renderAiStatusPanel(message = 'Đang xử lý...', type = 'loading') {
@@ -527,6 +632,7 @@ async function collectLiveAttemptQuestions() {
 async function solveLiveAttemptQuestions() {
   renderAiStatusPanel('Đang tải câu hỏi từ LMS...', 'loading');
   try {
+    const selectionAttemptId = getLiveAttemptIdFromUrl();
     const attemptJson = await collectLiveAttemptQuestions();
     renderAiStatusPanel('Đang nhờ AI trả lời ' + (attemptJson.questions?.length || 0) + ' câu hỏi...', 'loading');
     setStatus('Đang nhờ AI trả lời ' + (attemptJson.questions?.length || 0) + ' câu hỏi...', 'loading');
@@ -534,7 +640,7 @@ async function solveLiveAttemptQuestions() {
     if (!response?.ok) throw new Error(response?.message || 'Không lấy được đáp án AI.');
     const result = response.data?.data || {};
     const answers = (result.answers || []).filter(answer => answer.source !== 'unavailable')
-      .map(answer => matchStoredAnswerOption(answer, attemptJson.questions || []));
+      .map(answer => ({ ...matchStoredAnswerOption(answer, attemptJson.questions || []), selectionAttemptId }));
     renderAiAnswerPanel(answers, result);
     setStatus('Đã nhận ' + answers.length + ' đáp án (' + (result.databaseCount || 0) + ' từ hệ thống, ' + (result.aiCount || 0) + ' từ AI).', 'success');
   } catch (error) {
