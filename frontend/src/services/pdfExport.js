@@ -1,69 +1,3 @@
-function decodeHtmlText(html = '') {
-  const normalizedHtml = String(html || '')
-    .replace(/<audio\b[\s\S]*?<\/audio>/gi, '\n[Âm thanh]\n')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/(p|div|li|tr|h[1-6])>/gi, '\n');
-
-  if (typeof document === 'undefined') {
-    return normalizedHtml
-      .replace(/<img[^>]*>/gi, '')
-      .replace(/<[^>]+>/g, '')
-      .replace(/&nbsp;/gi, ' ')
-      .replace(/&amp;/gi, '&')
-      .replace(/&lt;/gi, '<')
-      .replace(/&gt;/gi, '>')
-      .replace(/&quot;/gi, '"')
-      .replace(/&#39;/gi, "'");
-  }
-
-  const container = document.createElement('div');
-  container.innerHTML = normalizedHtml;
-  container.querySelectorAll('img').forEach(image => image.remove());
-  return container.textContent || '';
-}
-
-function formatLatexExpression(expression = '') {
-  const matrixMatch = String(expression).match(/\\begin\{(?:matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix)\}([\s\S]*?)\\end\{(?:matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix)\}/);
-  if (matrixMatch) {
-    return matrixMatch[1]
-      .split(/\\\\/)
-      .map(row => '[ ' + row.split('&').map(cell => formatLatexExpression(cell)).join('   ') + ' ]')
-      .join('\n');
-  }
-
-  return String(expression || '')
-    .replace(/\\left|\\right/g, '')
-    .replace(/\\sum/g, '∑')
-    .replace(/\\prod/g, '∏')
-    .replace(/\\in/g, '∈')
-    .replace(/\\notin/g, '∉')
-    .replace(/\\times/g, '×')
-    .replace(/\\cdot/g, '·')
-    .replace(/\\leq?/g, '≤')
-    .replace(/\\geq?/g, '≥')
-    .replace(/\\neq/g, '≠')
-    .replace(/\\infty/g, '∞')
-    .replace(/\\pm/g, '±')
-    .replace(/\^\{\+\}/g, '⁺')
-    .replace(/\^\{-\}/g, '⁻')
-    .replace(/_\{([^{}]+)\}/g, '($1)')
-    .replace(/\^\{([^{}]+)\}/g, '^($1)')
-    .replace(/\\([a-zA-Z]+)/g, '$1')
-    .replace(/[{}]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function htmlToPdfText(html = '') {
-  return decodeHtmlText(html)
-    .replace(/\\\(([\s\S]+?)\\\)|\\\[([\s\S]+?)\\\]/g, (match, inlineExpression, displayExpression) => {
-      return formatLatexExpression(inlineExpression ?? displayExpression ?? '');
-    })
-    .replace(/\u00a0/g, ' ')
-    .replace(/[ \t]+\n/g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
 
 function extractImageSources(html = '') {
   const rawHtml = String(html || '');
@@ -176,35 +110,15 @@ function sortQuestions(questions, subjectNames) {
 }
 
 async function buildPdfSection(html, imageCache, fillColor, textColor) {
-  const stack = [];
-  const text = htmlToPdfText(html);
-  if (text) stack.push({ text, color: textColor, lineHeight: 1.35 });
-
-  const failedImages = [];
-  for (const source of extractImageSources(html)) {
-    const image = await imageCache.get(source);
-    if (!image) {
-      failedImages.push(source);
-      continue;
-    }
-    stack.push({
-      image: image.dataUrl,
-      width: image.dimensions.width,
-      height: image.dimensions.height,
-      alignment: 'center',
-      margin: [0, 7, 0, 3]
-    });
-  }
-
-  if (failedImages.length > 0) {
-    stack.push({ text: 'Có ' + failedImages.length + ' hình ảnh không tải được.', italics: true, color: '#64748B', fontSize: 9 });
-  }
+  const { convertPdfContent } = await import('./pdfRichContent.js');
+  const converted = await convertPdfContent(html, imageCache, textColor);
+  const stack = Array.isArray(converted) ? converted : [converted];
   if (stack.length === 0) stack.push({ text: '(Không có nội dung)', italics: true, color: '#64748B' });
 
   return {
     table: {
       widths: ['*'],
-      body: [[{ stack, fillColor, margin: [10, 8, 10, 8] }]]
+      body: [[{ stack, color: textColor, fillColor, margin: [10, 8, 10, 8] }]]
     },
     layout: 'noBorders',
     margin: [0, 0, 0, 8]
