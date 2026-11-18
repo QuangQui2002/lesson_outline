@@ -1,0 +1,61 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+# Một web service Node: build frontend (Vite) rồi backend Express phục vụ luôn frontend/dist + /api.
+# Các biến có "sync: false" sẽ được Render hỏi giá trị khi tạo Blueprint lần đầu.
+services:
+  - type: web
+    name: lesson-outline
+    runtime: node
+    plan: free
+    region: singapore
+    branch: main
+    autoDeploy: true
+    buildCommand: >-
+      npm ci --prefix backend --omit=dev &&
+      npm ci --prefix frontend --include=dev &&
+      npm run build --prefix frontend
+    startCommand: npm start --prefix backend
+    healthCheckPath: /api/ping
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: NODE_ENV
+        value: production
+      # Frontend và API cùng domain nên gọi đường dẫn tương đối (Vite nhúng lúc build)
+      - key: VITE_API_BASE_URL
+        value: /api
+
+      # Bảo vệ thao tác sửa/xóa. Render tự sinh giá trị ngẫu nhiên; xem trong tab Environment
+      # rồi nhập vào dashboard khi được hỏi.
+      - key: ADMIN_API_KEY
+        generateValue: true
+
+      # Supabase (bắt buộc ở production, nếu thiếu backend sẽ ghi vào db.json và mất khi redeploy)
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+
+      # Gemini cho chức năng AI đáp án của extension
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODELS
+        value: gemini-2.0-flash
+
+      # Telegram: báo lỗi API + báo cáo/backup hằng ngày (để trống nếu không dùng)
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: TELEGRAM_NOTIFY_IGNORE_PATHS
+        value: /api/ping,/api/health/db
+      - key: TELEGRAM_DAILY_REPORT_CRON
+        value: "59 23 * * *"
+
+      # Số proxy đứng trước app để lấy đúng IP client (rate limit, thống kê)
+      - key: TRUST_PROXY
+        value: "1"
+      # Nếu frontend deploy riêng: thêm CORS_ORIGINS=https://domain-frontend (mặc định cho phép mọi origin)
+      - key: JSON_BODY_LIMIT
+        value: 10mb
+      - key: MAX_QUESTION_TEXT_CHARS
+        value: "50000"

@@ -1,5 +1,5 @@
-import { createHash } from 'node:crypto';
-import { appendQuestions, readDb, readSubjectImportDb, writeDb } from '../services/dbService.js';
+import { createHash, randomUUID } from 'node:crypto';
+import { appendQuestions, readSubjectImportDb } from '../services/dbService.js';
 import {
   getQuestionById,
   getQuestionStatsData,
@@ -22,6 +22,25 @@ import {
   deleteQuestionAudioFolder,
   syncQuestionAudio
 } from '../services/questionAudioService.js';
+import { similarityRatio, similarityUpperBound } from '../utils/textSimilarity.js';
+import { exceedsQuestionTextLimit, MAX_QUESTION_TEXT_CHARS } from '../utils/httpError.js';
+
+const TEXT_TOO_LONG_MESSAGE = `Nội dung câu hỏi hoặc đáp án quá dài (tối đa ${MAX_QUESTION_TEXT_CHARS} ký tự, không tính ảnh).`;
+
+// Thêm hậu tố ngẫu nhiên để 2 request trong cùng 1ms không trùng id
+function createId(prefix) {
+  return `${prefix}_${Date.now()}_${randomUUID().slice(0, 8)}`;
+}
+
+function normalizeTags(tags) {
+  const values = Array.isArray(tags)
+    ? tags
+    : typeof tags === 'string' ? tags.split(',') : [];
+  return values
+    .filter(tag => typeof tag === 'string')
+    .map(tag => tag.trim().toLowerCase())
+    .filter(tag => tag !== '');
+}
 
 function stripHtml(html = '') {
   return String(html)
@@ -53,8 +72,8 @@ function normalizeQuestionForCompare(content = '') {
     .replace(/<img\b[^>]*>/gi, ' ')
     .replace(/<audio\b[\s\S]*?<\/audio>/gi, ' ')
     .replace(/data:image\/[a-zA-Z0-9.+-]+;base64,[a-zA-Z0-9+/=\r\n]+/gi, ' ')
-    .replace(/https:\/\/[^\s<>'"]+?\.(?:png|jpe?g|gif|webp|svg|bmp)(?:\?[^\s<>'"]*)?/gi, ' ')
-    .replace(/https:\/\/[^\s<>'"]+?\.(?:mp3|m4a|aac|ogg|oga|wav|webm)(?:\?[^\s<>'"]*)?/gi, ' ')
+    .replace(/https:\/\/[^\s<>'"]{1,2048}?\.(?:png|jpe?g|gif|webp|svg|bmp)(?:\?[^\s<>'"]{0,2048})?/gi, ' ')
+    .replace(/https:\/\/[^\s<>'"]{1,2048}?\.(?:mp3|m4a|aac|ogg|oga|wav|webm)(?:\?[^\s<>'"]{0,2048})?/gi, ' ')
     .replace(/<sup\b[^>]*>/gi, '^(')
     .replace(/<sub\b[^>]*>/gi, '_(')
     .replace(/<\/(?:sup|sub)\s*>/gi, ')')
@@ -73,30 +92,6 @@ function normalizeQuestionForCompare(content = '') {
     .replace(/^\s*c(?:â|a)u\s*\d+\s*[:.\-)]?/i, '')
     .replace(/\s+/g, ' ')
     .trim();
-}
-
-function levenshteinDistance(a, b) {
-  if (a === b) return 0;
-  if (!a.length) return b.length;
-  if (!b.length) return a.length;
-
-  let previousRow = Array.from({ length: b.length + 1 }, (_, index) => index);
-  let currentRow = new Array(b.length + 1);
-
-  for (let i = 1; i <= a.length; i++) {
-    currentRow[0] = i;
-    for (let j = 1; j <= b.length; j++) {
-      const insertCost = currentRow[j - 1] + 1;
-      const deleteCost = previousRow[j] + 1;
-      const replaceCost = previousRow[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1);
-      currentRow[j] = Math.min(insertCost, deleteCost, replaceCost);
-    }
-    const completedRow = previousRow;
-    previousRow = currentRow;
-    currentRow = completedRow;
-  }
-
-  return previousRow[b.length];
 }
 
 function createTrigrams(value) {
@@ -143,12 +138,7 @@ function hasPotentialSimilarity(first, second) {
 }
 
 function calculateQuestionSimilarity(normalizedA, normalizedB) {
-  if (!normalizedA || !normalizedB) return 0;
-  if (normalizedA === normalizedB) return 1;
-
-  const maxLength = Math.max(normalizedA.length, normalizedB.length);
-  const distance = levenshteinDistance(normalizedA, normalizedB);
-  return 1 - distance / maxLength;
+  return similarityRatio(normalizedA, normalizedB);
 }
 
 function yieldToEventLoop() {
@@ -307,7 +297,7 @@ function extractQuestionImageKeys(content = '') {
   });
   const originalKeys = markerKeys.filter(key => !taggedSources.has(key) && !keys.includes(key));
   keys.push(...originalKeys);
-  const imageUrlPattern = /https:\/\/[^\s<>'"]+?\.(?:png|jpe?g|gif|webp|svg|bmp)(?:\?[^\s<>'"]*)?/gi;
+  const imageUrlPattern = /https:\/\/[^\s<>'"]{1,2048}?\.(?:png|jpe?g|gif|webp|svg|bmp)(?:\?[^\s<>'"]{0,2048})?/gi;
   remaining.match(imageUrlPattern)?.forEach(source => {
     if (taggedSources.has(decodeImageAttribute(source))) return;
     if (originalKeys.length > 0 && /\/storage\/v1\/object\/public\//.test(source)) return;
@@ -318,7 +308,7 @@ function extractQuestionImageKeys(content = '') {
 }
 
 function isAudioUrl(value = '') {
-  return /^https:\/\/[^\s<>'"]+?\.(?:mp3|m4a|aac|ogg|oga|wav|webm)(?:\?[^\s<>'"]*)?$/i.test(String(value || '').trim());
+  return /^https:\/\/[^\s<>'"]{1,2048}?\.(?:mp3|m4a|aac|ogg|oga|wav|webm)(?:\?[^\s<>'"]{0,2048})?$/i.test(String(value || '').trim());
 }
 
 function normalizeAudioKey(value = '') {
@@ -463,9 +453,26 @@ async function buildImportAnalysis(sourceQuestions, existingQuestions, subjectId
   const skipped = [];
   const results = [];
   const candidates = existingQuestions.map(prepareQuestionCandidate);
+  const idSuffix = randomUUID().slice(0, 8);
 
   for (let index = 0; index < sourceQuestions.length; index += 1) {
     const sourceQuestion = sourceQuestions[index];
+    if (!sourceQuestion || typeof sourceQuestion !== 'object') {
+      results.push({ index, slot: null, status: 'missing_required', similarity: null, mediaMatch: null });
+      skipped.push({ index, slot: null, reason: 'Câu hỏi không đúng định dạng.', type: 'missing_required' });
+      continue;
+    }
+    const sourceAnswers = Array.isArray(sourceQuestion.answertext) ? sourceQuestion.answertext : [];
+    if (exceedsQuestionTextLimit(
+      sourceQuestion.questiontext, sourceQuestion.questionText, sourceQuestion.content,
+      sourceQuestion.generalfeedback, sourceQuestion.generalFeedback, sourceQuestion.answer,
+      sourceQuestion.rightanswer, sourceQuestion.rightAnswer,
+      ...sourceAnswers.flatMap(answer => [answer?.answer, answer?.text, answer?.question])
+    )) {
+      results.push({ index, slot: sourceQuestion.slot, status: 'too_large', similarity: null, mediaMatch: null });
+      skipped.push({ index, slot: sourceQuestion.slot, reason: TEXT_TOO_LONG_MESSAGE, type: 'too_large' });
+      continue;
+    }
     const normalized = normalizeImportedQuestion(sourceQuestion, quizName);
     if (!normalized.content || !normalized.answer) {
       results.push({ index, slot: sourceQuestion.slot, status: 'missing_required', similarity: null, mediaMatch: null });
@@ -480,9 +487,8 @@ async function buildImportAnalysis(sourceQuestions, existingQuestions, subjectId
       for (let candidateIndex = 0; candidateIndex < candidates.length; candidateIndex += 1) {
         if (candidateIndex > 0 && candidateIndex % 100 === 0) await yieldToEventLoop();
         const candidate = candidates[candidateIndex];
-        const maxLength = Math.max(target.normalizedContent.length, candidate.normalizedContent.length);
-        const minLength = Math.min(target.normalizedContent.length, candidate.normalizedContent.length);
-        if (closest && maxLength > 0 && minLength / maxLength < closest.similarity) continue;
+        if (closest && (closest.similarity === 1 && closest.mediaMatch)) break;
+        if (closest && similarityUpperBound(target.normalizedContent, candidate.normalizedContent) < closest.similarity) continue;
         const similarity = calculateQuestionSimilarity(target.normalizedContent, candidate.normalizedContent);
         const mediaMatch = hasSameQuestionMedia(target, candidate);
         if (!closest || similarity > closest.similarity || (similarity === closest.similarity && mediaMatch && !closest.mediaMatch)) {
@@ -504,7 +510,8 @@ async function buildImportAnalysis(sourceQuestions, existingQuestions, subjectId
     }
 
     const importableQuestion = {
-      id: `q_${now}_${index}`,
+      // Hậu tố ngẫu nhiên: import upsert theo id, trùng id giữa 2 lần import sẽ ghi đè câu cũ
+      id: `q_${now}_${index}_${idSuffix}`,
       subjectId,
       content: normalized.content,
       answer: normalized.answer,
@@ -642,17 +649,20 @@ export async function getQuestionStats(req, res, next) {
 export async function createQuestion(req, res, next) {
   try {
     const { subjectId, content, answer, tags, quizName } = req.body;
-    const normalizedContent = normalizeQuestionAudioHtml(content);
 
-    if (!subjectId) {
+    if (!subjectId || typeof subjectId !== 'string') {
       return res.status(400).json({ success: false, message: 'ID môn học là bắt buộc' });
     }
-    if (!content || content.trim() === '') {
+    if (typeof content !== 'string' || content.trim() === '') {
       return res.status(400).json({ success: false, message: 'Nội dung câu hỏi không được để trống' });
     }
-    if (!answer || answer.trim() === '') {
+    if (typeof answer !== 'string' || answer.trim() === '') {
       return res.status(400).json({ success: false, message: 'Đáp án câu hỏi không được để trống' });
     }
+    if (exceedsQuestionTextLimit(content, answer)) {
+      return res.status(400).json({ success: false, message: TEXT_TOO_LONG_MESSAGE });
+    }
+    const normalizedContent = normalizeQuestionAudioHtml(content);
 
     if (!await getSubjectById(subjectId)) {
       return res.status(400).json({ success: false, message: 'Môn học không tồn tại trong hệ thống' });
@@ -668,21 +678,14 @@ export async function createQuestion(req, res, next) {
       });
     }
 
-    // Xử lý tags (đảm bảo là mảng các từ viết thường và cắt khoảng trắng)
-    let processedTags = [];
-    if (Array.isArray(tags)) {
-      processedTags = tags.map(t => t.trim().toLowerCase()).filter(t => t !== '');
-    } else if (typeof tags === 'string') {
-      processedTags = tags.split(',').map(t => t.trim().toLowerCase()).filter(t => t !== '');
-    }
-
     const newQuestion = {
-      id: 'q_' + Date.now(),
+      id: createId('q'),
       subjectId: subjectId,
       content: normalizedContent.trim(),
       answer: answer.trim(),
       quizName: normalizeQuizName(quizName),
-      tags: processedTags,
+      // Tags: mảng các từ viết thường, đã cắt khoảng trắng
+      tags: normalizeTags(tags),
       createdAt: new Date().toISOString()
     };
 
@@ -731,6 +734,13 @@ export async function updateQuestion(req, res, next) {
     }
     const changes = {};
 
+    if ((content !== undefined && typeof content !== 'string') || (answer !== undefined && typeof answer !== 'string')) {
+      return res.status(400).json({ success: false, message: 'Nội dung câu hỏi và đáp án phải là chuỗi.' });
+    }
+    if (exceedsQuestionTextLimit(content, answer)) {
+      return res.status(400).json({ success: false, message: TEXT_TOO_LONG_MESSAGE });
+    }
+
     // Nếu thay đổi môn học, kiểm tra tính hợp lệ
     if (subjectId) {
       if (!await getSubjectById(subjectId)) {
@@ -772,13 +782,7 @@ export async function updateQuestion(req, res, next) {
     }
 
     if (tags !== undefined) {
-      let processedTags = [];
-      if (Array.isArray(tags)) {
-        processedTags = tags.map(t => t.trim().toLowerCase()).filter(t => t !== '');
-      } else if (typeof tags === 'string') {
-        processedTags = tags.split(',').map(t => t.trim().toLowerCase()).filter(t => t !== '');
-      }
-      changes.tags = processedTags;
+      changes.tags = normalizeTags(tags);
     }
 
     const imageSync = await syncQuestionImages({

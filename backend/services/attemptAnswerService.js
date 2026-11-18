@@ -1,8 +1,12 @@
-﻿import { readDb } from './dbService.js';
+﻿import { readAllQuestionsCached } from './dbService.js';
+import { similarityRatio, similarityUpperBound } from '../utils/textSimilarity.js';
+import { exceedsQuestionTextLimit, httpError, MAX_QUESTION_TEXT_CHARS } from '../utils/httpError.js';
+
+const MAX_SOLVE_QUESTIONS = Math.max(1, Number(process.env.MAX_SOLVE_QUESTIONS || 300));
 
 const STORED_QUESTION_SIMILARITY_THRESHOLD = 0.5;
-const IMAGE_URL_PATTERN = /https:\/\/[^\s<>'"]+?\.(?:png|jpe?g|gif|webp|svg|bmp)(?:\?[^\s<>'"]*)?/gi;
-const AUDIO_URL_PATTERN = /https:\/\/[^\s<>'"]+?\.(?:mp3|m4a|aac|ogg|oga|wav|webm)(?:\?[^\s<>'"]*)?/gi;
+const IMAGE_URL_PATTERN = /https:\/\/[^\s<>'"]{1,2048}?\.(?:png|jpe?g|gif|webp|svg|bmp)(?:\?[^\s<>'"]{0,2048})?/gi;
+const AUDIO_URL_PATTERN = /https:\/\/[^\s<>'"]{1,2048}?\.(?:mp3|m4a|aac|ogg|oga|wav|webm)(?:\?[^\s<>'"]{0,2048})?/gi;
 
 function decodeEntities(value = '') {
   return String(value || '')
@@ -249,34 +253,6 @@ function normalizeStoredQuestionForCompare(content = '') {
     .trim();
 }
 
-function levenshteinDistance(a, b) {
-  if (a === b) return 0;
-  if (!a.length) return b.length;
-  if (!b.length) return a.length;
-  const previousRow = Array.from({ length: b.length + 1 }, (_, index) => index);
-  const currentRow = new Array(b.length + 1);
-  for (let i = 1; i <= a.length; i += 1) {
-    currentRow[0] = i;
-    for (let j = 1; j <= b.length; j += 1) {
-      const insertCost = currentRow[j - 1] + 1;
-      const deleteCost = previousRow[j] + 1;
-      const replaceCost = previousRow[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1);
-      currentRow[j] = Math.min(insertCost, deleteCost, replaceCost);
-    }
-    previousRow.splice(0, previousRow.length, ...currentRow);
-  }
-  return previousRow[b.length];
-}
-
-function calculateSimilarity(contentA, contentB) {
-  const normalizedA = normalizeStoredQuestionForCompare(contentA);
-  const normalizedB = normalizeStoredQuestionForCompare(contentB);
-  if (!normalizedA || !normalizedB) return 0;
-  if (normalizedA === normalizedB) return 1;
-  const maxLength = Math.max(normalizedA.length, normalizedB.length);
-  return 1 - levenshteinDistance(normalizedA, normalizedB) / maxLength;
-}
-
 function getQuestionCompareText(question = {}) {
   return extractQuestionStem(question.questionHtml || question.questiontext || '');
 }
@@ -321,18 +297,37 @@ function findMatchingOption(question = {}, correctAnswerText = '') {
   }) || null;
 }
 
-function findStoredAnswer(question = {}, storedQuestions = []) {
-  const questionCompareText = getQuestionCompareText(question);
+// Dữ liệu so sánh của câu hỏi trong DB được tính một lần cho mỗi bản cache của danh sách câu hỏi
+const preparedStoredQuestionsCache = new WeakMap();
+
+function prepareStoredQuestions(storedQuestions = []) {
+  let prepared = preparedStoredQuestionsCache.get(storedQuestions);
+  if (!prepared) {
+    prepared = storedQuestions.map(storedQuestion => ({
+      storedQuestion,
+      imageKeys: extractImageKeys(storedQuestion.content || ''),
+      audioKeys: extractAudioKeys(storedQuestion.content || ''),
+      compareText: normalizeStoredQuestionForCompare(extractStoredQuestionText(storedQuestion.content || ''))
+    }));
+    preparedStoredQuestionsCache.set(storedQuestions, prepared);
+  }
+  return prepared;
+}
+
+function findStoredAnswer(question = {}, preparedStoredQuestions = []) {
+  const questionCompareText = normalizeStoredQuestionForCompare(getQuestionCompareText(question));
+  if (!questionCompareText) return null;
   const similarityThreshold = question.audioKeys.length > 0 ? 0.85 : STORED_QUESTION_SIMILARITY_THRESHOLD;
   let bestMatch = null;
 
-  for (const storedQuestion of storedQuestions) {
-    const storedImageKeys = extractImageKeys(storedQuestion.content || '');
-    if (!hasSameMediaKeyLists(question.imageKeys, storedImageKeys)) continue;
-    const storedAudioKeys = extractAudioKeys(storedQuestion.content || '');
-    if (!hasSameMediaKeyLists(question.audioKeys, storedAudioKeys)) continue;
-    const storedQuestionText = extractStoredQuestionText(storedQuestion.content || '');
-    const similarity = calculateSimilarity(questionCompareText, storedQuestionText);
+  for (const { storedQuestion, imageKeys, audioKeys, compareText } of preparedStoredQuestions) {
+    if (!hasSameMediaKeyLists(question.imageKeys, imageKeys)) continue;
+    if (!hasSameMediaKeyLists(question.audioKeys, audioKeys)) continue;
+    // Bỏ qua sớm khi cận trên của độ giống không thể vượt ngưỡng hoặc kết quả tốt nhất hiện có
+    const upperBound = similarityUpperBound(questionCompareText, compareText);
+    if (upperBound < similarityThreshold) continue;
+    if (bestMatch && upperBound + 0.02 <= bestMatch.score) continue;
+    const similarity = similarityRatio(questionCompareText, compareText);
     if (similarity < similarityThreshold) continue;
     const sameSourceId = question.id !== null && question.id !== undefined
       && storedQuestion.sourceId !== null && storedQuestion.sourceId !== undefined
@@ -367,12 +362,11 @@ function findStoredAnswer(question = {}, storedQuestions = []) {
 }
 
 async function findStoredAnswers(questions = []) {
-  const db = await readDb();
-  const storedQuestions = Array.isArray(db.questions) ? db.questions : [];
+  const preparedStoredQuestions = prepareStoredQuestions(await readAllQuestionsCached());
   const matchedAnswers = [];
   const unansweredQuestions = [];
   for (const question of questions) {
-    const storedAnswer = findStoredAnswer(question, storedQuestions);
+    const storedAnswer = findStoredAnswer(question, preparedStoredQuestions);
     if (storedAnswer) matchedAnswers.push(storedAnswer);
     else unansweredQuestions.push(question);
   }
@@ -474,9 +468,10 @@ async function callGemini(provider, prompt) {
   const timeoutId = setTimeout(() => controller.abort('Gemini quá thời gian phản hồi'), timeoutMs);
   let response;
   try {
-    response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${provider.model}:generateContent?key=${provider.apiKey}`, {
+    // API key gửi qua header thay vì query string để không lọt vào log của proxy
+    response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(provider.model)}:generateContent`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': provider.apiKey },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
@@ -502,9 +497,22 @@ async function callAiProvider(provider, prompt) {
 }
 
 export async function solveAttemptQuestions(payload = {}) {
-  const rawQuestions = Array.isArray(payload.questions) ? payload.questions : [];
+  const rawQuestions = Array.isArray(payload.questions)
+    ? payload.questions.filter(question => question && typeof question === 'object')
+    : [];
+  if (rawQuestions.length > MAX_SOLVE_QUESTIONS) {
+    throw httpError(400, `Mỗi lần chỉ giải tối đa ${MAX_SOLVE_QUESTIONS} câu hỏi.`);
+  }
+  const hasOversizedQuestion = rawQuestions.some(question => exceedsQuestionTextLimit(
+    question.questiontext,
+    question.content,
+    ...(Array.isArray(question.answertext) ? question.answertext.flatMap(answer => [answer?.answer, answer?.text, answer?.question]) : [])
+  ));
+  if (hasOversizedQuestion) {
+    throw httpError(400, `Nội dung câu hỏi quá dài (tối đa ${MAX_QUESTION_TEXT_CHARS} ký tự, không tính ảnh).`);
+  }
   const questions = rawQuestions.map(normalizeQuestion).filter(question => question.questiontext && question.answers.length > 0);
-  if (questions.length === 0) throw new Error('Không có câu hỏi trắc nghiệm hợp lệ để AI trả lời.');
+  if (questions.length === 0) throw httpError(400, 'Không có câu hỏi trắc nghiệm hợp lệ để AI trả lời.');
 
   const { matchedAnswers, unansweredQuestions } = await findStoredAnswers(questions);
   const unavailableAnswers = unansweredQuestions
@@ -528,7 +536,7 @@ export async function solveAttemptQuestions(payload = {}) {
           answers: [...matchedAnswers, ...unavailableAnswers].sort((a, b) => Number(a.slot) - Number(b.slot))
         };
       }
-      throw new Error('Backend chưa cấu hình GEMINI_API_KEY. Hãy thêm Gemini API key vào file .env.');
+      throw httpError(503, 'Backend chưa cấu hình GEMINI_API_KEY. Hãy thêm Gemini API key vào biến môi trường.');
     }
 
     const prompt = buildPrompt(aiQuestions);
@@ -558,7 +566,7 @@ export async function solveAttemptQuestions(payload = {}) {
           answers: [...matchedAnswers, ...unavailableAnswers].sort((a, b) => Number(a.slot) - Number(b.slot))
         };
       }
-      throw new Error(`Tất cả model AI đều lỗi. ${errors.join(' | ')}`);
+      throw httpError(502, `Tất cả model AI đều lỗi. ${errors.join(' | ')}`);
     }
     aiAnswers = normalizeAiAnswers(Array.isArray(parsed.answers) ? parsed.answers : [], aiQuestions);
   }

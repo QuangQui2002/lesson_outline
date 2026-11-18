@@ -2,6 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createClient } from '@supabase/supabase-js';
+import { httpError } from '../utils/httpError.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -9,6 +10,8 @@ const dbPath = path.join(__dirname, '../data/db.json');
 const CACHE_TTL_MS = Number(process.env.DB_CACHE_TTL_MS || 60000);
 const QUESTION_COLUMNS = 'id,subjectId,content,answer,quizName,tags,createdAt,sourceId,sourceSlot';
 const SUBJECT_COLUMNS = 'id,name,createdAt';
+// PostgREST (Supabase) mặc định trả tối đa 1000 dòng mỗi request, nên phải đọc theo trang
+const SUPABASE_PAGE_SIZE = Math.max(1, Number(process.env.SUPABASE_PAGE_SIZE || 1000));
 
 function normalizeSupabaseUrl(url = '') {
   return url.trim().replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '');
@@ -20,7 +23,7 @@ const supabase = supabaseUrl && supabaseKey
   ? createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } })
   : null;
 
-let writePromise = Promise.resolve();
+let jsonLock = Promise.resolve();
 const cache = new Map();
 
 export function isSupabaseEnabled() { return Boolean(supabase); }
@@ -37,12 +40,37 @@ async function readJsonDb() {
 
 async function writeJsonDb(data) {
   await fs.mkdir(path.dirname(dbPath), { recursive: true });
-  await fs.writeFile(dbPath, JSON.stringify(data, null, 2), 'utf8');
+  // Ghi ra file tạm rồi rename để request đang đọc không gặp file ghi dở
+  const tempPath = dbPath + '.tmp';
+  await fs.writeFile(tempPath, JSON.stringify(data, null, 2), 'utf8');
+  await fs.rename(tempPath, dbPath);
+}
+
+// Tuần tự hóa các thao tác đọc-sửa-ghi db.json để request đồng thời không ghi đè lên nhau
+function withJsonLock(task) {
+  const run = jsonLock.then(task, task);
+  jsonLock = run.catch(() => {});
+  return run;
 }
 
 export function ensureSupabaseSuccess(result, action) {
   if (result.error) throw new Error(`${action}: ${result.error.message}`);
   return result.data;
+}
+
+async function collectPages(createQuery) {
+  const rows = [];
+  for (let offset = 0; ; offset += SUPABASE_PAGE_SIZE) {
+    const result = await createQuery().range(offset, offset + SUPABASE_PAGE_SIZE - 1);
+    if (result.error) return { data: null, error: result.error };
+    const batch = result.data || [];
+    rows.push(...batch);
+    if (batch.length < SUPABASE_PAGE_SIZE) return { data: rows, error: null };
+  }
+}
+
+async function fetchAllRows(createQuery, action) {
+  return ensureSupabaseSuccess(await collectPages(createQuery), action);
 }
 
 function normalizeQuizName(quizName = '') {
@@ -146,12 +174,11 @@ export async function listSubjectsWithCounts() {
     })));
   }
 
-  const [subjectsResult, countsResult] = await Promise.all([
-    supabase.from('subjects').select(SUBJECT_COLUMNS).order('createdAt', { ascending: true }),
-    supabase.from('questions').select('subjectId')
+  const [subjects, countRows] = await Promise.all([
+    fetchAllRows(() => supabase.from('subjects').select(SUBJECT_COLUMNS).order('createdAt', { ascending: true }).order('id'), 'Loi doc subjects tu Supabase'),
+    fetchAllRows(() => supabase.from('questions').select('subjectId').order('id'), 'Loi dem questions tu Supabase')
   ]);
-  const subjects = ensureSupabaseSuccess(subjectsResult, 'Loi doc subjects tu Supabase');
-  const counts = ensureSupabaseSuccess(countsResult, 'Loi dem questions tu Supabase').reduce((value, row) => {
+  const counts = countRows.reduce((value, row) => {
     value[row.subjectId] = (value[row.subjectId] || 0) + 1;
     return value;
   }, {});
@@ -173,41 +200,42 @@ export async function getSubjectById(id) {
 }
 
 export async function getSubjectByName(name) {
-  if (!isSupabaseEnabled()) {
-    const db = await readJsonDb();
-    return db.subjects.find(subject => subject.name.toLowerCase() === name.toLowerCase()) || null;
-  }
-  return ensureSupabaseSuccess(
-    await supabase.from('subjects').select(SUBJECT_COLUMNS).ilike('name', name).maybeSingle(),
-    'Loi kiem tra subject trung ten'
-  );
+  // So sánh trong JS thay vì ilike: ilike coi % và _ trong tên môn là wildcard
+  const normalizedName = String(name || '').trim().toLowerCase();
+  const subjects = isSupabaseEnabled()
+    ? await fetchAllRows(() => supabase.from('subjects').select(SUBJECT_COLUMNS).order('id'), 'Loi kiem tra subject trung ten')
+    : (await readJsonDb()).subjects;
+  return subjects.find(subject => String(subject.name || '').trim().toLowerCase() === normalizedName) || null;
 }
 
 export async function insertSubject(subject) {
   if (!isSupabaseEnabled()) {
-    const db = await readJsonDb();
-    db.subjects.push(subject);
-    await writeJsonDb(db);
-    invalidateDbCache();
-    return subject;
+    return withJsonLock(async () => {
+      const db = await readJsonDb();
+      db.subjects.push(subject);
+      await writeJsonDb(db);
+      invalidateDbCache();
+      return subject;
+    });
   }
-  const inserted = ensureSupabaseSuccess(
-    await supabase.from('subjects').insert(subject).select(SUBJECT_COLUMNS).single(),
-    'Loi tao subject tren Supabase'
-  );
+  const result = await supabase.from('subjects').insert(subject).select(SUBJECT_COLUMNS).single();
+  if (result.error?.code === '23505') throw httpError(400, 'Môn học này đã tồn tại!');
+  const inserted = ensureSupabaseSuccess(result, 'Loi tao subject tren Supabase');
   invalidateDbCache();
   return inserted;
 }
 
 export async function removeSubject(id) {
   if (!isSupabaseEnabled()) {
-    const db = await readJsonDb();
-    if (!db.subjects.some(subject => subject.id === id)) return false;
-    db.subjects = db.subjects.filter(subject => subject.id !== id);
-    db.questions = db.questions.filter(question => question.subjectId !== id);
-    await writeJsonDb(db);
-    invalidateDbCache();
-    return true;
+    return withJsonLock(async () => {
+      const db = await readJsonDb();
+      if (!db.subjects.some(subject => subject.id === id)) return false;
+      db.subjects = db.subjects.filter(subject => subject.id !== id);
+      db.questions = db.questions.filter(question => question.subjectId !== id);
+      await writeJsonDb(db);
+      invalidateDbCache();
+      return true;
+    });
   }
   const deleted = ensureSupabaseSuccess(
     await supabase.from('subjects').delete().eq('id', id).select('id').maybeSingle(),
@@ -220,6 +248,7 @@ export async function removeSubject(id) {
 export async function listQuestions({ subjectId = '', quizName = '', search = '', limit = 0, offset = 0 } = {}) {
   const pageLimit = Math.max(0, Number(limit) || 0);
   const pageOffset = Math.max(0, Number(offset) || 0);
+  search = String(search || '');
 
   if (!isSupabaseEnabled()) {
     const db = await readJsonDb();
@@ -236,35 +265,28 @@ export async function listQuestions({ subjectId = '', quizName = '', search = ''
     };
   }
 
-  let rpcQuery = supabase.rpc('search_questions_v2', {
+  const createRpcQuery = options => supabase.rpc('search_questions_v2', {
     p_subject_id: subjectId || null,
     p_quiz_name: quizName ? normalizeQuizName(quizName) : null,
     p_search: search.trim() || null
-  }, pageLimit ? { count: 'exact' } : undefined);
-  if (pageLimit) rpcQuery = rpcQuery.range(pageOffset, pageOffset + pageLimit - 1);
-  const rpcResult = await rpcQuery;
+  }, options);
+  const rpcResult = pageLimit
+    ? await createRpcQuery({ count: 'exact' }).range(pageOffset, pageOffset + pageLimit - 1)
+    : await collectPages(() => createRpcQuery());
   if (!rpcResult.error) {
     const items = rpcResult.data.map(normalizeQuestion);
     return pageLimit ? { items, total: rpcResult.count ?? items.length } : items;
   }
 
+  const createTableQuery = () => {
+    let tableQuery = supabase.from('questions').select(QUESTION_COLUMNS);
+    if (subjectId) tableQuery = tableQuery.eq('subjectId', subjectId);
+    if (quizName) tableQuery = tableQuery.eq('quizName', normalizeQuizName(quizName));
+    return tableQuery.order('createdAt', { ascending: false }).order('id', { ascending: false });
+  };
+
   if (search.trim()) {
-    const rows = [];
-    const batchSize = 1000;
-    let batchOffset = 0;
-    while (true) {
-      let batchQuery = supabase.from('questions').select(QUESTION_COLUMNS);
-      if (subjectId) batchQuery = batchQuery.eq('subjectId', subjectId);
-      if (quizName) batchQuery = batchQuery.eq('quizName', normalizeQuizName(quizName));
-      batchQuery = batchQuery
-        .order('createdAt', { ascending: false })
-        .range(batchOffset, batchOffset + batchSize - 1);
-      const batch = ensureSupabaseSuccess(await batchQuery, 'Loi doc questions de tim kiem tu Supabase')
-        .map(normalizeQuestion);
-      rows.push(...batch);
-      if (batch.length < batchSize) break;
-      batchOffset += batch.length;
-    }
+    const rows = (await fetchAllRows(createTableQuery, 'Loi doc questions de tim kiem tu Supabase')).map(normalizeQuestion);
     const matchedRows = rows
       .filter(question => questionMatchesSearch(question, search));
     if (!pageLimit) return matchedRows;
@@ -274,17 +296,19 @@ export async function listQuestions({ subjectId = '', quizName = '', search = ''
     };
   }
 
-  let query = supabase.from('questions').select(
-    QUESTION_COLUMNS,
-    pageLimit ? { count: 'exact' } : undefined
-  );
+  if (!pageLimit) {
+    return (await fetchAllRows(createTableQuery, 'Loi doc questions tu Supabase')).map(normalizeQuestion);
+  }
+  let query = supabase.from('questions').select(QUESTION_COLUMNS, { count: 'exact' });
   if (subjectId) query = query.eq('subjectId', subjectId);
   if (quizName) query = query.eq('quizName', normalizeQuizName(quizName));
-  query = query.order('createdAt', { ascending: false });
-  if (pageLimit) query = query.range(pageOffset, pageOffset + pageLimit - 1);
+  query = query
+    .order('createdAt', { ascending: false })
+    .order('id', { ascending: false })
+    .range(pageOffset, pageOffset + pageLimit - 1);
   const result = await query;
   const items = ensureSupabaseSuccess(result, 'Loi doc questions tu Supabase').map(normalizeQuestion);
-  return pageLimit ? { items, total: result.count ?? items.length } : items;
+  return { items, total: result.count ?? items.length };
 }
 
 export async function listQuestionCandidates(excludeId = '') {
@@ -292,9 +316,11 @@ export async function listQuestionCandidates(excludeId = '') {
     const db = await readJsonDb();
     return db.questions.filter(question => question.id !== excludeId).map(({ id, content }) => ({ id, content }));
   }
-  let query = supabase.from('questions').select('id,content');
-  if (excludeId) query = query.neq('id', excludeId);
-  return ensureSupabaseSuccess(await query, 'Loi doc noi dung questions tu Supabase');
+  return fetchAllRows(() => {
+    let query = supabase.from('questions').select('id,content').order('id');
+    if (excludeId) query = query.neq('id', excludeId);
+    return query;
+  }, 'Loi doc noi dung questions tu Supabase');
 }
 
 export async function getQuestionById(id) {
@@ -312,11 +338,13 @@ export async function getQuestionById(id) {
 export async function insertQuestion(question) {
   const payload = toQuestionPayload(question);
   if (!isSupabaseEnabled()) {
-    const db = await readJsonDb();
-    db.questions.push(payload);
-    await writeJsonDb(db);
-    invalidateDbCache();
-    return payload;
+    return withJsonLock(async () => {
+      const db = await readJsonDb();
+      db.questions.push(payload);
+      await writeJsonDb(db);
+      invalidateDbCache();
+      return payload;
+    });
   }
   const inserted = ensureSupabaseSuccess(
     await supabase.from('questions').insert(payload).select(QUESTION_COLUMNS).single(),
@@ -328,13 +356,15 @@ export async function insertQuestion(question) {
 
 export async function updateQuestionById(id, changes) {
   if (!isSupabaseEnabled()) {
-    const db = await readJsonDb();
-    const index = db.questions.findIndex(question => question.id === id);
-    if (index === -1) return null;
-    db.questions[index] = { ...db.questions[index], ...changes };
-    await writeJsonDb(db);
-    invalidateDbCache();
-    return db.questions[index];
+    return withJsonLock(async () => {
+      const db = await readJsonDb();
+      const index = db.questions.findIndex(question => question.id === id);
+      if (index === -1) return null;
+      db.questions[index] = { ...db.questions[index], ...changes };
+      await writeJsonDb(db);
+      invalidateDbCache();
+      return db.questions[index];
+    });
   }
   const updated = ensureSupabaseSuccess(
     await supabase.from('questions').update(changes).eq('id', id).select(QUESTION_COLUMNS).maybeSingle(),
@@ -346,12 +376,14 @@ export async function updateQuestionById(id, changes) {
 
 export async function removeQuestion(id) {
   if (!isSupabaseEnabled()) {
-    const db = await readJsonDb();
-    if (!db.questions.some(question => question.id === id)) return false;
-    db.questions = db.questions.filter(question => question.id !== id);
-    await writeJsonDb(db);
-    invalidateDbCache();
-    return true;
+    return withJsonLock(async () => {
+      const db = await readJsonDb();
+      if (!db.questions.some(question => question.id === id)) return false;
+      db.questions = db.questions.filter(question => question.id !== id);
+      await writeJsonDb(db);
+      invalidateDbCache();
+      return true;
+    });
   }
   const deleted = ensureSupabaseSuccess(
     await supabase.from('questions').delete().eq('id', id).select('id').maybeSingle(),
@@ -385,8 +417,8 @@ export async function getQuestionStatsData() {
   if (isSupabaseEnabled()) {
     const rpcResult = await supabase.rpc('get_question_stats');
     if (!rpcResult.error && rpcResult.data) return setCached('question-stats', rpcResult.data);
-    const rows = ensureSupabaseSuccess(
-      await supabase.from('questions').select('subjectId,quizName'),
+    const rows = await fetchAllRows(
+      () => supabase.from('questions').select('subjectId,quizName').order('id'),
       'Loi thong ke questions tu Supabase'
     );
     return setCached('question-stats', buildQuestionStats(rows));
@@ -397,14 +429,28 @@ export async function getQuestionStatsData() {
 
 export async function readDb() {
   if (!isSupabaseEnabled()) return readJsonDb();
-  const [subjectsResult, questionsResult] = await Promise.all([
-    supabase.from('subjects').select(SUBJECT_COLUMNS).order('createdAt', { ascending: true }),
-    supabase.from('questions').select(QUESTION_COLUMNS).order('createdAt', { ascending: true })
+  const [subjects, questions] = await Promise.all([
+    fetchAllRows(
+      () => supabase.from('subjects').select(SUBJECT_COLUMNS).order('createdAt', { ascending: true }).order('id'),
+      'Loi doc subjects tu Supabase'
+    ),
+    fetchAllRows(
+      () => supabase.from('questions').select(QUESTION_COLUMNS).order('createdAt', { ascending: true }).order('id'),
+      'Loi doc questions tu Supabase'
+    )
   ]);
-  return {
-    subjects: ensureSupabaseSuccess(subjectsResult, 'Loi doc subjects tu Supabase'),
-    questions: ensureSupabaseSuccess(questionsResult, 'Loi doc questions tu Supabase').map(normalizeQuestion)
-  };
+  return { subjects, questions: questions.map(normalizeQuestion) };
+}
+
+/**
+ * Toàn bộ câu hỏi, có cache (bị xóa khi có thao tác ghi). Kết quả dùng chung giữa các request,
+ * không được sửa trực tiếp mảng/đối tượng trả về.
+ */
+export async function readAllQuestionsCached() {
+  const cached = getCached('all-questions');
+  if (cached) return cached;
+  const { questions } = await readDb();
+  return setCached('all-questions', Array.isArray(questions) ? questions : []);
 }
 
 export async function readSubjectImportDb(subjectId) {
@@ -416,11 +462,13 @@ export async function appendQuestions(questions = []) {
   const payload = Array.isArray(questions) ? questions.map(toQuestionPayload) : [];
   if (payload.length === 0) return [];
   if (!isSupabaseEnabled()) {
-    const db = await readJsonDb();
-    db.questions = [...db.questions, ...payload];
-    await writeJsonDb(db);
-    invalidateDbCache();
-    return payload;
+    return withJsonLock(async () => {
+      const db = await readJsonDb();
+      db.questions = [...db.questions, ...payload];
+      await writeJsonDb(db);
+      invalidateDbCache();
+      return payload;
+    });
   }
   const inserted = ensureSupabaseSuccess(
     await supabase.from('questions').upsert(payload, { onConflict: 'id' }).select(QUESTION_COLUMNS),
@@ -431,8 +479,10 @@ export async function appendQuestions(questions = []) {
 }
 
 export async function writeDb(data) {
-  writePromise = writePromise.catch(() => {}).then(() => writeJsonDb(data));
-  return writePromise;
+  return withJsonLock(async () => {
+    await writeJsonDb(data);
+    invalidateDbCache();
+  });
 }
 
 export async function getDbHealth() {

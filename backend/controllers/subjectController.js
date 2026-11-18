@@ -1,6 +1,9 @@
+import { randomUUID } from 'node:crypto';
 import { getSubjectByName, insertSubject, listSubjectsWithCounts, removeSubject } from '../services/dbService.js';
 import { deleteSubjectImageFolder } from '../services/questionImageService.js';
 import { deleteSubjectAudioFolder } from '../services/questionAudioService.js';
+
+const MAX_SUBJECT_NAME_LENGTH = 200;
 
 export async function getSubjects(req, res, next) {
   try {
@@ -16,12 +19,15 @@ export async function createSubject(req, res, next) {
     if (!name) {
       return res.status(400).json({ success: false, message: 'Tên môn học không được để trống' });
     }
+    if (name.length > MAX_SUBJECT_NAME_LENGTH) {
+      return res.status(400).json({ success: false, message: `Tên môn học tối đa ${MAX_SUBJECT_NAME_LENGTH} ký tự` });
+    }
     if (await getSubjectByName(name)) {
       return res.status(400).json({ success: false, message: 'Môn học này đã tồn tại!' });
     }
 
     const subject = await insertSubject({
-      id: 'sub_' + Date.now(),
+      id: `sub_${Date.now()}_${randomUUID().slice(0, 8)}`,
       name,
       createdAt: new Date().toISOString()
     });

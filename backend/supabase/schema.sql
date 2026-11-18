@@ -18,8 +18,13 @@ create table if not exists public.questions (
 
 alter table public.questions add column if not exists "quizName" text not null default 'Khác';
 
+-- Tên môn học không trùng (không phân biệt hoa thường).
+-- Nếu lệnh này lỗi: đang có 2 môn chỉ khác nhau chữ hoa/thường, hãy gộp hoặc đổi tên rồi chạy lại.
+create unique index if not exists subjects_name_lower_idx on public.subjects (lower(name));
+
+-- Không nhận SVG (có thể chứa script, bucket là public)
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('question-images', 'question-images', true, 8388608, array['image/*'])
+values ('question-images', 'question-images', true, 8388608, array['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/bmp'])
 on conflict (id) do update set
   public = excluded.public,
   file_size_limit = excluded.file_size_limit,
@@ -104,7 +109,8 @@ as $$
       or public.normalize_question_search_text(question.answer)
         like '%' || public.normalize_question_search_text(p_search) || '%'
     )
-  order by question."createdAt" desc;
+  -- Thêm id để thứ tự ổn định khi backend đọc theo trang (range)
+  order by question."createdAt" desc, question.id desc;
 $$;
 
 create or replace function public.get_subjects_with_question_counts()

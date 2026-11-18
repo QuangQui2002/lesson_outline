@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
-import dns from 'node:dns/promises';
-import net from 'node:net';
 import { getSupabaseClient, isSupabaseEnabled } from './dbService.js';
+import { safeFetchBuffer } from '../utils/safeFetch.js';
+import { httpError } from '../utils/httpError.js';
 
 const IMAGE_BUCKET = process.env.SUPABASE_IMAGE_BUCKET || 'question-images';
 const MAX_IMAGE_BYTES = Math.max(1024, Number(process.env.QUESTION_IMAGE_MAX_BYTES || 8 * 1024 * 1024));
@@ -12,6 +12,13 @@ const ALLOWED_HOSTS = String(process.env.QUESTION_IMAGE_ALLOWED_HOSTS || '')
   .map(host => host.trim().toLowerCase())
   .filter(Boolean);
 const STORAGE_PUBLIC_MARKER = '/storage/v1/object/public/' + IMAGE_BUCKET + '/';
+// Không nhận SVG: file SVG có thể chứa script và bucket là public
+const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/bmp'];
+
+function isAllowedImageType(contentType = '') {
+  const type = contentType.toLowerCase();
+  return ALLOWED_IMAGE_TYPES.includes(type === 'image/jpg' ? 'image/jpeg' : type);
+}
 
 let bucketPromise = null;
 
@@ -34,63 +41,23 @@ function isDuplicateStorageError(error) {
   );
 }
 
-function isPrivateAddress(address = '') {
-  if (net.isIPv4(address)) {
-    const [first, second] = address.split('.').map(Number);
-    return first === 10
-      || first === 127
-      || first === 0
-      || (first === 169 && second === 254)
-      || (first === 172 && second >= 16 && second <= 31)
-      || (first === 192 && second === 168);
-  }
-  const normalized = address.toLowerCase();
-  return normalized === '::1'
-    || normalized === '::'
-    || normalized.startsWith('fc')
-    || normalized.startsWith('fd')
-    || normalized.startsWith('fe80:');
-}
-
-async function validateRemoteUrl(rawUrl) {
-  const url = new URL(rawUrl);
-  if (url.protocol !== 'https:') throw new Error('Chi ho tro link anh HTTPS.');
-  const hostname = url.hostname.toLowerCase();
-  if (hostname === 'localhost' || hostname.endsWith('.localhost')) throw new Error('Khong cho phep localhost.');
-  if (ALLOWED_HOSTS.length > 0 && !ALLOWED_HOSTS.some(host => hostname === host || hostname.endsWith('.' + host))) {
-    throw new Error('Host anh khong nam trong danh sach cho phep.');
-  }
-  const addresses = await dns.lookup(hostname, { all: true });
-  if (addresses.some(item => isPrivateAddress(item.address))) throw new Error('Khong cho phep dia chi mang noi bo.');
-  return url;
-}
-
-async function fetchRemoteImage(rawUrl, redirectCount = 0) {
-  if (redirectCount > 3) throw new Error('Link anh redirect qua nhieu lan.');
-  const url = await validateRemoteUrl(rawUrl);
-  const response = await fetch(url, {
-    redirect: 'manual',
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    headers: { 'User-Agent': 'lesson-outline-image-importer/1.0' }
+async function fetchRemoteImage(rawUrl) {
+  const { data, contentType } = await safeFetchBuffer(rawUrl, {
+    maxBytes: MAX_IMAGE_BYTES,
+    timeoutMs: FETCH_TIMEOUT_MS,
+    allowedHosts: ALLOWED_HOSTS,
+    userAgent: 'lesson-outline-image-importer/1.0',
+    isAllowedContentType: isAllowedImageType
   });
-  if (response.status >= 300 && response.status < 400 && response.headers.get('location')) {
-    return fetchRemoteImage(new URL(response.headers.get('location'), url).toString(), redirectCount + 1);
-  }
-  if (!response.ok) throw new Error('Tai anh that bai: HTTP ' + response.status);
-  const contentType = String(response.headers.get('content-type') || '').split(';')[0].toLowerCase();
-  if (!contentType.startsWith('image/')) throw new Error('Link khong tra ve file anh.');
-  const declaredLength = Number(response.headers.get('content-length') || 0);
-  if (declaredLength > MAX_IMAGE_BYTES) throw new Error('Anh vuot qua gioi han dung luong.');
-  const data = Buffer.from(await response.arrayBuffer());
-  if (data.length > MAX_IMAGE_BYTES) throw new Error('Anh vuot qua gioi han dung luong.');
   return { data, contentType };
 }
 
 function parseDataImage(source) {
   const match = String(source).match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,([\s\S]+)$/i);
-  if (!match) throw new Error('Data URL anh khong hop le.');
+  if (!match) throw httpError(400, 'Data URL anh khong hop le.');
+  if (!isAllowedImageType(match[1])) throw httpError(400, 'Khong ho tro dinh dang anh ' + match[1] + '.');
   const data = Buffer.from(match[2], 'base64');
-  if (data.length > MAX_IMAGE_BYTES) throw new Error('Anh vuot qua gioi han dung luong.');
+  if (data.length > MAX_IMAGE_BYTES) throw httpError(400, 'Anh vuot qua gioi han dung luong.');
   return { data, contentType: match[1].toLowerCase() };
 }
 
@@ -112,7 +79,7 @@ function extractImageSources(value = '') {
     sources.push(source);
     return match;
   });
-  const pattern = /(?:data:image\/[a-zA-Z0-9.+-]+;base64,[a-zA-Z0-9+/=\r\n]+|https:\/\/[^\s<>'"]+?\.(?:png|jpe?g|gif|webp|svg|bmp)(?:\?[^\s<>'"]*)?)/gi;
+  const pattern = /(?:data:image\/[a-zA-Z0-9.+-]+;base64,[a-zA-Z0-9+/=\r\n]+|https:\/\/[^\s<>'"]{1,2048}?\.(?:png|jpe?g|gif|webp|svg|bmp)(?:\?[^\s<>'"]{0,2048})?)/gi;
   text.match(pattern)?.forEach(source => sources.push(source));
   return [...new Set(sources.filter(Boolean))];
 }
@@ -173,7 +140,7 @@ async function ensureImageBucket() {
       const created = await supabase.storage.createBucket(IMAGE_BUCKET, {
         public: true,
         fileSizeLimit: MAX_IMAGE_BYTES,
-        allowedMimeTypes: ['image/*']
+        allowedMimeTypes: ALLOWED_IMAGE_TYPES
       });
       if (created.error) throw new Error('Loi tao Storage bucket: ' + created.error.message);
       return true;
@@ -181,7 +148,7 @@ async function ensureImageBucket() {
     const updated = await supabase.storage.updateBucket(IMAGE_BUCKET, {
       public: true,
       fileSizeLimit: MAX_IMAGE_BYTES,
-      allowedMimeTypes: ['image/*']
+      allowedMimeTypes: ALLOWED_IMAGE_TYPES
     });
     if (updated.error) throw new Error('Loi cap nhat Storage bucket: ' + updated.error.message);
     return true;

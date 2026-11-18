@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto';
-import dns from 'node:dns/promises';
-import net from 'node:net';
 import { getSupabaseClient, isSupabaseEnabled } from './dbService.js';
+import { safeFetchBuffer } from '../utils/safeFetch.js';
 
 const AUDIO_BUCKET = process.env.SUPABASE_AUDIO_BUCKET || 'question-audio';
 const MAX_AUDIO_BYTES = Math.max(1024, Number(process.env.QUESTION_AUDIO_MAX_BYTES || 32 * 1024 * 1024));
@@ -12,7 +11,7 @@ const ALLOWED_HOSTS = String(process.env.QUESTION_AUDIO_ALLOWED_HOSTS || '')
   .map(host => host.trim().toLowerCase())
   .filter(Boolean);
 const STORAGE_PUBLIC_MARKER = '/storage/v1/object/public/' + AUDIO_BUCKET + '/';
-const AUDIO_URL_PATTERN = /https:\/\/[^\s<>'"]+?\.(?:mp3|m4a|aac|ogg|oga|wav|webm)(?:\?[^\s<>'"]*)?/gi;
+const AUDIO_URL_PATTERN = /https:\/\/[^\s<>'"]{1,2048}?\.(?:mp3|m4a|aac|ogg|oga|wav|webm)(?:\?[^\s<>'"]{0,2048})?/gi;
 
 let bucketPromise = null;
 
@@ -35,57 +34,14 @@ function isDuplicateStorageError(error) {
   );
 }
 
-function isPrivateAddress(address = '') {
-  if (net.isIPv4(address)) {
-    const [first, second] = address.split('.').map(Number);
-    return first === 10
-      || first === 127
-      || first === 0
-      || (first === 169 && second === 254)
-      || (first === 172 && second >= 16 && second <= 31)
-      || (first === 192 && second === 168);
-  }
-  const normalized = address.toLowerCase();
-  return normalized === '::1'
-    || normalized === '::'
-    || normalized.startsWith('fc')
-    || normalized.startsWith('fd')
-    || normalized.startsWith('fe80:');
-}
-
-async function validateRemoteUrl(rawUrl) {
-  const url = new URL(rawUrl);
-  if (url.protocol !== 'https:') throw new Error('Chỉ hỗ trợ link âm thanh HTTPS.');
-  const hostname = url.hostname.toLowerCase();
-  if (hostname === 'localhost' || hostname.endsWith('.localhost')) throw new Error('Không cho phép localhost.');
-  if (ALLOWED_HOSTS.length > 0 && !ALLOWED_HOSTS.some(host => hostname === host || hostname.endsWith('.' + host))) {
-    throw new Error('Host âm thanh không nằm trong danh sách cho phép.');
-  }
-  const addresses = await dns.lookup(hostname, { all: true });
-  if (addresses.some(item => isPrivateAddress(item.address))) throw new Error('Không cho phép địa chỉ mạng nội bộ.');
-  return url;
-}
-
-async function fetchRemoteAudio(rawUrl, redirectCount = 0) {
-  if (redirectCount > 3) throw new Error('Link âm thanh redirect quá nhiều lần.');
-  const url = await validateRemoteUrl(rawUrl);
-  const response = await fetch(url, {
-    redirect: 'manual',
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    headers: { 'User-Agent': 'lesson-outline-audio-importer/1.0' }
+async function fetchRemoteAudio(rawUrl) {
+  const { data, contentType, url } = await safeFetchBuffer(rawUrl, {
+    maxBytes: MAX_AUDIO_BYTES,
+    timeoutMs: FETCH_TIMEOUT_MS,
+    allowedHosts: ALLOWED_HOSTS,
+    userAgent: 'lesson-outline-audio-importer/1.0',
+    isAllowedContentType: type => type.startsWith('audio/') || type === 'application/octet-stream'
   });
-  if (response.status >= 300 && response.status < 400 && response.headers.get('location')) {
-    return fetchRemoteAudio(new URL(response.headers.get('location'), url).toString(), redirectCount + 1);
-  }
-  if (!response.ok) throw new Error('Tải âm thanh thất bại: HTTP ' + response.status);
-  const contentType = String(response.headers.get('content-type') || '').split(';')[0].toLowerCase();
-  if (!contentType.startsWith('audio/') && contentType !== 'application/octet-stream') {
-    throw new Error('Link không trả về file âm thanh.');
-  }
-  const declaredLength = Number(response.headers.get('content-length') || 0);
-  if (declaredLength > MAX_AUDIO_BYTES) throw new Error('Âm thanh vượt giới hạn dung lượng.');
-  const data = Buffer.from(await response.arrayBuffer());
-  if (data.length > MAX_AUDIO_BYTES) throw new Error('Âm thanh vượt giới hạn dung lượng.');
   return { data, contentType: contentType.startsWith('audio/') ? contentType : 'audio/mpeg', url };
 }
 

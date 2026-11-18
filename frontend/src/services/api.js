@@ -13,6 +13,54 @@ const apiClient = axios.create({
   }
 });
 
+// --- Admin key cho các thao tác sửa/xóa (backend trả 401 ADMIN_KEY_REQUIRED nếu thiếu/sai) ---
+const ADMIN_KEY_STORAGE_KEY = 'lesson-outline-admin-key';
+
+function readAdminKey() {
+  try {
+    return localStorage.getItem(ADMIN_KEY_STORAGE_KEY) || '';
+  } catch (error) {
+    return '';
+  }
+}
+
+function saveAdminKey(value) {
+  try {
+    if (value) localStorage.setItem(ADMIN_KEY_STORAGE_KEY, value);
+    else localStorage.removeItem(ADMIN_KEY_STORAGE_KEY);
+  } catch (error) {
+    // Trình duyệt chặn localStorage: chỉ dùng key cho lần thử lại hiện tại
+  }
+}
+
+let pendingAdminKey = '';
+
+apiClient.interceptors.request.use(config => {
+  const adminKey = pendingAdminKey || readAdminKey();
+  if (adminKey) config.headers['X-Admin-Key'] = adminKey;
+  return config;
+});
+
+apiClient.interceptors.response.use(response => response, async error => {
+  const { config, response } = error;
+  const needsAdminKey = response?.status === 401 && response.data?.code === 'ADMIN_KEY_REQUIRED';
+  if (!needsAdminKey || !config || config.adminKeyRetried) throw error;
+
+  const promptMessage = readAdminKey()
+    ? 'Admin key không đúng. Nhập lại admin key:'
+    : 'Thao tác này cần admin key. Nhập admin key:';
+  const adminKey = window.prompt(promptMessage)?.trim();
+  if (!adminKey) throw error;
+
+  saveAdminKey(adminKey);
+  pendingAdminKey = adminKey;
+  try {
+    return await apiClient({ ...config, adminKeyRetried: true });
+  } finally {
+    pendingAdminKey = '';
+  }
+});
+
 export default {
   // --- API Môn học ---
   getSubjects() {

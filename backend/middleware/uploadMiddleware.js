@@ -2,6 +2,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { httpError } from '../utils/httpError.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -33,7 +34,7 @@ const fileFilter = (req, file, cb) => {
   if (extname && mimetype) {
     cb(null, true);
   } else {
-    cb(new Error('Chỉ hỗ trợ tải lên file hình ảnh (jpg, jpeg, png, gif, webp)!'));
+    cb(httpError(400, 'Chỉ hỗ trợ tải lên file hình ảnh (jpg, jpeg, png, gif, webp)!'));
   }
 };
 

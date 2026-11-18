@@ -12,8 +12,9 @@ import attemptAnswerRoutes from './routes/attemptAnswerRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { telegramApiNotifier } from './middleware/telegramApiNotifier.js';
 import { getDbHealth, readDb } from './services/dbService.js';
-import { getDailyApiStats, resetDailyApiStats } from './services/apiStatsService.js';
+import { flushApiStats, getDailyApiStats, resetDailyApiStats } from './services/apiStatsService.js';
 import { formatDailyApiReport, isTelegramConfigured, sendTelegramDocument, sendTelegramMessage } from './services/telegramService.js';
+import { isAdminKeyConfigured } from './middleware/adminAuth.js';
 
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
@@ -21,7 +22,20 @@ const __dirname = path.dirname(__filename);
 const frontendDistPath = path.resolve(__dirname, '../frontend/dist');
 const hasFrontendBuild = fsExists(frontendDistPath);
 const PORT = process.env.PORT || 3000;
-const KEEP_ALIVE_URL = process.env.KEEP_ALIVE_URL || 'https://lesson-outline-h788.onrender.com/api/ping';
+// Render tự set RENDER_EXTERNAL_URL; chạy local thì không ping để khỏi gọi lên production
+const KEEP_ALIVE_URL = process.env.KEEP_ALIVE_URL
+  || (process.env.RENDER_EXTERNAL_URL ? process.env.RENDER_EXTERNAL_URL.replace(/\/+$/, '') + '/api/ping' : '');
+const CORS_ORIGINS = String(process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map(origin => origin.trim().replace(/\/+$/, ''))
+  .filter(Boolean);
+
+function parseTrustProxy(value) {
+  if (value === undefined || value === '') return 1;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return /^\d+$/.test(value) ? Number(value) : value;
+}
 
 function apiTimingMiddleware(req, res, next) {
   const startedAt = process.hrtime.bigint();
@@ -102,10 +116,15 @@ function getBackupFilename() {
   return `lesson-outline-backup-${date}.json`;
 }
 
+// Render đứng sau proxy: cần trust proxy để req.ip là IP thật (dùng cho rate limit, thống kê)
+app.set('trust proxy', parseTrustProxy(process.env.TRUST_PROXY));
+app.disable('x-powered-by');
+
 app.use(cors({
-  origin: '*',
+  // Để trống CORS_ORIGINS thì cho phép mọi origin (frontend deploy riêng, local dev)
+  origin: CORS_ORIGINS.length > 0 ? CORS_ORIGINS : '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type']
+  allowedHeaders: ['Content-Type', 'X-Admin-Key']
 }));
 
 app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '10mb' }));
@@ -151,18 +170,44 @@ if (hasFrontendBuild) {
 
 app.use(errorHandler);
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Server is running at: http://localhost:${PORT}`);
-});
-
-cron.schedule('*/10 * * * *', async () => {
-  try {
-    const response = await fetch(KEEP_ALIVE_URL);
-    console.log(`[keep-alive] ${new Date().toISOString()} ${response.status} ${KEEP_ALIVE_URL}`);
-  } catch (error) {
-    console.error('[keep-alive] Ping failed:', error.message);
+  if (!isAdminKeyConfigured()) {
+    console.warn(process.env.NODE_ENV === 'production'
+      ? '[security] ADMIN_API_KEY chua duoc cau hinh: cac thao tac sua/xoa se bi chan.'
+      : '[security] ADMIN_API_KEY chua duoc cau hinh: cac thao tac sua/xoa dang mo (chi nen dung khi dev local).');
   }
 });
+
+// Render gửi SIGTERM khi deploy/restart: ghi nốt thống kê API còn trong bộ nhớ trước khi tắt
+let isShuttingDown = false;
+async function shutdown(signal) {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  console.log(`[shutdown] Nhan ${signal}, dang dung server...`);
+  const forceExitTimer = setTimeout(() => process.exit(0), 10000);
+  forceExitTimer.unref();
+  server.close();
+  try {
+    await flushApiStats();
+  } catch (error) {
+    console.error('[shutdown] Flush api stats failed:', error.message);
+  }
+  process.exit(0);
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
+if (KEEP_ALIVE_URL) {
+  cron.schedule('*/10 * * * *', async () => {
+    try {
+      const response = await fetch(KEEP_ALIVE_URL);
+      console.log(`[keep-alive] ${new Date().toISOString()} ${response.status} ${KEEP_ALIVE_URL}`);
+    } catch (error) {
+      console.error('[keep-alive] Ping failed:', error.message);
+    }
+  });
+}
 cron.schedule(process.env.TELEGRAM_DAILY_REPORT_CRON || '59 23 * * *', async () => {
   if (!isTelegramConfigured()) {
     await resetDailyApiStats();

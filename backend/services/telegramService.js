@@ -66,12 +66,10 @@ export const getStatusLabel = (statusCode) => {
 };
 
 export const getClientIp = (req) => {
-  const forwardedFor = req.headers['x-forwarded-for'];
-  const ip = Array.isArray(forwardedFor)
-    ? forwardedFor[0]
-    : (forwardedFor?.split(',')[0] || req.ip || req.socket?.remoteAddress || 'unknown');
+  // req.ip đã xét 'trust proxy' nên client không tự giả X-Forwarded-For được
+  const ip = String(req.ip || req.socket?.remoteAddress || 'unknown').trim();
 
-  return ip.trim() === '::1' ? 'localhost' : ip.trim();
+  return ip === '::1' ? 'localhost' : ip;
 };
 
 const getActionName = (req) => {

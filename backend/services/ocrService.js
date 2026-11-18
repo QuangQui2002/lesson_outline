@@ -1,28 +1,56 @@
 import { createWorker } from 'tesseract.js';
 
+// Dùng lại một worker (nạp model ngôn ngữ rất tốn thời gian/RAM), tự giải phóng khi rảnh
+const OCR_IDLE_TIMEOUT_MS = Math.max(10000, Number(process.env.OCR_IDLE_TIMEOUT_MS || 5 * 60 * 1000));
+let workerPromise = null;
+let idleTimer = null;
+let ocrQueue = Promise.resolve();
+
+function getWorker() {
+  if (!workerPromise) {
+    // Khởi tạo worker hỗ trợ nhận diện tiếng Việt và tiếng Anh
+    workerPromise = createWorker('vie+eng').catch(error => {
+      workerPromise = null;
+      throw error;
+    });
+  }
+  return workerPromise;
+}
+
+function releaseWorker() {
+  const currentWorker = workerPromise;
+  workerPromise = null;
+  currentWorker?.then(worker => worker.terminate()).catch(() => {});
+}
+
+function scheduleIdleRelease() {
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(releaseWorker, OCR_IDLE_TIMEOUT_MS);
+  idleTimer.unref();
+}
+
 /**
- * Trích xuất văn bản từ hình ảnh bằng Tesseract.js
+ * Trích xuất văn bản từ hình ảnh bằng Tesseract.js (các ảnh được xử lý lần lượt)
  * @param {string} imagePath - Đường dẫn tuyệt đối tới file ảnh trên máy chủ
  * @returns {Promise<string>} - Nội dung văn bản được nhận diện
  */
-export async function performOcr(imagePath) {
-  let worker;
-  try {
-    // Khởi tạo worker hỗ trợ nhận diện tiếng Việt và tiếng Anh
-    worker = await createWorker('vie+eng');
-
-    // Thực hiện nhận diện
-    const { data: { text } } = await worker.recognize(imagePath);
-
-    return text;
-  } catch (error) {
-    console.error('Lỗi trong ocrService:', error);
-    throw new Error('Không thể xử lý ảnh hoặc nhận diện văn bản: ' + error.message);
-  } finally {
-    if (worker) {
-      await worker.terminate();
+export function performOcr(imagePath) {
+  const task = ocrQueue.then(async () => {
+    clearTimeout(idleTimer);
+    try {
+      const worker = await getWorker();
+      const { data: { text } } = await worker.recognize(imagePath);
+      return text;
+    } catch (error) {
+      console.error('Lỗi trong ocrService:', error);
+      releaseWorker();
+      throw new Error('Không thể xử lý ảnh hoặc nhận diện văn bản: ' + error.message);
+    } finally {
+      scheduleIdleRelease();
     }
-  }
+  });
+  ocrQueue = task.catch(() => {});
+  return task;
 }
 
 function normalizeText(text = '') {

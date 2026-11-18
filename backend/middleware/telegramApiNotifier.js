@@ -36,7 +36,8 @@ export const telegramApiNotifier = (req, res, next) => {
       return;
     }
 
-    if (res.statusCode < 400) {
+    // 429 (rate limit) không gửi để tránh spam Telegram khi bị gọi dồn dập
+    if (res.statusCode < 400 || res.statusCode === 429) {
       return;
     }
 
