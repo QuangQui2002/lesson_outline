@@ -1,4 +1,4 @@
-const SERVER_BACKEND_URL = 'https://lesson-outline-h788.onrender.com/api';
+const SERVER_BACKEND_URL = 'https://lesson-outline-8t1c.onrender.com/api';
 
 const LMS_ORIGIN = 'https://lms-tvu.onschool.edu.vn';
 const REVIEW_IMAGE_MAX_BYTES = 4 * 1024 * 1024;

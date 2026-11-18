@@ -227,9 +227,9 @@ export default {
       jsonImportText: '',
       jsonImportPreview: null,
       extensionInfo: {
-        version: '1.0.21',
+        version: '1.0.22',
         downloadUrl: '/downloads/support_lms_extension.zip',
-          note: 'Hỗ trợ chọn radio qua nhãn đáp án và radio tùy chỉnh; xác nhận trạng thái sau khi bấm.'
+          note: 'Chuyển sang server mới lesson-outline-8t1c.onrender.com.'
       },
       editingQuestion: null
     };
