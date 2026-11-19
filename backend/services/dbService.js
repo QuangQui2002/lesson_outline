@@ -13,12 +13,38 @@ const SUBJECT_COLUMNS = 'id,name,createdAt';
 // PostgREST (Supabase) mặc định trả tối đa 1000 dòng mỗi request, nên phải đọc theo trang
 const SUPABASE_PAGE_SIZE = Math.max(1, Number(process.env.SUPABASE_PAGE_SIZE || 1000));
 
+// Bỏ khoảng trắng và dấu nháy bao quanh (Render giữ nguyên dấu nháy, không bỏ như file .env)
+function cleanEnvValue(value = '') {
+  return String(value || '').trim().replace(/^(['"])(.*)\1$/, '$2').trim();
+}
+
 function normalizeSupabaseUrl(url = '') {
-  return url.trim().replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '');
+  let normalized = cleanEnvValue(url).replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '');
+  if (!normalized) return '';
+  if (/^[a-z0-9-]+\.supabase\.co$/i.test(normalized)) normalized = 'https://' + normalized;
+
+  let parsed = null;
+  try {
+    parsed = new URL(normalized);
+  } catch (error) {
+    // xử lý bên dưới
+  }
+  if (!parsed || !/^https?:$/.test(parsed.protocol)) {
+    // Không in giá trị: có thể đã dán nhầm service role key vào biến này
+    const hint = /^eyJ|^sb_secret_/.test(normalized) ? ' (gia tri trong giong mot API key, co the da dan nham o)' : '';
+    throw new Error(
+      'SUPABASE_URL khong hop le' + hint + '. Gia tri dung co dang https://<project-ref>.supabase.co '
+      + '(Supabase Dashboard > Project Settings > API > Project URL).'
+    );
+  }
+  return normalized;
 }
 
 const supabaseUrl = normalizeSupabaseUrl(process.env.SUPABASE_URL);
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseKey = cleanEnvValue(process.env.SUPABASE_SERVICE_ROLE_KEY);
+if (process.env.NODE_ENV === 'production' && (!supabaseUrl || !supabaseKey)) {
+  console.warn('[db] Thieu SUPABASE_URL hoac SUPABASE_SERVICE_ROLE_KEY: dang dung db.json, du lieu se MAT khi Render redeploy/restart.');
+}
 const supabase = supabaseUrl && supabaseKey
   ? createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } })
   : null;
