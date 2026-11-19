@@ -16,7 +16,7 @@ Hệ thống lưu trữ đề cương câu hỏi nội bộ sử dụng **Vue.js
 
 ## Yêu cầu hệ thống
 
-- Node.js 18 trở lên.
+- Node.js 22 trở lên (thư viện Supabase cần WebSocket có sẵn trong Node 22).
 - npm.
 - Kết nối Internet nếu dùng OCR lần đầu, vì Tesseract.js cần tải dữ liệu ngôn ngữ.
 - Tài khoản Supabase nếu chạy production với database cloud.

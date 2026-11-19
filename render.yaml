@@ -17,7 +17,7 @@ services:
     healthCheckPath: /api/ping
     envVars:
       - key: NODE_VERSION
-        value: "20"
+        value: "22"
       - key: NODE_ENV
         value: production
       # Frontend và API cùng domain nên gọi đường dẫn tương đối (Vite nhúng lúc build)
