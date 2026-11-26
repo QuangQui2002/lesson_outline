@@ -439,7 +439,14 @@ function getGeminiApiKey() {
 
 // Model đã bị Google gỡ (404) thì bỏ qua ở các request sau, khỏi tốn một lần gọi lỗi
 const unavailableGeminiModels = new Set();
-let discoveredModelPromise = null;
+// Lỗi tạm thời phía Google (quá tải, hết quota theo phút, timeout): thử lại / đổi model sẽ có thể thành công
+const TRANSIENT_GEMINI_STATUSES = new Set([429, 500, 502, 503, 504]);
+const GEMINI_RETRIES = Math.max(0, Number(process.env.GEMINI_RETRIES ?? 2));
+const GEMINI_MAX_FALLBACK_MODELS = Math.max(0, Number(process.env.GEMINI_MAX_FALLBACK_MODELS ?? 2));
+// Extension chờ tối đa 180s, nên toàn bộ lượt hỏi AI phải xong trước đó
+const GEMINI_TOTAL_TIMEOUT_MS = Math.max(10000, Number(process.env.GEMINI_TOTAL_TIMEOUT_MS || 150000));
+const MODEL_LIST_CACHE_MS = 60 * 60 * 1000;
+let modelListCache = null;
 
 function compareVersionsDesc(first, second) {
   const firstParts = first.split('.').map(Number);
@@ -451,84 +458,123 @@ function compareVersionsDesc(first, second) {
   return 0;
 }
 
-function pickFlashModel(modelNames = []) {
-  const usable = modelNames.filter(name => !unavailableGeminiModels.has(name));
-  const stableFlash = usable
-    .map(name => ({ name, version: name.match(/^gemini-(\d+(?:\.\d+)*)-flash$/)?.[1] }))
+function sortByVersion(modelNames, pattern) {
+  return modelNames
+    .map(name => ({ name, version: name.match(pattern)?.[1] }))
     .filter(item => item.version)
-    .sort((first, second) => compareVersionsDesc(first.version, second.version));
-  if (stableFlash.length > 0) return stableFlash[0].name;
-  if (usable.includes(DEFAULT_GEMINI_MODEL)) return DEFAULT_GEMINI_MODEL;
-  return usable.find(name => /flash/.test(name) && !/lite|image|tts|audio|live|embedding|preview|exp/.test(name)) || null;
+    .sort((first, second) => compareVersionsDesc(first.version, second.version))
+    .map(item => item.name);
 }
 
 /**
- * Hỏi Google danh sách model còn dùng được và chọn bản Flash ổn định mới nhất.
+ * Thứ tự model dự phòng: Flash ổn định mới nhất -> alias Flash -> Flash-Lite (nhẹ hơn, thường ít quá tải hơn).
  */
-async function discoverGeminiModel(apiKey) {
-  if (!discoveredModelPromise) {
-    discoveredModelPromise = (async () => {
-      const response = await fetch(`${GEMINI_API_BASE_URL}/models?pageSize=1000`, {
-        headers: { 'x-goog-api-key': apiKey },
-        signal: AbortSignal.timeout(15000)
-      });
-      const data = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(`Gemini ListModels lỗi ${response.status}`);
-      const modelNames = (data?.models || [])
-        .filter(model => (model.supportedGenerationMethods || []).includes('generateContent'))
-        .map(model => String(model.name || '').replace(/^models\//, ''));
-      const model = pickFlashModel(modelNames);
-      if (!model) throw new Error('Không tìm thấy model Gemini Flash nào còn dùng được.');
-      console.warn(`[gemini] Tự chuyển sang model ${model}. Nên cập nhật GEMINI_MODELS.`);
-      return model;
-    })().catch(error => {
-      discoveredModelPromise = null;
-      throw error;
-    });
-  }
-  return discoveredModelPromise;
+function rankFallbackModels(modelNames = []) {
+  const usable = modelNames.filter(name => !unavailableGeminiModels.has(name));
+  const ranked = [
+    ...sortByVersion(usable, /^gemini-(\d+(?:\.\d+)*)-flash$/),
+    ...usable.filter(name => name === DEFAULT_GEMINI_MODEL),
+    ...sortByVersion(usable, /^gemini-(\d+(?:\.\d+)*)-flash-lite$/),
+    ...usable.filter(name => name === 'gemini-flash-lite-latest')
+  ];
+  return [...new Set(ranked)];
 }
 
 /**
- * Gọi lần lượt các model đã cấu hình; nếu model bị gỡ (404) thì tự tìm model Flash còn dùng được.
+ * Hỏi Google danh sách model còn dùng được (cache 1 giờ).
+ */
+async function listGeminiModels(apiKey) {
+  if (modelListCache && modelListCache.expiresAt > Date.now()) return modelListCache.promise;
+  const promise = (async () => {
+    const response = await fetch(`${GEMINI_API_BASE_URL}/models?pageSize=1000`, {
+      headers: { 'x-goog-api-key': apiKey },
+      signal: AbortSignal.timeout(15000)
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(`Gemini ListModels lỗi ${response.status}`);
+    return (data?.models || [])
+      .filter(model => (model.supportedGenerationMethods || []).includes('generateContent'))
+      .map(model => String(model.name || '').replace(/^models\//, ''));
+  })();
+  modelListCache = { promise, expiresAt: Date.now() + MODEL_LIST_CACHE_MS };
+  promise.catch(() => { modelListCache = null; });
+  return promise;
+}
+
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function isTransientGeminiError(error) {
+  return error.transient === true || TRANSIENT_GEMINI_STATUSES.has(error.status);
+}
+
+/**
+ * Gọi Gemini với các model đã cấu hình, có thử lại khi Google quá tải (503/429...)
+ * và tự chuyển sang model Flash khác khi model bị gỡ (404) hoặc vẫn quá tải sau khi thử lại.
  */
 async function askGemini(prompt) {
   const apiKey = getGeminiApiKey();
-  const configuredModels = getGeminiModels().filter(model => !unavailableGeminiModels.has(model));
+  const deadline = Date.now() + GEMINI_TOTAL_TIMEOUT_MS;
   const triedModels = new Set();
   const errors = [];
-  let hasRemovedModel = configuredModels.length === 0;
+  let shouldStop = false;
 
   const tryModel = async model => {
     triedModels.add(model);
     const provider = { name: 'Gemini', model, apiKey };
-    try {
-      const parsed = extractJsonObject(await callAiProvider(provider, prompt));
-      return { parsed, provider };
-    } catch (error) {
-      if (error.status === 404) {
-        unavailableGeminiModels.add(model);
-        hasRemovedModel = true;
+    for (let attempt = 0; attempt <= GEMINI_RETRIES; attempt += 1) {
+      const remainingMs = deadline - Date.now();
+      if (remainingMs < 5000) {
+        errors.push(`${provider.name} (${model}): hết thời gian chờ AI.`);
+        shouldStop = true;
+        return null;
       }
-      errors.push(`${provider.name} (${provider.model}): ${error.message}`);
-      return null;
+      try {
+        const parsed = extractJsonObject(await callAiProvider(provider, prompt, remainingMs));
+        return { parsed, provider };
+      } catch (error) {
+        const label = `${provider.name} (${model})` + (attempt > 0 ? ` lần ${attempt + 1}` : '');
+        errors.push(`${label}: ${error.message}`);
+        if (error.status === 404) {
+          unavailableGeminiModels.add(model);
+          return null;
+        }
+        // Sai key, thiếu quyền, request không hợp lệ: đổi model hay thử lại cũng không giúp được
+        if ([400, 401, 403].includes(error.status)) {
+          shouldStop = true;
+          return null;
+        }
+        if (!isTransientGeminiError(error)) return null;
+        if (attempt < GEMINI_RETRIES) {
+          const delayMs = Math.min(1500 * 2 ** attempt, 8000) + Math.floor(Math.random() * 500);
+          console.warn(`[gemini] ${model} lỗi tạm thời (${error.status || 'mạng'}), thử lại sau ${delayMs}ms`);
+          await wait(Math.min(delayMs, Math.max(0, deadline - Date.now() - 5000)));
+        }
+      }
     }
+    return null;
   };
 
-  for (const model of configuredModels) {
+  for (const model of getGeminiModels().filter(name => !unavailableGeminiModels.has(name))) {
     const result = await tryModel(model);
     if (result) return { ...result, errors };
+    if (shouldStop) return { parsed: null, provider: null, errors };
   }
 
-  if (hasRemovedModel) {
+  if (GEMINI_MAX_FALLBACK_MODELS > 0) {
     try {
-      const model = await discoverGeminiModel(apiKey);
-      if (!triedModels.has(model)) {
+      const fallbackModels = rankFallbackModels(await listGeminiModels(apiKey))
+        .filter(model => !triedModels.has(model))
+        .slice(0, GEMINI_MAX_FALLBACK_MODELS);
+      for (const model of fallbackModels) {
+        console.warn(`[gemini] Chuyển sang model dự phòng ${model}.`);
         const result = await tryModel(model);
         if (result) return { ...result, errors };
+        if (shouldStop) break;
       }
     } catch (error) {
-      errors.push('Tự tìm model Gemini: ' + error.message);
+      errors.push('Tự tìm model Gemini dự phòng: ' + error.message);
     }
   }
 
@@ -598,9 +644,9 @@ function normalizeAiAnswers(rawAnswers = [], questions = []) {
   });
 }
 
-async function callGemini(provider, prompt) {
+async function callGemini(provider, prompt, maxTimeoutMs = Infinity) {
   const controller = new AbortController();
-  const timeoutMs = getGeminiTimeoutMs();
+  const timeoutMs = Math.max(1000, Math.min(getGeminiTimeoutMs(), maxTimeoutMs));
   const timeoutId = setTimeout(() => controller.abort('Gemini quá thời gian phản hồi'), timeoutMs);
   let response;
   try {
@@ -619,19 +665,23 @@ async function callGemini(provider, prompt) {
       signal: controller.signal
     });
   } catch (error) {
-    throw new Error(provider.name + ' (' + provider.model + ') không phản hồi sau ' + timeoutMs + 'ms: ' + (error.message || 'timeout'));
+    throw Object.assign(
+      new Error('không phản hồi sau ' + timeoutMs + 'ms: ' + (error.message || 'timeout')),
+      { transient: true }
+    );
   } finally {
     clearTimeout(timeoutId);
   }
   const data = await response.json().catch(() => null);
   if (!response.ok) {
-    throw Object.assign(new Error(`${provider.name} API lỗi ${response.status}: ${JSON.stringify(data)}`), { status: response.status });
+    const detail = data?.error?.message || JSON.stringify(data);
+    throw Object.assign(new Error(`API lỗi ${response.status}: ${detail}`), { status: response.status });
   }
   return data?.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('\n') || '';
 }
 
-async function callAiProvider(provider, prompt) {
-  return callGemini(provider, prompt);
+async function callAiProvider(provider, prompt, maxTimeoutMs) {
+  return callGemini(provider, prompt, maxTimeoutMs);
 }
 
 export async function solveAttemptQuestions(payload = {}) {
