@@ -168,31 +168,42 @@ if (hasFrontendBuild) {
   });
 }
 
+// Đường dẫn /api không tồn tại: trả JSON thay vì trang HTML mặc định của Express
+app.use('/api', (req, res) => {
+  res.status(404).json({ success: false, message: `Không tìm thấy API ${req.method} ${req.originalUrl}` });
+});
+
 app.use(errorHandler);
 
 const server = app.listen(PORT, () => {
   console.log(`Server is running at: http://localhost:${PORT}`);
   if (!isAdminKeyConfigured()) {
     console.warn(process.env.NODE_ENV === 'production'
-      ? '[security] ADMIN_API_KEY chua duoc cau hinh: cac thao tac sua/xoa se bi chan.'
-      : '[security] ADMIN_API_KEY chua duoc cau hinh: cac thao tac sua/xoa dang mo (chi nen dung khi dev local).');
+      ? '[security] ADMIN_API_KEY chua duoc cau hinh: cac thao tac them/sua cau hoi se bi chan.'
+      : '[security] ADMIN_API_KEY chua duoc cau hinh: cac thao tac them/sua cau hoi dang mo (chi nen dung khi dev local).');
   }
 });
 
-// Render gửi SIGTERM khi deploy/restart: ghi nốt thống kê API còn trong bộ nhớ trước khi tắt
+// Render gửi SIGTERM khi deploy/restart. Ngừng nhận request mới nhưng chờ các request đang chạy
+// (giải đáp án bằng AI có thể mất tới ~150s) xong rồi mới tắt; nếu tắt ngay, client nhận trang lỗi HTML 502.
+const SHUTDOWN_GRACE_MS = Math.max(1000, Number(process.env.SHUTDOWN_GRACE_MS || 170000));
 let isShuttingDown = false;
 async function shutdown(signal) {
   if (isShuttingDown) return;
   isShuttingDown = true;
-  console.log(`[shutdown] Nhan ${signal}, dang dung server...`);
-  const forceExitTimer = setTimeout(() => process.exit(0), 10000);
+  console.log(`[shutdown] Nhan ${signal}, cho request dang chay xong (toi da ${Math.round(SHUTDOWN_GRACE_MS / 1000)}s)...`);
+  const forceExitTimer = setTimeout(() => {
+    console.warn('[shutdown] Het thoi gian cho, buoc dung server.');
+    process.exit(0);
+  }, SHUTDOWN_GRACE_MS);
   forceExitTimer.unref();
-  server.close();
+  await new Promise(resolve => server.close(resolve));
   try {
     await flushApiStats();
   } catch (error) {
     console.error('[shutdown] Flush api stats failed:', error.message);
   }
+  console.log('[shutdown] Da dung server.');
   process.exit(0);
 }
 process.on('SIGTERM', () => shutdown('SIGTERM'));

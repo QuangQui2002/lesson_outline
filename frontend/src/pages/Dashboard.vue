@@ -227,7 +227,7 @@ export default {
       jsonImportText: '',
       jsonImportPreview: null,
       extensionInfo: {
-        version: '1.0.23',
+        version: '1.0.24',
         downloadUrl: '/downloads/support_lms_extension.zip',
       },
       editingQuestion: null

@@ -7,7 +7,7 @@ export function isAdminKeyConfigured() {
 }
 
 /**
- * Bảo vệ các thao tác sửa/xóa bằng header X-Admin-Key.
+ * Bảo vệ thao tác thêm/sửa câu hỏi bằng header X-Admin-Key (xóa không cần key).
  * Local dev chưa cấu hình ADMIN_API_KEY thì cho qua; production chưa cấu hình thì chặn hẳn.
  */
 export function requireAdminKey(req, res, next) {

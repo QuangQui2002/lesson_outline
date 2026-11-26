@@ -441,8 +441,16 @@ function getGeminiApiKey() {
 const unavailableGeminiModels = new Set();
 // Lỗi tạm thời phía Google (quá tải, hết quota theo phút, timeout): thử lại / đổi model sẽ có thể thành công
 const TRANSIENT_GEMINI_STATUSES = new Set([429, 500, 502, 503, 504]);
-const GEMINI_RETRIES = Math.max(0, Number(process.env.GEMINI_RETRIES ?? 2));
-const GEMINI_MAX_FALLBACK_MODELS = Math.max(0, Number(process.env.GEMINI_MAX_FALLBACK_MODELS ?? 2));
+// Biến môi trường để trống hoặc không phải số thì dùng mặc định (Number('') = 0 sẽ âm thầm tắt tính năng)
+function readNonNegativeIntEnv(name, defaultValue) {
+  const raw = String(process.env[name] ?? '').trim();
+  const value = Number(raw);
+  return raw !== '' && Number.isInteger(value) && value >= 0 ? value : defaultValue;
+}
+
+// Số vòng thử lại (mỗi vòng thử lần lượt mọi model một lần) và số model dự phòng lấy thêm từ Google
+const GEMINI_RETRIES = readNonNegativeIntEnv('GEMINI_RETRIES', 2);
+const GEMINI_MAX_FALLBACK_MODELS = readNonNegativeIntEnv('GEMINI_MAX_FALLBACK_MODELS', 3);
 // Extension chờ tối đa 180s, nên toàn bộ lượt hỏi AI phải xong trước đó
 const GEMINI_TOTAL_TIMEOUT_MS = Math.max(10000, Number(process.env.GEMINI_TOTAL_TIMEOUT_MS || 150000));
 const MODEL_LIST_CACHE_MS = 60 * 60 * 1000;
@@ -467,17 +475,20 @@ function sortByVersion(modelNames, pattern) {
 }
 
 /**
- * Thứ tự model dự phòng: Flash ổn định mới nhất -> alias Flash -> Flash-Lite (nhẹ hơn, thường ít quá tải hơn).
+ * Thứ tự model dự phòng: xen kẽ Flash và Flash-Lite từ bản mới nhất, rồi tới các alias.
+ * Khi Google quá tải, Flash-Lite (nhẹ, nhanh) thường vẫn còn chỗ nên cần được thử sớm.
  */
 function rankFallbackModels(modelNames = []) {
   const usable = modelNames.filter(name => !unavailableGeminiModels.has(name));
-  const ranked = [
-    ...sortByVersion(usable, /^gemini-(\d+(?:\.\d+)*)-flash$/),
-    ...usable.filter(name => name === DEFAULT_GEMINI_MODEL),
-    ...sortByVersion(usable, /^gemini-(\d+(?:\.\d+)*)-flash-lite$/),
-    ...usable.filter(name => name === 'gemini-flash-lite-latest')
-  ];
-  return [...new Set(ranked)];
+  const flash = sortByVersion(usable, /^gemini-(\d+(?:\.\d+)*)-flash$/);
+  const flashLite = sortByVersion(usable, /^gemini-(\d+(?:\.\d+)*)-flash-lite$/);
+  const interleaved = [];
+  for (let index = 0; index < Math.max(flash.length, flashLite.length); index += 1) {
+    if (flash[index]) interleaved.push(flash[index]);
+    if (flashLite[index]) interleaved.push(flashLite[index]);
+  }
+  const aliases = [DEFAULT_GEMINI_MODEL, 'gemini-flash-lite-latest'].filter(name => usable.includes(name));
+  return [...new Set([...interleaved, ...aliases])];
 }
 
 /**
@@ -510,75 +521,77 @@ function isTransientGeminiError(error) {
 }
 
 /**
- * Gọi Gemini với các model đã cấu hình, có thử lại khi Google quá tải (503/429...)
- * và tự chuyển sang model Flash khác khi model bị gỡ (404) hoặc vẫn quá tải sau khi thử lại.
+ * Gọi Gemini theo từng vòng: mỗi vòng thử lần lượt mỗi model một lần (model cấu hình trước, rồi model dự phòng
+ * Google còn cho dùng). Gặp quá tải (503/429...) thì chuyển ngay sang model khác thay vì chờ cùng một model;
+ * hết vòng mới chờ rồi thử lại. Toàn bộ nằm trong GEMINI_TOTAL_TIMEOUT_MS.
  */
 async function askGemini(prompt) {
   const apiKey = getGeminiApiKey();
   const deadline = Date.now() + GEMINI_TOTAL_TIMEOUT_MS;
-  const triedModels = new Set();
   const errors = [];
-  let shouldStop = false;
-
-  const tryModel = async model => {
-    triedModels.add(model);
-    const provider = { name: 'Gemini', model, apiKey };
-    for (let attempt = 0; attempt <= GEMINI_RETRIES; attempt += 1) {
-      const remainingMs = deadline - Date.now();
-      if (remainingMs < 5000) {
-        errors.push(`${provider.name} (${model}): hết thời gian chờ AI.`);
-        shouldStop = true;
-        return null;
-      }
-      try {
-        const parsed = extractJsonObject(await callAiProvider(provider, prompt, remainingMs));
-        return { parsed, provider };
-      } catch (error) {
-        const label = `${provider.name} (${model})` + (attempt > 0 ? ` lần ${attempt + 1}` : '');
-        errors.push(`${label}: ${error.message}`);
-        if (error.status === 404) {
-          unavailableGeminiModels.add(model);
-          return null;
-        }
-        // Sai key, thiếu quyền, request không hợp lệ: đổi model hay thử lại cũng không giúp được
-        if ([400, 401, 403].includes(error.status)) {
-          shouldStop = true;
-          return null;
-        }
-        if (!isTransientGeminiError(error)) return null;
-        if (attempt < GEMINI_RETRIES) {
-          const delayMs = Math.min(1500 * 2 ** attempt, 8000) + Math.floor(Math.random() * 500);
-          console.warn(`[gemini] ${model} lỗi tạm thời (${error.status || 'mạng'}), thử lại sau ${delayMs}ms`);
-          await wait(Math.min(delayMs, Math.max(0, deadline - Date.now() - 5000)));
-        }
-      }
-    }
-    return null;
+  const failed = (message) => {
+    if (message) errors.push(message);
+    return { parsed: null, provider: null, errors };
   };
+  // Model trả lỗi không phải tạm thời (vd. JSON hỏng) thì bỏ qua trong request này
+  const skippedModels = new Set();
+  let candidates = getGeminiModels().filter(name => !unavailableGeminiModels.has(name));
+  let fallbackLoaded = false;
 
-  for (const model of getGeminiModels().filter(name => !unavailableGeminiModels.has(name))) {
-    const result = await tryModel(model);
-    if (result) return { ...result, errors };
-    if (shouldStop) return { parsed: null, provider: null, errors };
-  }
-
-  if (GEMINI_MAX_FALLBACK_MODELS > 0) {
+  const loadFallbackModels = async () => {
+    if (fallbackLoaded || GEMINI_MAX_FALLBACK_MODELS === 0) return;
+    fallbackLoaded = true;
     try {
-      const fallbackModels = rankFallbackModels(await listGeminiModels(apiKey))
-        .filter(model => !triedModels.has(model))
+      const extraModels = rankFallbackModels(await listGeminiModels(apiKey))
+        .filter(model => !candidates.includes(model))
         .slice(0, GEMINI_MAX_FALLBACK_MODELS);
-      for (const model of fallbackModels) {
-        console.warn(`[gemini] Chuyển sang model dự phòng ${model}.`);
-        const result = await tryModel(model);
-        if (result) return { ...result, errors };
-        if (shouldStop) break;
-      }
+      if (extraModels.length > 0) console.warn(`[gemini] Thêm model dự phòng: ${extraModels.join(', ')}`);
+      candidates = [...candidates, ...extraModels];
     } catch (error) {
       errors.push('Tự tìm model Gemini dự phòng: ' + error.message);
     }
+  };
+
+  if (candidates.length === 0) await loadFallbackModels();
+
+  for (let round = 0; round <= GEMINI_RETRIES; round += 1) {
+    if (round > 0) {
+      const delayMs = Math.min(2000 * 2 ** (round - 1), 8000) + Math.floor(Math.random() * 500);
+      if (deadline - Date.now() - delayMs < 5000) break;
+      console.warn(`[gemini] Mọi model đều lỗi tạm thời, thử lại vòng ${round + 1} sau ${delayMs}ms`);
+      await wait(delayMs);
+    }
+
+    let attempted = false;
+    // candidates có thể được nối thêm model dự phòng ngay trong vòng lặp
+    for (let index = 0; index < candidates.length; index += 1) {
+      const model = candidates[index];
+      if (unavailableGeminiModels.has(model) || skippedModels.has(model)) continue;
+      const remainingMs = deadline - Date.now();
+      if (remainingMs < 5000) return failed(`Hết thời gian chờ AI (${Math.round(GEMINI_TOTAL_TIMEOUT_MS / 1000)}s).`);
+
+      attempted = true;
+      const provider = { name: 'Gemini', model, apiKey };
+      try {
+        const parsed = extractJsonObject(await callAiProvider(provider, prompt, remainingMs - 2000));
+        return { parsed, provider, errors };
+      } catch (error) {
+        errors.push(`Gemini (${model})${round > 0 ? ` vòng ${round + 1}` : ''}: ${error.message}`);
+        if (error.status === 404) {
+          unavailableGeminiModels.add(model);
+        } else if ([400, 401, 403].includes(error.status)) {
+          // Sai key, thiếu quyền, request không hợp lệ: đổi model hay thử lại cũng không giúp được
+          return failed();
+        } else if (!isTransientGeminiError(error)) {
+          skippedModels.add(model);
+        }
+        await loadFallbackModels();
+      }
+    }
+    if (!attempted) break;
   }
 
-  return { parsed: null, provider: null, errors };
+  return failed();
 }
 
 function getGeminiTimeoutMs() {

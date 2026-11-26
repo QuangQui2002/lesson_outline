@@ -1,6 +1,5 @@
 import express from 'express';
 import { getSubjects, createSubject, deleteSubject } from '../controllers/subjectController.js';
-import { requireAdminKey } from '../middleware/adminAuth.js';
 import { rateLimit } from '../middleware/rateLimit.js';
 
 const router = express.Router();
@@ -11,6 +10,6 @@ router.route('/')
   .post(createSubjectLimiter, createSubject);
 
 router.route('/:id')
-  .delete(requireAdminKey, deleteSubject);
+  .delete(deleteSubject);
 
 export default router;

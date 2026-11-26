@@ -113,7 +113,7 @@ File [render.yaml](render.yaml) ở thư mục gốc tạo một web service Nod
 1. Push code lên GitHub (nhánh `main`).
 2. Vào Render Dashboard → **New** → **Blueprint** → chọn repo này.
 3. Render hỏi các biến `sync: false`: điền `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`, và `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` nếu dùng.
-4. `ADMIN_API_KEY` được Render tự sinh. Xem giá trị trong tab **Environment** của service. Khi thêm/sửa/xóa câu hỏi hoặc xóa môn học trên dashboard, trình duyệt sẽ hỏi key này một lần rồi lưu lại.
+4. `ADMIN_API_KEY` được Render tự sinh. Xem giá trị trong tab **Environment** của service. Khi thêm hoặc sửa câu hỏi trên dashboard, trình duyệt sẽ hỏi key này một lần rồi lưu lại.
 5. Sau khi deploy xong, mở `https://<tên-service>.onrender.com/api/health/db` để kiểm tra kết nối Supabase.
 
 Nếu URL service mới khác `lesson-outline-8t1c.onrender.com`, cần sửa `SERVER_BACKEND_URL` trong [support_lms_extension/background.js](support_lms_extension/background.js) và `host_permissions` trong [support_lms_extension/manifest.json](support_lms_extension/manifest.json).
@@ -122,7 +122,7 @@ Khi nâng cấp từ bản cũ, chạy lại [backend/supabase/schema.sql](backe
 
 ### Bảo mật API
 
-- Thêm/sửa/xóa câu hỏi và xóa môn học cần header `X-Admin-Key` khớp `ADMIN_API_KEY`. Ở production thiếu biến này thì các thao tác đó bị chặn. Chạy local không đặt key thì vẫn mở.
+- Thêm và sửa câu hỏi cần header `X-Admin-Key` khớp `ADMIN_API_KEY`. Xóa câu hỏi và xóa môn học không cần key. Ở production thiếu biến này thì các thao tác đó bị chặn. Chạy local không đặt key thì vẫn mở.
 - Các route extension dùng (`POST /api/subjects`, `/api/questions/import`, `/api/attempt-answers/solve`, `/api/ocr`) vẫn mở nhưng có giới hạn tần suất theo IP. Tăng/giảm bằng `RATE_LIMIT_MULTIPLIER`.
 - Danh sách đầy đủ biến môi trường nằm trong [backend/.env.example](backend/.env.example).
 

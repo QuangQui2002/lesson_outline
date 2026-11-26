@@ -17,6 +17,6 @@ router.get('/stats', getQuestionStats);
 
 router.route('/:id')
   .put(requireAdminKey, updateQuestion)
-  .delete(requireAdminKey, deleteQuestion);
+  .delete(deleteQuestion);
 
 export default router;

@@ -35,7 +35,13 @@ async function requestJson(url, options = {}, timeoutMs = 15000) {
   try {
     data = text ? JSON.parse(text) : null;
   } catch (error) {
-    throw new Error('Phản hồi không phải JSON từ ' + url);
+    // Thường là trang lỗi HTML của Render/Cloudflare (server đang deploy, khởi động lại hoặc quá tải)
+    const snippet = text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
+    const hint = [502, 503, 504, 520, 521, 522, 523, 524].includes(response.status)
+      ? ' Server đang khởi động lại/deploy hoặc quá tải, hãy thử lại sau 1-2 phút.'
+      : '';
+    throw new Error('Phản hồi không phải JSON từ ' + url + ' (HTTP ' + response.status + ').' + hint
+      + (snippet ? ' Nội dung: ' + snippet : ''));
   }
   if (!response.ok || data?.success === false) {
     const requestError = new Error(data?.message || 'Request lỗi ' + response.status);
