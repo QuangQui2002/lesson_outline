@@ -1,8 +1,13 @@
-﻿import { readAllQuestionsCached } from './dbService.js';
+﻿import { getSubjectByName, readAllQuestionsCached } from './dbService.js';
 import { similarityRatio, similarityUpperBound } from '../utils/textSimilarity.js';
 import { exceedsQuestionTextLimit, httpError, MAX_QUESTION_TEXT_CHARS } from '../utils/httpError.js';
 
 const MAX_SOLVE_QUESTIONS = Math.max(1, Number(process.env.MAX_SOLVE_QUESTIONS || 300));
+// Đề bài sau chuẩn hóa ngắn hơn ngưỡng này bị coi là chung chung, cần đối chiếu thêm lựa chọn
+const GENERIC_STEM_MAX_CHARS = 60;
+const GEMINI_API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
+// Alias của Google luôn trỏ tới bản Gemini Flash mới nhất
+const DEFAULT_GEMINI_MODEL = 'gemini-flash-latest';
 
 const STORED_QUESTION_SIMILARITY_THRESHOLD = 0.5;
 const IMAGE_URL_PATTERN = /https:\/\/[^\s<>'"]{1,2048}?\.(?:png|jpe?g|gif|webp|svg|bmp)(?:\?[^\s<>'"]{0,2048})?/gi;
@@ -318,6 +323,9 @@ function findStoredAnswer(question = {}, preparedStoredQuestions = []) {
   const questionCompareText = normalizeStoredQuestionForCompare(getQuestionCompareText(question));
   if (!questionCompareText) return null;
   const similarityThreshold = question.audioKeys.length > 0 ? 0.85 : STORED_QUESTION_SIMILARITY_THRESHOLD;
+  const needsOptionCheck = questionCompareText.length < GENERIC_STEM_MAX_CHARS
+    && !question.isComposite
+    && question.answers.length > 0;
   let bestMatch = null;
 
   for (const { storedQuestion, imageKeys, audioKeys, compareText } of preparedStoredQuestions) {
@@ -332,6 +340,10 @@ function findStoredAnswer(question = {}, preparedStoredQuestions = []) {
     const sameSourceId = question.id !== null && question.id !== undefined
       && storedQuestion.sourceId !== null && storedQuestion.sourceId !== undefined
       && String(question.id) === String(storedQuestion.sourceId);
+    // Đề ngắn/chung chung ("Phát biểu nào sau đây là ĐÚNG?") trùng ở rất nhiều câu khác nhau:
+    // chỉ nhận khi đáp án đã lưu khớp một lựa chọn của câu hiện tại
+    if (needsOptionCheck && !sameSourceId
+      && !findMatchingOption(question, extractStoredCorrectAnswer(storedQuestion.answer || ''))) continue;
     const score = similarity + (sameSourceId ? 0.02 : 0);
     if (!bestMatch || score > bestMatch.score) {
       bestMatch = { storedQuestion, similarity, score };
@@ -361,8 +373,36 @@ function findStoredAnswer(question = {}, preparedStoredQuestions = []) {
   };
 }
 
-async function findStoredAnswers(questions = []) {
-  const preparedStoredQuestions = prepareStoredQuestions(await readAllQuestionsCached());
+function getCourseSubjectName(payload = {}) {
+  if (typeof payload.subjectName === 'string' && payload.subjectName.trim()) return payload.subjectName.trim();
+  const course = payload.course && typeof payload.course === 'object' ? payload.course : {};
+  const courseName = String(course.name || course.fullname || '').trim();
+  if (courseName) return courseName;
+  // Cùng cách đặt tên môn như lúc extension import câu hỏi review
+  return course.id ? `Môn học ${course.id}` : '';
+}
+
+/**
+ * Xác định phạm vi tìm câu hỏi theo tên môn (course.name trong dữ liệu attempt của LMS):
+ * - subject: môn đã có trong hệ thống, chỉ tìm câu hỏi thuộc môn đó
+ * - new_subject: môn chưa có, không tìm trong hệ thống (toàn bộ dùng AI)
+ * - all: dữ liệu không có thông tin môn, tìm trên toàn bộ ngân hàng câu hỏi
+ */
+async function resolveSubjectScope(payload = {}) {
+  const subjectName = getCourseSubjectName(payload);
+  if (!subjectName) return { type: 'all', subjectId: null, subjectName: '' };
+  const subject = await getSubjectByName(subjectName);
+  return subject
+    ? { type: 'subject', subjectId: subject.id, subjectName: subject.name }
+    : { type: 'new_subject', subjectId: null, subjectName };
+}
+
+async function findStoredAnswers(questions = [], scope = { type: 'all' }) {
+  if (scope.type === 'new_subject') return { matchedAnswers: [], unansweredQuestions: questions };
+  const allPrepared = prepareStoredQuestions(await readAllQuestionsCached());
+  const preparedStoredQuestions = scope.type === 'subject'
+    ? allPrepared.filter(item => item.storedQuestion.subjectId === scope.subjectId)
+    : allPrepared;
   const matchedAnswers = [];
   const unansweredQuestions = [];
   for (const question of questions) {
@@ -389,8 +429,110 @@ function createUnavailableAudioAnswer(question = {}) {
 }
 
 function getGeminiModels() {
-  const models = process.env.GEMINI_MODELS || process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+  const models = process.env.GEMINI_MODELS || process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
   return models.split(',').map(model => model.trim()).filter(Boolean);
+}
+
+function getGeminiApiKey() {
+  return process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
+}
+
+// Model đã bị Google gỡ (404) thì bỏ qua ở các request sau, khỏi tốn một lần gọi lỗi
+const unavailableGeminiModels = new Set();
+let discoveredModelPromise = null;
+
+function compareVersionsDesc(first, second) {
+  const firstParts = first.split('.').map(Number);
+  const secondParts = second.split('.').map(Number);
+  for (let index = 0; index < Math.max(firstParts.length, secondParts.length); index += 1) {
+    const difference = (secondParts[index] || 0) - (firstParts[index] || 0);
+    if (difference !== 0) return difference;
+  }
+  return 0;
+}
+
+function pickFlashModel(modelNames = []) {
+  const usable = modelNames.filter(name => !unavailableGeminiModels.has(name));
+  const stableFlash = usable
+    .map(name => ({ name, version: name.match(/^gemini-(\d+(?:\.\d+)*)-flash$/)?.[1] }))
+    .filter(item => item.version)
+    .sort((first, second) => compareVersionsDesc(first.version, second.version));
+  if (stableFlash.length > 0) return stableFlash[0].name;
+  if (usable.includes(DEFAULT_GEMINI_MODEL)) return DEFAULT_GEMINI_MODEL;
+  return usable.find(name => /flash/.test(name) && !/lite|image|tts|audio|live|embedding|preview|exp/.test(name)) || null;
+}
+
+/**
+ * Hỏi Google danh sách model còn dùng được và chọn bản Flash ổn định mới nhất.
+ */
+async function discoverGeminiModel(apiKey) {
+  if (!discoveredModelPromise) {
+    discoveredModelPromise = (async () => {
+      const response = await fetch(`${GEMINI_API_BASE_URL}/models?pageSize=1000`, {
+        headers: { 'x-goog-api-key': apiKey },
+        signal: AbortSignal.timeout(15000)
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(`Gemini ListModels lỗi ${response.status}`);
+      const modelNames = (data?.models || [])
+        .filter(model => (model.supportedGenerationMethods || []).includes('generateContent'))
+        .map(model => String(model.name || '').replace(/^models\//, ''));
+      const model = pickFlashModel(modelNames);
+      if (!model) throw new Error('Không tìm thấy model Gemini Flash nào còn dùng được.');
+      console.warn(`[gemini] Tự chuyển sang model ${model}. Nên cập nhật GEMINI_MODELS.`);
+      return model;
+    })().catch(error => {
+      discoveredModelPromise = null;
+      throw error;
+    });
+  }
+  return discoveredModelPromise;
+}
+
+/**
+ * Gọi lần lượt các model đã cấu hình; nếu model bị gỡ (404) thì tự tìm model Flash còn dùng được.
+ */
+async function askGemini(prompt) {
+  const apiKey = getGeminiApiKey();
+  const configuredModels = getGeminiModels().filter(model => !unavailableGeminiModels.has(model));
+  const triedModels = new Set();
+  const errors = [];
+  let hasRemovedModel = configuredModels.length === 0;
+
+  const tryModel = async model => {
+    triedModels.add(model);
+    const provider = { name: 'Gemini', model, apiKey };
+    try {
+      const parsed = extractJsonObject(await callAiProvider(provider, prompt));
+      return { parsed, provider };
+    } catch (error) {
+      if (error.status === 404) {
+        unavailableGeminiModels.add(model);
+        hasRemovedModel = true;
+      }
+      errors.push(`${provider.name} (${provider.model}): ${error.message}`);
+      return null;
+    }
+  };
+
+  for (const model of configuredModels) {
+    const result = await tryModel(model);
+    if (result) return { ...result, errors };
+  }
+
+  if (hasRemovedModel) {
+    try {
+      const model = await discoverGeminiModel(apiKey);
+      if (!triedModels.has(model)) {
+        const result = await tryModel(model);
+        if (result) return { ...result, errors };
+      }
+    } catch (error) {
+      errors.push('Tự tìm model Gemini: ' + error.message);
+    }
+  }
+
+  return { parsed: null, provider: null, errors };
 }
 
 function getGeminiTimeoutMs() {
@@ -401,12 +543,6 @@ function getGeminiTimeoutMs() {
 function getGeminiMaxOutputTokens() {
   const maxTokens = Number(process.env.GEMINI_MAX_OUTPUT_TOKENS || 4096);
   return Number.isFinite(maxTokens) && maxTokens > 0 ? maxTokens : 4096;
-}
-
-function getConfiguredProviders() {
-  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
-  if (!apiKey) return [];
-  return getGeminiModels().map(model => ({ name: 'Gemini', model, apiKey }));
 }
 
 function removeTrailingCommas(value = '') {
@@ -469,7 +605,7 @@ async function callGemini(provider, prompt) {
   let response;
   try {
     // API key gửi qua header thay vì query string để không lọt vào log của proxy
-    response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(provider.model)}:generateContent`, {
+    response = await fetch(`${GEMINI_API_BASE_URL}/models/${encodeURIComponent(provider.model)}:generateContent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': provider.apiKey },
       body: JSON.stringify({
@@ -488,7 +624,9 @@ async function callGemini(provider, prompt) {
     clearTimeout(timeoutId);
   }
   const data = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(`${provider.name} API lỗi ${response.status}: ${JSON.stringify(data)}`);
+  if (!response.ok) {
+    throw Object.assign(new Error(`${provider.name} API lỗi ${response.status}: ${JSON.stringify(data)}`), { status: response.status });
+  }
   return data?.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('\n') || '';
 }
 
@@ -514,73 +652,45 @@ export async function solveAttemptQuestions(payload = {}) {
   const questions = rawQuestions.map(normalizeQuestion).filter(question => question.questiontext && question.answers.length > 0);
   if (questions.length === 0) throw httpError(400, 'Không có câu hỏi trắc nghiệm hợp lệ để AI trả lời.');
 
-  const { matchedAnswers, unansweredQuestions } = await findStoredAnswers(questions);
+  const subjectScope = await resolveSubjectScope(payload);
+  const { matchedAnswers, unansweredQuestions } = await findStoredAnswers(questions, subjectScope);
   const unavailableAnswers = unansweredQuestions
     .filter(question => question.audioKeys.length > 0)
     .map(createUnavailableAudioAnswer);
   const aiQuestions = unansweredQuestions.filter(question => question.audioKeys.length === 0);
   let aiAnswers = [];
   let usedProvider = null;
-
-  if (aiQuestions.length > 0) {
-    const providers = getConfiguredProviders();
-    if (providers.length === 0) {
-      if (matchedAnswers.length > 0 || unavailableAnswers.length > 0) {
-        return {
-          totalQuestions: questions.length,
-          databaseCount: matchedAnswers.length,
-          aiCount: 0,
-          provider: '',
-          model: '',
-          unavailableCount: unavailableAnswers.length,
-          answers: [...matchedAnswers, ...unavailableAnswers].sort((a, b) => Number(a.slot) - Number(b.slot))
-        };
-      }
-      throw httpError(503, 'Backend chưa cấu hình GEMINI_API_KEY. Hãy thêm Gemini API key vào biến môi trường.');
-    }
-
-    const prompt = buildPrompt(aiQuestions);
-    const errors = [];
-    let parsed = null;
-    for (const provider of providers) {
-      try {
-        const text = await callAiProvider(provider, prompt);
-        parsed = extractJsonObject(text);
-        usedProvider = provider;
-        break;
-      } catch (error) {
-        errors.push(`${provider.name} (${provider.model}): ${error.message}`);
-      }
-    }
-
-    if (!parsed) {
-      if (matchedAnswers.length > 0 || unavailableAnswers.length > 0) {
-        return {
-          totalQuestions: questions.length,
-          databaseCount: matchedAnswers.length,
-          aiCount: 0,
-          provider: '',
-          model: '',
-          aiError: `AI lỗi với ${aiQuestions.length} câu chưa có trong hệ thống. ${errors.join(' | ')}`,
-          unavailableCount: unavailableAnswers.length,
-          answers: [...matchedAnswers, ...unavailableAnswers].sort((a, b) => Number(a.slot) - Number(b.slot))
-        };
-      }
-      throw httpError(502, `Tất cả model AI đều lỗi. ${errors.join(' | ')}`);
-    }
-    aiAnswers = normalizeAiAnswers(Array.isArray(parsed.answers) ? parsed.answers : [], aiQuestions);
-  }
-
-  const answers = [...matchedAnswers, ...unavailableAnswers, ...aiAnswers].sort((a, b) => Number(a.slot) - Number(b.slot));
-  return {
+  const buildResult = (extra = {}) => ({
     totalQuestions: questions.length,
     databaseCount: matchedAnswers.length,
     aiCount: aiAnswers.length,
     unavailableCount: unavailableAnswers.length,
     provider: usedProvider?.name || '',
     model: usedProvider?.model || '',
-    answers
-  };
+    subjectScope: { type: subjectScope.type, subjectName: subjectScope.subjectName },
+    answers: [...matchedAnswers, ...unavailableAnswers, ...aiAnswers].sort((a, b) => Number(a.slot) - Number(b.slot)),
+    ...extra
+  });
+  const hasOtherAnswers = matchedAnswers.length > 0 || unavailableAnswers.length > 0;
+
+  if (aiQuestions.length > 0) {
+    if (!getGeminiApiKey()) {
+      if (hasOtherAnswers) return buildResult();
+      throw httpError(503, 'Backend chưa cấu hình GEMINI_API_KEY. Hãy thêm Gemini API key vào biến môi trường.');
+    }
+
+    const { parsed, provider, errors } = await askGemini(buildPrompt(aiQuestions));
+    if (!parsed) {
+      if (hasOtherAnswers) {
+        return buildResult({ aiError: `AI lỗi với ${aiQuestions.length} câu chưa có trong hệ thống. ${errors.join(' | ')}` });
+      }
+      throw httpError(502, `Tất cả model AI đều lỗi. ${errors.join(' | ')}`);
+    }
+    usedProvider = provider;
+    aiAnswers = normalizeAiAnswers(Array.isArray(parsed.answers) ? parsed.answers : [], aiQuestions);
+  }
+
+  return buildResult();
 }
 
 

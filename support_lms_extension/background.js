@@ -364,29 +364,16 @@ async function enrichStoredAnswers(response = {}) {
   const result = response?.data;
   if (!result || !Array.isArray(result.answers)) return response;
   const answers = await Promise.all(result.answers.map(async answer => {
-    if (answer.source === 'database' && answer.fullAnswerHtml) return answer;
+    // Backend đã tìm theo đúng môn học và đối chiếu lựa chọn; ở đây chỉ bổ sung nội dung đáp án
+    // cho câu từ hệ thống còn thiếu, không tự tìm lại trên toàn bộ ngân hàng câu hỏi để ghi đè câu AI
+    // (tìm lại không lọc theo môn dễ ghép nhầm câu của môn khác).
+    if (answer.source !== 'database' || answer.fullAnswerHtml) return answer;
     const storedAnswer = await fetchFullStoredAnswer(answer);
-    if (!storedAnswer && extractAudioKeys(answer.questionHtml || answer.questionText || '').length > 0) {
-      return {
-        ...answer,
-        source: 'unavailable',
-        answerLabel: '',
-        answerId: null,
-        answerText: 'Chưa có thông tin trong Lesson Outline.',
-        fullAnswerHtml: '',
-        fullAnswerText: '',
-        confidence: null,
-        explanation: ''
-      };
-    }
     if (!storedAnswer) return answer;
     return {
       ...answer,
-      source: 'database',
       fullAnswerHtml: storedAnswer.html,
-      fullAnswerText: storedAnswer.text,
-      confidence: answer.source === 'database' ? answer.confidence : 1,
-      explanation: 'T\u00ecm th\u1ea5y c\u00e2u h\u1ecfi trong ng\u00e2n h\u00e0ng c\u00e2u h\u1ecfi theo m\u00e3 ho\u1eb7c n\u1ed9i dung.'
+      fullAnswerText: storedAnswer.text
     };
   }));
   return {

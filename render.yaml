@@ -39,7 +39,7 @@ services:
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_MODELS
-        value: gemini-2.0-flash
+        value: gemini-flash-latest
 
       # Telegram: báo lỗi API + báo cáo/backup hằng ngày (để trống nếu không dùng)
       - key: TELEGRAM_BOT_TOKEN

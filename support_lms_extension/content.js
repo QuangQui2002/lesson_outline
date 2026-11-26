@@ -512,6 +512,14 @@ async function selectLiveAnswer(answer) {
   return 'Trang LMS chưa xác nhận lựa chọn. Hãy kiểm tra và chọn trực tiếp.';
 }
 
+function formatSubjectScope(scope) {
+  if (!scope?.type || scope.type === 'all') return '';
+  const label = scope.type === 'new_subject'
+    ? 'Môn mới ' + escapeHtml(scope.subjectName) + ': chưa có câu hỏi trong hệ thống, dùng AI cho toàn bộ.'
+    : 'Tìm đáp án trong môn: ' + escapeHtml(scope.subjectName);
+  return '<div class="lms-ai-answer-summary">' + label + '</div>';
+}
+
 function renderAiAnswerPanel(answers = [], meta = {}) {
   let panel = document.querySelector('#lms-ai-answer-panel');
   if (!panel) {
@@ -571,6 +579,7 @@ function renderAiAnswerPanel(answers = [], meta = {}) {
       <button id="lms-ai-answer-close" type="button" title="Đóng">×</button>
     </div>
     <div class="lms-ai-answer-summary">${meta.databaseCount || 0} câu từ hệ thống • ${meta.aiCount || 0} câu dùng AI</div>
+    ${formatSubjectScope(meta.subjectScope)}
     ${meta.aiError ? `<div class="lms-ai-answer-warning">${escapeHtml(meta.aiError)}</div>` : ''}
     <div class="lms-ai-answer-body">${answerItems}</div>
   `;

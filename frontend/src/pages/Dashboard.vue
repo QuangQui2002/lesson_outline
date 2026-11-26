@@ -227,9 +227,8 @@ export default {
       jsonImportText: '',
       jsonImportPreview: null,
       extensionInfo: {
-        version: '1.0.22',
+        version: '1.0.23',
         downloadUrl: '/downloads/support_lms_extension.zip',
-          note: 'Chuyển sang server mới lesson-outline-8t1c.onrender.com.'
       },
       editingQuestion: null
     };
